@@ -1,0 +1,20 @@
+,P_ID,wikidata_label,sensitive_attribute,count_wikidata5m_transductive_test,sparql_count_14.10.2021,sparql_query_time_s
+0,P21,sex or gender,gender,,,
+1,P6553,personal pronoun,gender,,1819,1.22
+2,P172,ethnic group,ethnicity,5,134446,4.33
+3,P3833,diaspora,ethnicity,,1,0.47
+4,P27,country of citizenship,nationality,299,,
+5,P19,place of birth,nationality,227,,
+6,P103,native language,nationality,3,194947,3.48
+7,P5389,permanent resident of,nationality,,1264,0.61
+8,P91,sexual orientation,sexual orientation,,3157,0.4
+9,P1050,medical condition,disability,,10648,4.09
+10,P140,religion,religion,10,212897,8.18
+11,P8929,religion or world view,religion,,27,0.2
+12,P569,date of birth,age,,,
+13,P570,date of death,age,,,
+14,P3716,social classification,socioeconomic status,,8895,0.6
+15,P97,noble title,socioeconomic status,2,45353,1.19
+16,P1340,eye color,physical appearance,,6664,0.54
+17,P8852,facial hair,physical appearance,,248,0.61
+18,P8839,hair style,physical appearance,,152,0.4
