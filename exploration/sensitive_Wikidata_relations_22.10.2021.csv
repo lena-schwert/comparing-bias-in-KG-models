@@ -1,0 +1,20 @@
+wikidata_label,P_ID,Wikidatasets_ID,sensitive_attribute
+country of citizenship,P27,5,nationality
+religion,P140,22,religion
+ethnic group,P172,42,ethnicity
+native language,P103,20,nationality
+noble title,P97,96,socioeconomic status
+medical condition,P1050,73,disability
+sex or gender,P21,31,gender
+sexual orientation,P91,114,sexual orientation
+social classification,P3716,29,socioeconomic status
+diaspora,P3833,NA,ethnicity
+eye color,P1340,91,physical appearance
+date of birth,P569,NA,age
+date of death,P570,NA,age
+personal pronoun,P6553,NA,gender
+permanent resident of,P5389,142,nationality
+facial hair,P8852,NA,physical appearance
+hair style,P8839,NA,physical appearance
+religion or world view,P8929,NA,religion
+place of birth,P19,30,nationality
