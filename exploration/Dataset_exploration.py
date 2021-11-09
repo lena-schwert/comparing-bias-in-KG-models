@@ -86,6 +86,3 @@ entities_df = pd.read_csv(os.path.join(dataset_folder, 'entity2id.txt'), sep = '
                           names = ['Wikidata_ID', 'OpenKE_ID'], skiprows = 1)
 
 entities_df[entities_df['Wikidata_ID'] == 'Q5']  # 48
-
-
-cpount

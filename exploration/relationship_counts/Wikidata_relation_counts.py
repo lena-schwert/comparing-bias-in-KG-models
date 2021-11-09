@@ -4,6 +4,7 @@ import time
 
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 from SPARQLWrapper import SPARQLWrapper, JSON, CSV
 
@@ -16,7 +17,7 @@ pd.set_option('display.width', 1000)
 # file from 25.10. additionally includes OpenKE IDs
 # or use target relations dataset
 sensitive_properties = pd.read_csv(
-    '/home/lena/git/master_thesis_bias_in_NLP/exploration/target_Wikidata_relations_25.10.2021.csv',
+    '/home/lena/git/master_thesis_bias_in_NLP/exploration/sensitive_Wikidata_relations_25.10.2021.csv',
     na_values = "NA",
     dtype = {'P_ID': str, 'wikidata_label': str, 'sensitive_attribute': 'category'})
 
@@ -24,34 +25,20 @@ sensitive_properties = pd.read_csv(
 sensitive_properties = sensitive_properties.convert_dtypes()
 
 
-# %% import target relations spreadsheet
-
-# TODO count target relations for all datasets
+# %% Utility functions for making relation counts
 
 
-# %% Utility function for making relation counts
-
-
-def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_processed):
-    print(f'Counting relations for {name_of_dataset_processed} dataset...')
-
+def return_triples_df(name_of_dataset_processed):
     # do specific things for different datasets, if required
-    if name_of_dataset_processed == 'Wikidata5M':
+    if name_of_dataset_processed.lower() == 'wikidata5m':
         # file names: e.g. wikidata5m_all_triplets.txt
         # each line is a triple: Q29387131	P31	Q5 (tab-separated)
-        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/SOTA datasets_raw downloads/Wikidata5M/'
+        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/SOTA_datasets_raw_downloads/Wikidata5M/'
         file_name = 'wikidata5m_all_triplets.txt'
         triples_df = pd.read_csv(os.path.join(dataset_folder, file_name), sep = '\t',
                                  names = ['head_entity', 'relation', 'tail_entity'])
-        # How many times does "... instance of human" appear?
-        number_of_human_entities = triples_df[(triples_df['relation'] == 'P31') & (
-                    triples_df['tail_entity'] == 'Q5')].__len__()  # 1519261 rows
-        # How many times does "... subclass of human" appear?
-        # can be neglected!
-        # triples_df[(triples_df['relation'] == 'P279') & (triples_df['tail_entity'] == 'Q5')]  # 84 rows
-        lookup_column_for_filtering = 'P_ID'
 
-    elif name_of_dataset_processed == 'Wikidatasets-Humans':
+    elif name_of_dataset_processed.lower() == 'wikidatasets-humans':
         dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
         # 44 million rows, needs 1GB RAM, rows are integers only
         # contains all triples where the tail entity is no human
@@ -71,14 +58,7 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
         # add both dataframes together
         triples_df = pd.concat([edges_df, attributes_df])
 
-        # How many human entities?
-        nodes_df = pd.read_csv(os.path.join(dataset_folder, 'nodes.tsv'), sep = '\t',
-                               names = ['entity_ID', 'wikidata_ID', 'label'], skiprows = 1)
-        number_of_human_entities = nodes_df.index.__len__() + 1
-
-        lookup_column_for_filtering = 'Wikidatasets_ID'
-
-    elif name_of_dataset_processed == "OpenKE":
+    elif name_of_dataset_processed.lower() == "openke":
         dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/OpenKE-Wikidata/knowledge graphs/'
         # each line is a triple: 0 1 0 (tab-separated)
         # 69 million rows, needs 1.5GB RAM, rows are integers only (same as Wikidatasets)
@@ -86,16 +66,75 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
         triples_df = pd.read_csv(os.path.join(dataset_folder, 'triple2id.txt'), sep = '\t',
                                  names = ['head_entity', 'tail_entity', 'relation'], skiprows = 1)
 
+    elif name_of_dataset_processed.lower() == 'codex-l' or name_of_dataset_processed.lower() == 'codex-m' or name_of_dataset_processed.lower() == 'codex-s':
+        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Codex_S_M_L/triples/'
+        train_triples = pd.read_csv(
+            os.path.join(dataset_folder, name_of_dataset_processed.lower(), 'train.txt'),
+            sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
+        valid_triples = pd.read_csv(
+            os.path.join(dataset_folder, name_of_dataset_processed.lower(), 'valid.txt'),
+            sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
+        test_triples = pd.read_csv(
+            os.path.join(dataset_folder, name_of_dataset_processed.lower(), 'test.txt'), sep = '\t',
+            names = ['head_entity', 'relation', 'tail_entity'])
+        # concatenate all individual data frame into a single one
+        triples_df = pd.concat([train_triples, valid_triples,
+                                test_triples])  # akternatively load raw triples  # triples_df = pd.read_csv(  #     '/home/lena/git/master_thesis_bias_in_NLP/data/Codex_S_M_L/triples/raw_triples.txt',  #      sep = '\t',  #      names = ['head_entity', 'relation', 'tail_entity'])
+    else:
+        print(f"Dataset name {name_of_dataset_processed} not found!")
+
+    return triples_df
+
+
+def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_processed):
+    print(f'Counting relations for {name_of_dataset_processed} dataset...')
+
+    name_of_dataset_processed = name_of_dataset_processed.lower()
+
+    # do specific things for different datasets, if required
+    if name_of_dataset_processed == 'wikidata5m':
+        triples_df = return_triples_df(name_of_dataset_processed)
+
+        # How many times does "... instance of human" appear?
+        number_of_human_entities = triples_df[(triples_df['relation'] == 'P31') & (
+                triples_df['tail_entity'] == 'Q5')].__len__()  # 1519261 rows
+        # How many times does "... subclass of human" appear?
+        # can be neglected!
+        # triples_df[(triples_df['relation'] == 'P279') & (triples_df['tail_entity'] == 'Q5')]  # 84 rows
+        lookup_column_for_filtering = 'P_ID'
+
+    elif name_of_dataset_processed == 'wikidatasets-humans':
+        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
+        triples_df = return_triples_df(name_of_dataset_processed)
+
+        # How many human entities?
+        nodes_df = pd.read_csv(os.path.join(dataset_folder, 'nodes.tsv'), sep = '\t',
+                               names = ['entity_ID', 'wikidata_ID', 'label'], skiprows = 1)
+        number_of_human_entities = nodes_df.index.__len__() + 1
+
+        lookup_column_for_filtering = 'Wikidatasets_ID'
+
+    elif name_of_dataset_processed == "openke":
+        triples_df = return_triples_df(name_of_dataset_processed)
+
         # How many human entities?
         # instance of: 4, subclass of: 90, human, Q5: 68
         number_of_human_entities = triples_df[
             (triples_df['relation'] == 4) & (triples_df['tail_entity'] == 68)].__len__()
 
         lookup_column_for_filtering = 'OpenKE_ID'
-        pass
+
+    elif name_of_dataset_processed == 'codex-l' or name_of_dataset_processed == 'codex-m' or name_of_dataset_processed == 'codex-s':
+        triples_df = return_triples_df(name_of_dataset_processed)
+
+        # How many times does "... instance of human" appear?
+        number_of_human_entities = triples_df[
+            (triples_df['relation'] == 'P31') & (triples_df['tail_entity'] == 'Q5')].__len__()
+
+        lookup_column_for_filtering = 'P_ID'
 
     else:
-        print(f"Dataset name {name_of_dataset_processed} not found!")
+        ImportError(f"Dataset name {name_of_dataset_processed} not found!")
 
     # count occurrence of all relations as pandas series where relations = index type
     all_relation_counts = triples_df['relation'].value_counts()
@@ -120,8 +159,6 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
             property_encoding_df.loc[
                 i, new_column_name] = np.nan  # print('This relation does NOT exist in the dataset!')
 
-    # TODO count number of humans in the dataset
-
     # count total number of triples
     total_number_of_triples = triples_df.index.__len__() + 1
 
@@ -140,21 +177,42 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
 #
 # #relation_counts_Wikidatasets_Humans.to_csv('exploration/tosave_Wikidatasets-Humans_target_counts.csv')
 #
-# # %% Do everything for Wikidata5M
-#
+# %% Do everything for Wikidata5M
+
 # relation_counts_Wikidata5M, total_number_of_triples_Wikidata5M, number_of_human_entities_Wikidata5M = load_dataset_return_relations_count(
 #     property_encoding_df = sensitive_properties, name_of_dataset_processed = 'Wikidata5M')
-#
-# # save as csv to disk
-# #relation_counts_Wikidata5M.to_csv('exploration/tosave_Wikidata5M_target_counts.csv')
+
+# save as csv to disk
+# relation_counts_Wikidata5M.to_csv('exploration/tosave_Wikidata5M_target_counts.csv')
 
 # %% Do everything for OpenKE
 
-relation_counts_OpenKE, total_number_of_triples_OpenKE, number_of_human_entities_OpenKE = load_dataset_return_relations_count(
-    property_encoding_df = sensitive_properties, name_of_dataset_processed = 'OpenKE')
+# relation_counts_OpenKE, total_number_of_triples_OpenKE, number_of_human_entities_OpenKE = load_dataset_return_relations_count(
+# property_encoding_df = sensitive_properties, name_of_dataset_processed = 'OpenKE')
 
 # save as csv to disk
-#relation_counts_OpenKE.to_csv('exploration/tosave_OpenKE_target_counts.csv')
+# relation_counts_OpenKE.to_csv('exploration/tosave_OpenKE_target_counts.csv')
+
+# %% Do everything for the 3 Codex datasets
+
+relation_counts_codex, total_number_of_triples_codex, number_of_human_entities_codex = load_dataset_return_relations_count(
+    property_encoding_df = sensitive_properties, name_of_dataset_processed = 'CoDEx-L')
+
+
+# %% Make tail value counts
+
+# starting out from the triples df
+
+# Wikidata5M
+# triples_df[triples_df['relation'] == 'P21']
+#
+# # male sex or gender: Q6581097
+# triples_df[triples_df['tail_entity'] == 'Q6581097']  # does not appear!
+# # female sex or gender: Q6581072
+# triples_df[triples_df['tail_entity'] == 'Q6581072']  # does not appear!
+
+
+
 
 # %% Extract sensitive relation counts from current Wikidata via SPARQL
 
@@ -178,7 +236,7 @@ sensitive_properties['sparql_query_time_s'] = ''
 # loop through P_ID column
 for i, sensitive_p in enumerate(sensitive_properties['P_ID']):
     print(f'Relation queried: {sensitive_p}')
-    #print(type(sensitive_p))
+    # print(type(sensitive_p))
     # add the current P-ID in the parametrized f-string of the query
     # query_female_human_count = f'SELECT (COUNT (DISTINCT ?item) AS ?count) WHERE {{?item wdt:{sensitive_p} wd:Q6581072. SERVICE wikibase:label {{bd: serviceParam wikibase: language "en".}} }}'
     SPARQL_query = f'SELECT (COUNT (DISTINCT ?item) AS ?count) WHERE {{?item wdt:P31 wd:Q5; wdt:{sensitive_p} ?value. }}'
@@ -209,5 +267,5 @@ sensitive_properties.info()
 
 # write file to disk
 print('Dataframe from SPARQL was created.')
-#os.getcwd()
+# os.getcwd()
 sensitive_properties.to_csv('tosave_SPARQL_counts_RENAME_ME.csv')
