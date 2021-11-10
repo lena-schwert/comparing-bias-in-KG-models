@@ -1,15 +1,19 @@
+# import from built-in modules
 import os
 import sys
 import time
+import gc
 
 import pandas as pd
 import numpy as np
 import seaborn as sns
 
-from SPARQLWrapper import SPARQLWrapper, JSON, CSV
+from SPARQLWrapper import SPARQLWrapper, JSON
 
 pd.set_option('display.max_columns', 1000)
 pd.set_option('display.width', 1000)
+pd.set_option('display.min_rows', 10)
+pd.set_option('display.max_rows', 100)
 
 # %% import spreadsheet sensitive relation encoding as pandas dataframe
 
@@ -17,18 +21,27 @@ pd.set_option('display.width', 1000)
 # file from 25.10. additionally includes OpenKE IDs
 # or use target relations dataset
 sensitive_properties = pd.read_csv(
-    '/home/lena/git/master_thesis_bias_in_NLP/exploration/sensitive_Wikidata_relations_25.10.2021.csv',
+    '/home/lena/git/master_thesis_bias_in_NLP/exploration/relationship_counts/sensitive_Wikidata_relations_25.10.2021.csv',
     na_values = "NA",
     dtype = {'P_ID': str, 'wikidata_label': str, 'sensitive_attribute': 'category'})
-
-# this is necessary to cast "Wikidatasets_ID" to Int64
+# this is necessary to cast "Wikidatasets_ID" to Int64 and labels to pandas string type
 sensitive_properties = sensitive_properties.convert_dtypes()
+
+target_properties = pd.read_csv(
+    '/home/lena/git/master_thesis_bias_in_NLP/exploration/relationship_counts/target_Wikidata_relations_25.10.2021.csv',
+    na_values = "NA",
+    dtype = {'P_ID': str, 'wikidata_label': str, 'sensitive_attribute': 'category'})
+# this is necessary to cast "Wikidatasets_ID" to Int64 and labels to pandas string type
+target_properties = target_properties.convert_dtypes()
+
+all_properties_df = pd.concat([sensitive_properties, target_properties])
+all_properties_df.reset_index(inplace = True)
 
 
 # %% Utility functions for making relation counts
 
 
-def return_triples_df(name_of_dataset_processed):
+def get_triples_df(name_of_dataset_processed):
     # do specific things for different datasets, if required
     if name_of_dataset_processed.lower() == 'wikidata5m':
         # file names: e.g. wikidata5m_all_triplets.txt
@@ -37,6 +50,7 @@ def return_triples_df(name_of_dataset_processed):
         file_name = 'wikidata5m_all_triplets.txt'
         triples_df = pd.read_csv(os.path.join(dataset_folder, file_name), sep = '\t',
                                  names = ['head_entity', 'relation', 'tail_entity'])
+        property_encoding_ID = 'P_ID'
 
     elif name_of_dataset_processed.lower() == 'wikidatasets-humans':
         dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
@@ -58,6 +72,8 @@ def return_triples_df(name_of_dataset_processed):
         # add both dataframes together
         triples_df = pd.concat([edges_df, attributes_df])
 
+        property_encoding_ID = 'Wikidatasets_ID'
+
     elif name_of_dataset_processed.lower() == "openke":
         dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/OpenKE-Wikidata/knowledge graphs/'
         # each line is a triple: 0 1 0 (tab-separated)
@@ -65,6 +81,8 @@ def return_triples_df(name_of_dataset_processed):
         # column ordering mentioned on Github
         triples_df = pd.read_csv(os.path.join(dataset_folder, 'triple2id.txt'), sep = '\t',
                                  names = ['head_entity', 'tail_entity', 'relation'], skiprows = 1)
+
+        property_encoding_ID = 'OpenKE_ID'
 
     elif name_of_dataset_processed.lower() == 'codex-l' or name_of_dataset_processed.lower() == 'codex-m' or name_of_dataset_processed.lower() == 'codex-s':
         dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Codex_S_M_L/triples/'
@@ -78,12 +96,16 @@ def return_triples_df(name_of_dataset_processed):
             os.path.join(dataset_folder, name_of_dataset_processed.lower(), 'test.txt'), sep = '\t',
             names = ['head_entity', 'relation', 'tail_entity'])
         # concatenate all individual data frame into a single one
-        triples_df = pd.concat([train_triples, valid_triples,
-                                test_triples])  # akternatively load raw triples  # triples_df = pd.read_csv(  #     '/home/lena/git/master_thesis_bias_in_NLP/data/Codex_S_M_L/triples/raw_triples.txt',  #      sep = '\t',  #      names = ['head_entity', 'relation', 'tail_entity'])
+        triples_df = pd.concat([train_triples, valid_triples, test_triples])
+        # akternatively load raw triples  # triples_df = pd.read_csv(
+        #     '/home/lena/git/master_thesis_bias_in_NLP/data/Codex_S_M_L/triples/raw_triples.txt',
+        #      sep = '\t',
+        #      names = ['head_entity', 'relation', 'tail_entity'])
+        property_encoding_ID = 'P_ID'
     else:
         print(f"Dataset name {name_of_dataset_processed} not found!")
 
-    return triples_df
+    return triples_df, property_encoding_ID
 
 
 def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_processed):
@@ -93,45 +115,36 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
 
     # do specific things for different datasets, if required
     if name_of_dataset_processed == 'wikidata5m':
-        triples_df = return_triples_df(name_of_dataset_processed)
+        triples_df, lookup_column_for_filtering = get_triples_df(name_of_dataset_processed)
 
         # How many times does "... instance of human" appear?
-        number_of_human_entities = triples_df[(triples_df['relation'] == 'P31') & (
-                triples_df['tail_entity'] == 'Q5')].__len__()  # 1519261 rows
-        # How many times does "... subclass of human" appear?
-        # can be neglected!
-        # triples_df[(triples_df['relation'] == 'P279') & (triples_df['tail_entity'] == 'Q5')]  # 84 rows
-        lookup_column_for_filtering = 'P_ID'
+        number_of_human_entities = triples_df[(triples_df['relation'] == 'P31') & (triples_df[
+                                                                                       'tail_entity'] == 'Q5')].__len__()  # 1519261 rows  # How many times does "... subclass of human" appear?  # can be neglected!  # triples_df[(triples_df['relation'] == 'P279') & (triples_df['tail_entity'] == 'Q5')]  # 84 rows
+
 
     elif name_of_dataset_processed == 'wikidatasets-humans':
         dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
-        triples_df = return_triples_df(name_of_dataset_processed)
+        triples_df, lookup_column_for_filtering = get_triples_df(name_of_dataset_processed)
 
         # How many human entities?
         nodes_df = pd.read_csv(os.path.join(dataset_folder, 'nodes.tsv'), sep = '\t',
                                names = ['entity_ID', 'wikidata_ID', 'label'], skiprows = 1)
         number_of_human_entities = nodes_df.index.__len__() + 1
 
-        lookup_column_for_filtering = 'Wikidatasets_ID'
-
-    elif name_of_dataset_processed == "openke":
-        triples_df = return_triples_df(name_of_dataset_processed)
+    elif name_of_dataset_processed == 'openke':
+        triples_df, lookup_column_for_filtering = get_triples_df(name_of_dataset_processed)
 
         # How many human entities?
         # instance of: 4, subclass of: 90, human, Q5: 68
         number_of_human_entities = triples_df[
             (triples_df['relation'] == 4) & (triples_df['tail_entity'] == 68)].__len__()
 
-        lookup_column_for_filtering = 'OpenKE_ID'
-
     elif name_of_dataset_processed == 'codex-l' or name_of_dataset_processed == 'codex-m' or name_of_dataset_processed == 'codex-s':
-        triples_df = return_triples_df(name_of_dataset_processed)
+        triples_df, lookup_column_for_filtering = get_triples_df(name_of_dataset_processed)
 
         # How many times does "... instance of human" appear?
         number_of_human_entities = triples_df[
             (triples_df['relation'] == 'P31') & (triples_df['tail_entity'] == 'Q5')].__len__()
-
-        lookup_column_for_filtering = 'P_ID'
 
     else:
         ImportError(f"Dataset name {name_of_dataset_processed} not found!")
@@ -195,23 +208,143 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
 
 # %% Do everything for the 3 Codex datasets
 
-relation_counts_codex, total_number_of_triples_codex, number_of_human_entities_codex = load_dataset_return_relations_count(
-    property_encoding_df = sensitive_properties, name_of_dataset_processed = 'CoDEx-L')
+# relation_counts_codex, total_number_of_triples_codex, number_of_human_entities_codex = load_dataset_return_relations_count(
+#     property_encoding_df = sensitive_properties, name_of_dataset_processed = 'CoDEx-L')
 
 
-# %% Make tail value counts
+# %% Make tail value counts for all datasets for sensitive + target relations
 
-# starting out from the triples df
+# TODO loop through all datasets
+# TODO account for different occurrence of tail values across datasets
 
-# Wikidata5M
-# triples_df[triples_df['relation'] == 'P21']
-#
-# # male sex or gender: Q6581097
-# triples_df[triples_df['tail_entity'] == 'Q6581097']  # does not appear!
-# # female sex or gender: Q6581072
-# triples_df[triples_df['tail_entity'] == 'Q6581072']  # does not appear!
+# idea: join the all_properties dataframe together with a dataset that is created below
+# final dataset columns: dataset name, relation, tail value, counts (NA or integer)
 
+list_of_all_datasets = ['Wikidatasets-Humans', 'Wikidata5M', 'OpenKE', 'Codex-L', 'Codex-M',
+                        'Codex-S']
 
+# drop some relations from the dataframe, because they have too low counts
+# drop 9 relations overall
+relations_to_drop = ['date of birth', 'date of death', 'personal pronoun', 'permanent resident of',
+                     'facial hair', 'hair style', 'religion or world view', 'diaspora',
+                     'nominated by']
+
+# drop these rows from the all_properties_df
+filter = set(relations_to_drop)
+to_delete = list()
+
+for id, row in all_properties_df.iterrows():
+    current_item = set([row.wikidata_label])
+    if current_item.intersection(filter):
+        to_delete.append(id)
+
+all_properties_df.drop(to_delete, inplace = True)
+all_properties_df.reset_index(inplace = True)
+
+# create dataframe for storing the results
+results_tail_value_counts = pd.DataFrame(
+    columns = ['dataset_name', 'relation_P-ID', 'relation_label', 'tail_entity_Q-ID',
+               'tail_entity_label', 'count'])
+
+# loop through datasets one by one
+for dataset in list_of_all_datasets:
+    print(f'Retrieving tail value counts for {dataset} dataset...')
+    # retrieve the triples dataset + data-specific variable for filtering the relation column
+    triples_df, property_encoding_ID = get_triples_df(dataset)
+
+    # create a subset of the dataset using the relations in all properties
+    list_of_all_relations = all_properties_df[property_encoding_ID]
+
+    # list_of_all_relations_regex_OR = '|'.join(list_of_all_relations)
+    # # create filtering mask and preserve original indices
+    # filtering_mask_all_relations_match = triples_df.stack().str.match(list_of_all_relations_regex_OR).groupby(level = 0).any()
+    # triples_df_only_selected_relations_match = triples_df[filtering_mask_all_relations]
+    # # has 5116730 entries
+    # filtering_mask_all_relations_fullmatch = triples_df.stack().str.fullmatch(list_of_all_relations_regex_OR).groupby(level = 0).any()
+    # triples_df_only_selected_relations_fullmatch = triples_df[filtering_mask_all_relations_fullmatch]
+    # # has 4749166 entries
+
+    # alternative: use isin()
+    filtering_mask_all_selected_relations = triples_df['relation'].isin(list_of_all_relations)
+    triples_df_all_selected_relations = triples_df[filtering_mask_all_selected_relations]
+    # has 4749166 entries
+    # store relations of the dataset as a set
+    all_relations_present_in_dataset = set(triples_df_all_selected_relations['relation'].unique())
+
+    # free up memory
+    del triples_df
+    gc.collect()
+
+    # retrieve tail counts for each of the relations found in the dataset
+    for i, relation in enumerate(all_properties_df[property_encoding_ID]):
+        print(f'Counting tail values for relation: {relation}')
+
+        # account for relations that do not occur in this particular dataset
+        if relation in all_relations_present_in_dataset:
+            # for each relation, make a subset of the subset dataset
+            filtering_mask_only_current_relation = triples_df_all_selected_relations[
+                'relation'].isin([relation])
+            triples_df_only_current_relation = triples_df_all_selected_relations[
+                filtering_mask_only_current_relation]
+
+            # make value counts across the tail entities for this dataframe
+            triples_df_only_current_relation_value_counts = triples_df_only_current_relation[
+                'tail_entity'].value_counts()
+
+            relation_P_ID = relation
+            # if necessary, transform between dataset-specific IDs and P-IDs
+            if property_encoding_ID != 'P_ID':
+                relation_P_ID = all_properties_df['P_ID'][
+                    all_properties_df[property_encoding_ID] == relation].item()
+
+            # add this dataframe to the final results dataframe with dataset + relation name
+            number_of_new_rows = len(triples_df_only_current_relation_value_counts)
+            rows_to_add = pd.DataFrame({'dataset_name': [dataset] * number_of_new_rows,
+                                        'relation_P-ID': [relation_P_ID] * number_of_new_rows,
+                                        'relation_label': [all_properties_df['wikidata_label'][
+                                                               all_properties_df[
+                                                                   'P_ID'] == relation_P_ID].item()] * number_of_new_rows,
+                                        'tail_entity_Q-ID': triples_df_only_current_relation_value_counts.index.values,
+                                        'tail_entity_label': ['NA'] * number_of_new_rows,
+                                        'count': triples_df_only_current_relation_value_counts.values})
+            results_tail_value_counts = pd.concat([results_tail_value_counts, rows_to_add])
+        else:
+            # Which relations I selected do not occur in this dataset?
+            # relations_not_contained = set(all_properties_df['P_ID']) - all_relations_present_in_dataset
+            print('This relation is not contained in the current dataset!')
+            # These are:
+            # Wikidata5M: place of birth
+            # OpenKE: social classification
+            # account for non-numeric relations in NA special case
+            if isinstance(relation, str) == False:
+                relation = all_properties_df['P_ID'].loc[i]
+
+            # add a NA row to the results dataframe
+            NA_row_to_add = pd.DataFrame(
+                {'dataset_name': [dataset], 'relation_P-ID': [relation],
+                 'relation_label': [all_properties_df['wikidata_label'][
+                                                               all_properties_df[
+                                                                   'P_ID'] == relation].item()],
+                 'tail_entity_Q-ID': ['NA'], 'tail_entity_label': ['NA'], 'count': [np.nan]})
+            results_tail_value_counts = pd.concat([results_tail_value_counts, NA_row_to_add])
+
+        #results_tail_value_counts.reset_index(inplace = True)
+
+    # free up RAM for next dataset
+    del triples_df_all_selected_relations
+    gc.collect()
+
+# after retrieving all counts for the datasets:
+# map from Q-IDs to English Wikidata labels for human readability
+print('collected all counts')
+print('yay')
+
+# transform counts into percentages
+
+# write dataframe to csv/pickle
+pass
+
+# %% Create plots of tail value counts
 
 
 # %% Extract sensitive relation counts from current Wikidata via SPARQL
