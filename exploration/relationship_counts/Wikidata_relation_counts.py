@@ -361,9 +361,45 @@ print('Collected all counts!')
 print('yay')
 
 # write dataframe to csv/pickle
-results_tail_value_counts.to_csv('tail_value_counts_all_11.11.2021.csv')
-results_tail_value_counts.to_pickle('tail_value_counts_all_11.11.2021.pkl')
+#results_tail_value_counts.to_csv('tail_value_counts_all_11.11.2021.csv')
+#results_tail_value_counts.to_pickle('tail_value_counts_all_11.11.2021.pkl')
 
+
+# %% after retrieving all counts for the datasets:
+# map from Q-IDs to English Wikidata labels for human readability
+# USE Wikidatasets-Humans entities.tsv
+dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
+Q_IDs_to_labels = pd.read_csv(os.path.join(dataset_folder, 'entities.tsv'), sep = '\t',
+                              skiprows = 1,
+                              names = ['Wikidatasets_ID', 'tail_entity_Q_ID', 'tail_entity_label'])
+Q_IDs_to_labels.drop('Wikidatasets_ID', axis = 1, inplace = True)
+Q_IDs_to_labels = Q_IDs_to_labels.convert_dtypes()
+
+# get a feeling for the scale: How many unique Q_IDs?
+len(results_tail_value_counts['tail_entity_Q_ID'].unique())  # 504,715 entries
+# Hopefully they are all in the 7,949,370 rows of Q_IDs_to_labels
+
+### do a merge with pandas
+# --> I can join on the Q_ID column
+
+# make the column names the same
+Q_IDs_to_labels.columns
+results_tail_value_counts.columns
+
+# use 'left' merge to keep row ordering of left dataframe
+results_tail_value_counts.info()  # has 894648 rows, this should be maintained!
+# also 'inner' removes 21,331 rows somehow... (uses intersection of Q-IDs)
+results_tail_value_counts = pd.merge(left = results_tail_value_counts.drop('tail_entity_label', axis = 1), right = Q_IDs_to_labels,
+                on = ['tail_entity_Q_ID'], how = 'left')
+print(results_tail_value_counts)
+
+# reorder columns
+column_ordering = ['dataset_name', 'relation_P_ID', 'relation_label', 'tail_entity_Q_ID', 'tail_entity_label', 'count']
+results_tail_value_counts = results_tail_value_counts.reindex(columns = column_ordering)
+
+# save to disk
+#results_tail_value_counts.to_csv('tail_value_counts_all_11.11.2021.csv')
+#results_tail_value_counts.to_pickle('tail_value_counts_all_11.11.2021.pkl')
 
 # %% Extract sensitive relation counts from current Wikidata via SPARQL
 
