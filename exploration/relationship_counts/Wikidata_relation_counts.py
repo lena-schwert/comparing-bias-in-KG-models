@@ -35,8 +35,25 @@ target_properties = pd.read_csv(
 target_properties = target_properties.convert_dtypes()
 
 all_properties_df = pd.concat([sensitive_properties, target_properties])
-all_properties_df.reset_index(inplace = True)
+all_properties_df.reset_index(inplace = True, drop = True)
 
+# drop some relations from the dataframe, because they have too low counts
+# drop 9 relations overall
+relations_to_drop = ['date of birth', 'date of death', 'personal pronoun', 'permanent resident of',
+                     'facial hair', 'hair style', 'religion or world view', 'diaspora',
+                     'nominated by']
+
+# drop these rows from the all_properties_df
+filter = set(relations_to_drop)
+to_delete = list()
+
+for id, row in all_properties_df.iterrows():
+    current_item = set([row.wikidata_label])
+    if current_item.intersection(filter):
+        to_delete.append(id)
+
+all_properties_df.drop(to_delete, inplace = True)
+all_properties_df.reset_index(inplace = True, drop = True)
 
 # %% Utility functions for making relation counts
 
@@ -214,43 +231,40 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
 
 # %% Make tail value counts for all datasets for sensitive + target relations
 
-# TODO loop through all datasets
 # TODO account for different occurrence of tail values across datasets
 
 # idea: join the all_properties dataframe together with a dataset that is created below
 # final dataset columns: dataset name, relation, tail value, counts (NA or integer)
 
-list_of_all_datasets = ['Wikidatasets-Humans', 'Wikidata5M', 'OpenKE', 'Codex-L', 'Codex-M',
+list_of_all_datasets = ['Wikidata5M', 'OpenKE', 'Wikidatasets-Humans', 'Codex-L', 'Codex-M',
                         'Codex-S']
-
-# drop some relations from the dataframe, because they have too low counts
-# drop 9 relations overall
-relations_to_drop = ['date of birth', 'date of death', 'personal pronoun', 'permanent resident of',
-                     'facial hair', 'hair style', 'religion or world view', 'diaspora',
-                     'nominated by']
-
-# drop these rows from the all_properties_df
-filter = set(relations_to_drop)
-to_delete = list()
-
-for id, row in all_properties_df.iterrows():
-    current_item = set([row.wikidata_label])
-    if current_item.intersection(filter):
-        to_delete.append(id)
-
-all_properties_df.drop(to_delete, inplace = True)
-all_properties_df.reset_index(inplace = True)
 
 # create dataframe for storing the results
 results_tail_value_counts = pd.DataFrame(
-    columns = ['dataset_name', 'relation_P-ID', 'relation_label', 'tail_entity_Q-ID',
+    columns = ['dataset_name', 'relation_P_ID', 'relation_label', 'tail_entity_Q_ID',
                'tail_entity_label', 'count'])
 
 # loop through datasets one by one
 for dataset in list_of_all_datasets:
-    print(f'Retrieving tail value counts for {dataset} dataset...')
+    print(f'##### Retrieving tail value counts for {dataset} dataset...')
     # retrieve the triples dataset + data-specific variable for filtering the relation column
     triples_df, property_encoding_ID = get_triples_df(dataset)
+
+    # if necessary, load data-specific ID to Q-ID mapping
+    if dataset == 'Wikidatasets-Humans':
+        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
+        Q_IDs_to_labels = pd.read_csv(os.path.join(dataset_folder, 'entities.tsv'),
+                                      sep = '\t', skiprows = 1,
+                                      names = ['dataset_id', 'wikidata_qid', 'wikidata_label'])
+        Q_IDs_to_labels.drop('wikidata_label', axis = 1, inplace = True)
+
+    if dataset == 'OpenKE':
+        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/OpenKE-Wikidata/knowledge graphs/'
+        Q_IDs_to_labels = pd.read_csv(os.path.join(dataset_folder, 'entity2id.txt'), sep = '\t',
+                                  names = ['wikidata_qid', 'dataset_id'], skiprows = 1)
+        # make sure that first column is dataset-spcific ID
+        new_column_titles = ['dataset_id', 'wikidata_qid']
+        Q_IDs_to_labels = Q_IDs_to_labels.reindex(columns = new_column_titles)
 
     # create a subset of the dataset using the relations in all properties
     list_of_all_relations = all_properties_df[property_encoding_ID]
@@ -292,19 +306,25 @@ for dataset in list_of_all_datasets:
                 'tail_entity'].value_counts()
 
             relation_P_ID = relation
-            # if necessary, transform between dataset-specific IDs and P-IDs
+            relation_Q_IDs = triples_df_only_current_relation_value_counts.index.values  # np.array
+            # if necessary, transform between dataset-specific IDs and P/Q-IDs
             if property_encoding_ID != 'P_ID':
+                # this is necessary for Wikidatasets-Humans and OpenKE
+                # retrieve P_ID for dataset-specific ID
                 relation_P_ID = all_properties_df['P_ID'][
                     all_properties_df[property_encoding_ID] == relation].item()
+                # retrieve Q-IDs for each of the tail entities using Q_IDs_to_labels
+                # use Index from value counts directly to access Q_IDs
+                relation_Q_IDs = Q_IDs_to_labels['wikidata_qid'][triples_df_only_current_relation_value_counts.index].values
 
             # add this dataframe to the final results dataframe with dataset + relation name
             number_of_new_rows = len(triples_df_only_current_relation_value_counts)
             rows_to_add = pd.DataFrame({'dataset_name': [dataset] * number_of_new_rows,
-                                        'relation_P-ID': [relation_P_ID] * number_of_new_rows,
+                                        'relation_P_ID': [relation_P_ID] * number_of_new_rows,
                                         'relation_label': [all_properties_df['wikidata_label'][
                                                                all_properties_df[
                                                                    'P_ID'] == relation_P_ID].item()] * number_of_new_rows,
-                                        'tail_entity_Q-ID': triples_df_only_current_relation_value_counts.index.values,
+                                        'tail_entity_Q_ID': relation_Q_IDs,
                                         'tail_entity_label': ['NA'] * number_of_new_rows,
                                         'count': triples_df_only_current_relation_value_counts.values})
             results_tail_value_counts = pd.concat([results_tail_value_counts, rows_to_add])
@@ -321,30 +341,28 @@ for dataset in list_of_all_datasets:
 
             # add a NA row to the results dataframe
             NA_row_to_add = pd.DataFrame(
-                {'dataset_name': [dataset], 'relation_P-ID': [relation],
+                {'dataset_name': [dataset], 'relation_P_ID': [relation],
                  'relation_label': [all_properties_df['wikidata_label'][
                                                                all_properties_df[
                                                                    'P_ID'] == relation].item()],
-                 'tail_entity_Q-ID': ['NA'], 'tail_entity_label': ['NA'], 'count': [np.nan]})
+                 'tail_entity_Q_ID': ['NA'], 'tail_entity_label': ['NA'], 'count': [np.nan]})
             results_tail_value_counts = pd.concat([results_tail_value_counts, NA_row_to_add])
-
-        #results_tail_value_counts.reset_index(inplace = True)
 
     # free up RAM for next dataset
     del triples_df_all_selected_relations
     gc.collect()
 
-# after retrieving all counts for the datasets:
-# map from Q-IDs to English Wikidata labels for human readability
-print('collected all counts')
+# reindex entire results dataframe
+results_tail_value_counts.reset_index(drop = True, inplace = True)
+
+results_tail_value_counts = results_tail_value_counts.convert_dtypes()
+
+print('Collected all counts!')
 print('yay')
 
-# transform counts into percentages
-
 # write dataframe to csv/pickle
-pass
-
-# %% Create plots of tail value counts
+results_tail_value_counts.to_csv('tail_value_counts_all_11.11.2021.csv')
+results_tail_value_counts.to_pickle('tail_value_counts_all_11.11.2021.pkl')
 
 
 # %% Extract sensitive relation counts from current Wikidata via SPARQL
