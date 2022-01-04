@@ -126,7 +126,7 @@ plt.show()
 
 # %% simple histogram plot of all tail value counts across all datasets
 
-threshold_for_minimum_count = 3
+threshold_for_minimum_count = 10000
 
 tail_value_counts_df_filtered_for_counts = tail_value_counts_df.query(
     f'count>={threshold_for_minimum_count}')
@@ -163,6 +163,14 @@ plt.show()
 file = open('plot_counts_filter3,binsauto.pkl', 'wb')
 pickle.dump(plot, file)
 file.close()
+
+# %% try out pylustrator
+
+import pylustrator
+pylustrator.start()
+
+
+
 
 # %% Zoom in on specific areas
 threshold_for_maximum_count = 10000

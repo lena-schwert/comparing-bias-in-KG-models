@@ -137,8 +137,6 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
         # How many times does "... instance of human" appear?
         number_of_human_entities = triples_df[(triples_df['relation'] == 'P31') & (triples_df[
                                                                                        'tail_entity'] == 'Q5')].__len__()  # 1519261 rows  # How many times does "... subclass of human" appear?  # can be neglected!  # triples_df[(triples_df['relation'] == 'P279') & (triples_df['tail_entity'] == 'Q5')]  # 84 rows
-
-
     elif name_of_dataset_processed == 'wikidatasets-humans':
         dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
         triples_df, lookup_column_for_filtering = get_triples_df(name_of_dataset_processed)
