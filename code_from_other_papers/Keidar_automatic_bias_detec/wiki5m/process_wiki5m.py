@@ -11,8 +11,11 @@ def load_embeddings(embedding_path):
     print("Num Relations: ", len(relation2id.keys()))
     return (entity2id, relation2id), (entity_embeddings, relation_embeddings)
 
+
 def get_human_triples(triple_path):
-    with open("../data/wiki5m/wikidata5m_all_triplet.txt") as f:
+    Lenas_path = '/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/code_from_other_papers/Keidar_automatic_bias_detec/data/wiki5m/wikidata5m_all_triplets.txt'
+    with open(Lenas_path) as f:
+    #with open("../data/wiki5m/wikidata5m_all_triplet.txt") as f:
         triples = [t.split() for t in f.readlines()]
         humans = {}
         for t in triples:
