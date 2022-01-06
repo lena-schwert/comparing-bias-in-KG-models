@@ -1,8 +1,10 @@
-# Imports
 import os
 import socket
 
 import pandas as pd
+import numpy as np
+from pykeen.triples import TriplesFactory
+from datetime import datetime
 
 
 def set_base_path_based_on_host():
@@ -16,6 +18,9 @@ def set_base_path_based_on_host():
     # covers all CPU nodes
     elif 'node' in socket.gethostname():
         base_dir = '/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis'
+    else:
+        base_dir = None
+        ValueError("Host name is not recognized!")
     return base_dir
 
 
@@ -91,6 +96,7 @@ def get_triples_df(name_of_dataset_processed):
         #      names = ['head_entity', 'relation', 'tail_entity'])
         property_encoding_ID = 'P_ID'
     else:
+        triples_df, property_encoding_ID = (None, None)
         print(f"Dataset name {name_of_dataset_processed} not found!")
 
     return triples_df, property_encoding_ID
@@ -101,6 +107,42 @@ def add_PID_labels_as_dfcolumn():
     raise NotImplementedError()
 
 
-def add_PID_labels_as_dfcolumn():
+def add_QID_labels_as_dfcolumn():
     # refer to Wikdiata_relation_counts.py from line 366
     raise NotImplementedError()
+
+
+def create_train_val_test_split_from_single_TSV(train_val_test_split: tuple = (0.8, 0.1, 0.1),
+                                                random_state: int = 42,
+                                                rel_path_to_human_facts_file: str = 'data_preprocessing/wikidata5m_human_facts_subset_complete_040122.tsv'):
+    """
+    Use this to create train,validation, test files that are read
+    by the Wikidata5M_pykeen class.
+
+    This happens completely outside of training for reproducibility purposes!
+    Put this in a meaningful folder that is part of the final repo
+
+    :return: nothing, all 3 splits are saved to disk as TSV files
+    """
+    BASE_PATH_HOST = set_base_path_based_on_host()
+    absolute_path = os.path.join(BASE_PATH_HOST, rel_path_to_human_facts_file)
+
+    # make tests for expected input
+    assert type(train_val_test_split) == tuple
+    assert len(train_val_test_split) == 3, "You need to specify exactly 3 values!"
+    assert sum(train_val_test_split) == 1, "Values need to add up to 1!"
+
+    tf = TriplesFactory.from_path(absolute_path)
+    train, validation, test = tf.split(list(train_val_test_split), random_state = random_state,
+                                       method = 'coverage')  # coverage is default, other: cleanup
+
+    file_name_train = 'data_preprocessing/' + f'training_data_{train_val_test_split[0]}_rs{random_state}_{datetime.now().strftime("%d_%m_%Y_%H:%M")}.tsv'
+    file_name_validation = 'data_preprocessing/' + f'validation_data_{train_val_test_split[1]}_rs{random_state}_{datetime.now().strftime("%d_%m_%Y_%H:%M")}.tsv'
+    file_name_test = 'data_preprocessing/' + f'test_data_{train_val_test_split[2]}_rs{random_state}_{datetime.now().strftime("%d_%m_%Y_%H:%M")}.tsv'
+
+    # save the numpy arrays (bla.triples) as TSV to disk
+    np.savetxt(fname = file_name_train, X = train.triples, fmt = '%s', delimiter = '\t')
+    np.savetxt(fname = file_name_validation, X = validation.triples, fmt = '%s', delimiter = '\t')
+    np.savetxt(fname = file_name_test, X = test.triples, fmt = '%s', delimiter = '\t')
+
+
