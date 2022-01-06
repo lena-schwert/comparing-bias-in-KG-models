@@ -1,0 +1,25 @@
+name: master-thesis_16_11_21
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - pytorch
+  - cudatoolkit= # newest version 11.3 might not work
+  - pandas
+  - scikit-learn
+  - seaborn
+  - transformers
+  - tensorboard
+  - requests
+  - sparqlwrapper
+  - ipython
+  - tqdm
+  - pip
+  - pip:
+    - pykeen
+    - torchmetrics
+    - pylustrator  # 17.12.21
+    - tensorboard  # 4.1.21
+
