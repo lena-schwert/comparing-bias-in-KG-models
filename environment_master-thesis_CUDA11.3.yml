@@ -1,4 +1,4 @@
-name: master-thesis_16_11_21
+name: master-thesis_cuda113
 channels:
   - pytorch
   - conda-forge
@@ -6,7 +6,8 @@ channels:
 dependencies:
   - python=3.8
   - pytorch
-  - cudatoolkit= # newest version 11.3 might not work
+  - torchvision  # 11.1. to run MNIST as GPU test
+  - cudatoolkit=11.3 # newest version 11.3 might not work
   - pandas
   - scikit-learn
   - seaborn

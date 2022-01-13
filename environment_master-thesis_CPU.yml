@@ -9,7 +9,7 @@ dependencies:
   - scikit-learn
   - seaborn
   - pytorch
-  - cpuonly  # careful with that, might need CUDA instead!
+  - cpuonly  # makes only sense when no NVIDIA GPU is accessible!
   - transformers
   - tensorboard
   - requests
