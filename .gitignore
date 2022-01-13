@@ -1,2 +1,5 @@
 /.idea/
 /data/
+
+/data_preprocessing/wikidata5m_human_facts_subset_complete_050122.tsv
+/exploration/data/MNIST/raw/train-images-idx3-ubyte

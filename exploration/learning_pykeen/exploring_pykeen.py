@@ -107,4 +107,17 @@ from pykeen.triples import TriplesFactory
 
 # TODO try to run a model training on HPIs GPUs
 
+# take a simple example from pykeen with a
+from pykeen.pipeline import pipeline
+import torch
+
+pipeline_result = pipeline(
+    dataset='Nations',
+    model='TransE',
+    device = 'cuda')
+
+pipeline_result.plot()
+
+pipeline_result.plot_losses()
+
 
