@@ -1,11 +1,18 @@
+# %% Imports
+# IN-built functions
+import logging
 import os
 import socket
-
-import pandas as pd
-import numpy as np
-from pykeen.triples import TriplesFactory
+import sys
 from datetime import datetime
 
+import numpy as np
+# 3rd part modules
+import pandas as pd
+from pykeen.triples import TriplesFactory
+
+
+# %% My custom helper functions across projects
 
 def set_base_path_based_on_host():
     """
@@ -15,13 +22,58 @@ def set_base_path_based_on_host():
     """
     if socket.gethostname() == 'Schlepptop':
         base_dir = '/home/lena/git/master_thesis_bias_in_NLP/'
-    # covers all CPU nodes
-    elif 'node' in socket.gethostname():
+    # covers all CPU + GPU nodes of the HPI
+    elif 'node' in socket.gethostname() or socket.gethostname() in ['a6k5-01', 'dgxa100-01', 'ac922-01', 'ac922-02']:
         base_dir = '/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis'
     else:
         base_dir = None
         ValueError("Host name is not recognized!")
+    assert type(base_dir) == str, "Path has not been set correctly as string, doublecheck!"
     return base_dir
+
+
+def initialize_my_logger(file_name, file_mode: str = 'a'):
+    """
+    This function creates a customized logger based on Pythons built-in logging module.
+    5 possible levels are: debug, info, warning, error, critical
+
+    - print message to stdout *and* to file
+    - logger level: DEBUG, logger will print messages of all levels!
+    - each logger message starts with date + time
+    - mode: append to existing file
+    - uses the root Logger (don't know whether the alternative matters
+
+    file_name: Name of file log.
+    file_mode: Either 'w' to write new file [overwrite old log] or 'a' to append to recent log.
+
+
+    Potential other features
+    - add more information in the strin: %(funcNames), %(process)d, %(thread)d
+
+    """
+    # additional options for format:
+    format_a = '%(asctime)s - %(levelname)s - %(filename)s/%(funcName)s: %(message)s'
+    format_b = '%(asctime)s - %(levelname)s: %(message)s'
+    logging.basicConfig(format = format_a, level = logging.DEBUG,
+                        datefmt = "%d.%m.%Y %H:%M:%S",
+                        handlers = [
+                            logging.FileHandler(file_name, mode = file_mode),
+                            logging.StreamHandler(sys.stdout)
+                        ])
+    logger = logging.getLogger()
+
+    return logger
+
+
+def improve_pandas_viewing_options():
+    import pandas as pd
+    pd.set_option('display.max_columns', 1000)
+    pd.set_option('display.width', 1000)
+    pd.set_option('display.min_rows', 20)
+    pd.set_option('display.max_rows', 100)
+
+
+# %%  Project-specific utilities
 
 
 def get_triples_df(name_of_dataset_processed):
@@ -145,4 +197,44 @@ def create_train_val_test_split_from_single_TSV(train_val_test_split: tuple = (0
     np.savetxt(fname = file_name_validation, X = validation.triples, fmt = '%s', delimiter = '\t')
     np.savetxt(fname = file_name_test, X = test.triples, fmt = '%s', delimiter = '\t')
 
+
+def filter_pykeen_results_file(path, filter_str: list, save: bool = True,
+                               format: str = 'csv'):
+    """
+
+    Parameters
+    ----------
+    path: absolute path to file
+    filter_str: string or list of strings, will be used to filter column 'key'
+    e.g. ['both', 'realistic']
+    format: string for determining format, can be csv or json
+
+    Returns
+    -------
+
+    """
+    if format == 'csv':
+        all_results = pd.read_csv(path)
+    if format == 'json':
+        # TODO figure out how to do this for JSON files
+        raise NotImplementedError()
+
+    assert all(all_results.columns == pd.Index(['type', 'step', 'key', 'value'])), "Unknown dataframe format! Check the path."
+
+    # filter for results
+    filtered_results = all_results
+    # TODO maybe change this to a regular expresssion instead?
+    for i in filter_str:
+        filter_str = filtered_results['key'].str.contains(i)
+        filtered_results = filtered_results[filter_str]
+
+    # make 'value' column numeric and round it to two digits
+    filtered_results['value'] = filtered_results['value'].astype(float).apply(lambda x: round(x, 2))
+
+    if save:
+        os.chdir(os.path.dirname(path))
+        print(f' Saving filtered dataframe to: {os.getcwd()}')
+        filtered_results.to_csv(os.path.join(os.getcwd(), 'filtered_pykeen_results.csv'))
+
+    return filtered_results
 
