@@ -328,6 +328,9 @@ class RFRelationClassifier:
             batch_size=self._batch_size,
             shuffle=False
         )
+
+        # TODO current version 1.6 of pykeen: LCWAInstances does not have attribute labels
+        # TODO use a Triple Factory instead!
         self._train_loader.dataset.labels = self._train_loader.dataset.labels.reshape(
             self._train_loader.dataset.labels.shape[0])
         self._test_loader.dataset.labels = self._test_loader.dataset.labels.reshape(
@@ -337,6 +340,8 @@ class RFRelationClassifier:
         train_triples = self.train_triples_factory.triples
         tails = train_triples[:, 2]
         tails2keep = self.tails2keep(tails)
+        # TODO current version 1.6 of pykeen: LCWAInstances does not have attribute entity_to_id
+        # TODO use a Triple Factory instead!
         tail_ids = [self._train_loader.dataset.entity_to_id[vl] for vl in tails2keep]
         self._target2int = {idval: k for k, idval in enumerate(tail_ids)}
         self._target2int[self.OTHER] = len(tail_ids)

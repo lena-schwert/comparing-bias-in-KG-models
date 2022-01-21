@@ -8,9 +8,9 @@ from sklearn.metrics import balanced_accuracy_score, accuracy_score
 from pykeen.datasets import FB15k237
 
 ### Internal Imports
-from utils import suggest_relations
-from predict_tails import get_preds_df
-from visualization import preds_histogram
+from code_from_other_papers.Keidar_automatic_bias_detec.utils import suggest_relations
+from code_from_other_papers.Keidar_automatic_bias_detec.predict_tails import get_preds_df
+from code_from_other_papers.Keidar_automatic_bias_detec.visualization import preds_histogram
 
 def set_argparser():
     # Parser
@@ -44,18 +44,25 @@ def set_argparser():
 args = set_argparser()
 
 # Init dataset and relations of interest
-dataset = FB15k237()
+dataset = FB15k237()   # built-in from pykeen
+
+# simply accesses
 target_relation, bias_relations = suggest_relations(args.dataset)
 
 # Set your local path here
 LOCAL_PATH_TO_EMBEDDING = '/Users/alacrity/Documents/uni/Fairness/'
 
 # Trained Embedding Model Path
-embedding_model_path_suffix = "replicates/replicate-00000/trained_model.pkl"
-MODEL_PATH = os.path.join(LOCAL_PATH_TO_EMBEDDING, args.dataset, args.embedding, embedding_model_path_suffix)
-if args.embedding_path:
-    MODEL_PATH = args.embedding_path  # override default if specifying a full path
-print("Load embedding model from: {}".format(MODEL_PATH))
+# embedding_model_path_suffix = "replicates/replicate-00000/trained_model.pkl"
+# MODEL_PATH = os.path.join(LOCAL_PATH_TO_EMBEDDING, args.dataset, args.embedding, embedding_model_path_suffix)
+# if args.embedding_path:
+#     MODEL_PATH = args.embedding_path  # override default if specifying a full path
+# print("Load embedding model from: {}".format(MODEL_PATH))
+
+#TODO change it back
+MODEL_PATH = '/home/lena/git/master_thesis_bias_in_NLP/results/TransE_fullW5M_80epochs/trained_model.pkl'
+
+PREDS_DF_PATH = '/home/lena/git/master_thesis_bias_in_NLP/code_from_other_papers/Keidar_automatic_bias_detec/preds_dfs/preds_df_transe.csv'
 
 # Init embed model and classifier parameter
 model_args = {'embedding_model_path': MODEL_PATH}
@@ -73,7 +80,8 @@ preds_df = get_preds_df(dataset,
                         model_args,
                         target_relation,
                         bias_relations,
-                        preds_df_path=SAVE_PATH
+                        # TODO was None before
+                        preds_df_path=None
                         )
 
 # Evaluate the predictions

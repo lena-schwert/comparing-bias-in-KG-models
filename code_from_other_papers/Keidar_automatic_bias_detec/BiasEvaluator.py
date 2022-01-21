@@ -10,8 +10,8 @@ class BiasEvaluator:
         measures: list of instances of Measurement classes (see Measurement.py)
         preds_df: pandas.DataFrame, prediction dataframe from classification task required for certain bias measures (DPD, PPD)
         """
-        self.binary_target = True
-        self.measure_objects = {measure.name:measure for measure in measures}
+        #self.binary_target = True  # never used
+        #self.measure_objects = {measure.name:measure for measure in measures}  # never used
         self.dataset = dataset
         self.measures = measures
         self.predictions = None
@@ -85,9 +85,11 @@ class BiasEvaluator:
         for measure in bias_measures:
             name = measure.get_name()
             print(f"Measure: {name}\n =============\n")
+            # call calculate method from respective class in Measurement.py
             bias_result[name] = measure.calculate(self, bias_relations)
         return bias_result
 
+    # TODO this function is never used anywhere!
     def calculate_prediction_scores(self, relation):
         attributes = self.predictions[relation]
         attribute_set = list(set(attributes))

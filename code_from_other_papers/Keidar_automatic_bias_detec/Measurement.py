@@ -7,20 +7,21 @@ import pandas as pd
 import numpy as np
 
 from sklearn.metrics import precision_score, accuracy_score, recall_score
-import pykeen.models  
-import time 
+import pykeen.models
+import time
 
 
 class Measurement:
     def __init__(self):
         self.name = ""
-        self.require_preds_df = True 
+        self.require_preds_df = True
 
     def calculate(self, predictions, relation):
         pass
 
     def get_name(self):
         return self.name
+
 
 class DemographicParity(Measurement):
     def __init__(self):
@@ -37,14 +38,18 @@ class DemographicParity(Measurement):
         Return:
         demographic_parity_distance: float
         """
+        # create list of unique true labels, e.g. [0, 1, 2, 3, 4, 5]
         true_target_values = list(set(preds_df.true_tail.values))
         true_target_values = [trgt for trgt in true_target_values if trgt in set(preds_df.pred)]
         attributes = preds_df[relation]
+        # create list of unique values for current bias relation
         attribute_set = list(set(attributes))
 
+        # remove -1 from the attribute as this indicates a missing value
         if -1 in attribute_set:
-            attribute_set.remove(-1) 
+            attribute_set.remove(-1)
 
+        # return bias_score = 0 if no person has this attribute
         if len(attribute_set) == 0:
             return 0
 
@@ -59,9 +64,9 @@ class DemographicParity(Measurement):
                 given_a = pred_current_target[attributes == attr]
                 given_not_a = pred_current_target[attributes != attr]
 
-                prob_y_given_a = sum(given_a)/len(given_a)
+                prob_y_given_a = sum(given_a) / len(given_a)
 
-                prob_y_given_not_a = sum(given_not_a)/len(given_not_a)
+                prob_y_given_not_a = sum(given_not_a) / len(given_not_a)
                 # Calculate the difference of the probabilities P(y=t|a) and P(y=t|not a),
                 # We note that P(y=t|a) + P(y=t|~a) = P(y=t)
                 # Therefore |P(y=t|a) - P(y=t|~a)| <= P(y=t)
@@ -70,7 +75,7 @@ class DemographicParity(Measurement):
                 demographic_parity_distance += abs(prob_y_given_a - prob_y_given_not_a)
 
         # Normalize the demographic parity distance score, to get a value between 0 and 1
-        demographic_parity_distance = demographic_parity_distance/(len(attribute_set) + 1)
+        demographic_parity_distance = demographic_parity_distance / (len(attribute_set) + 1)
         return demographic_parity_distance
 
     def calculate(self, evaluator, bias_relations):
@@ -91,9 +96,10 @@ class DemographicParity(Measurement):
         for r in bias_relations:
             print(f"{r}")
             bias_scores.append(self.calculate_one_relation(preds_df, r))
-        dp_df = pd.DataFrame({"relations":bias_relations, "bias_scores":bias_scores})
+        dp_df = pd.DataFrame({"relations": bias_relations, "bias_scores": bias_scores})
         return dp_df
 
+    # TODO this function is never used anywhere!
     def demographic_parity_for_target_attribute_pair(self, preds_df, relation, attr, target_val):
         attributes = preds_df[relation]
         pred_current_target = (preds_df.pred == target_val)
@@ -105,6 +111,7 @@ class DemographicParity(Measurement):
         prob_y_given_not_a = sum(given_not_a) / len(given_not_a)
         return abs(prob_y_given_a - prob_y_given_not_a)
 
+    # TODO this function is never used anywhere!
     def demographic_parity_for_target(self, preds_df, relation, target_val):
         attributes = preds_df[relation]
         attribute_set = list(set(attributes))
@@ -124,6 +131,7 @@ class DemographicParity(Measurement):
             prob_y_given_not_a = sum(given_not_a) / len(given_not_a)
             DP += abs(prob_y_given_a - prob_y_given_not_a)
         return DP
+
 
 class PredictiveParity(Measurement):
     def __init__(self):
@@ -156,15 +164,16 @@ class PredictiveParity(Measurement):
             # E[y=target_val|ytrue=target_val, a=relation_val] - E[y==target_val|ytrue=target_val, a!=relation_val]
             # for all target values
             given_a = preds_df[preds_df[rel] == attr]
-            given_not_a = preds_df[np.logical_and(preds_df[rel] != attr,preds_df[rel] != -1)]
+            given_not_a = preds_df[np.logical_and(preds_df[rel] != attr, preds_df[rel] != -1)]
 
-            precision_given_a = precision_score(given_a.true_tail, given_a.pred,average='micro')
-            precision_given_not_a = precision_score(given_not_a.true_tail, given_not_a.pred, average='micro')
+            precision_given_a = precision_score(given_a.true_tail, given_a.pred, average = 'micro')
+            precision_given_not_a = precision_score(given_not_a.true_tail, given_not_a.pred,
+                                                    average = 'micro')
             predictive_parity_distance += abs(precision_given_a - precision_given_not_a)
 
-        predictive_parity_distance = predictive_parity_distance/(len(attribute_set))
+        predictive_parity_distance = predictive_parity_distance / (len(attribute_set))
         return predictive_parity_distance
-    
+
     def calculate(self, evaluator, bias_relations):
         """
         Calculate the predictiive parity distance of each possibly biased relation, return a table of predictive parity distances(PPD)
@@ -183,9 +192,10 @@ class PredictiveParity(Measurement):
         for r in bias_relations:
             print(f"{r}")
             bias_scores.append(self.calculate_one_relation(preds_df, r))
-        pp_df = pd.DataFrame({"relations":bias_relations, "bias_scores":bias_scores})
+        pp_df = pd.DataFrame({"relations": bias_relations, "bias_scores": bias_scores})
         return pp_df
-    
+
+
 class TranslationalLikelihood(Measurement):
     """
     Given a dataset D, its trained embeddings E, embedding's score function f, calculate the difference of f between
@@ -194,11 +204,12 @@ class TranslationalLikelihood(Measurement):
 
     Check the original paper at: https://arxiv.org/abs/1912.02761
     """
+
     def __init__(self):
         super(TranslationalLikelihood, self).__init__()
         self.name = "translational"
         self.require_preds_df = False
-        
+
     def get_entities(self, dataset, relation):
         """
         Get all head and tail entities for the given relation
@@ -266,16 +277,17 @@ class TranslationalLikelihood(Measurement):
             delta = score_fn(triple_0) - score_fn(triple_1)
             delta.backward()
             gradient = self.model.entity_embeddings.weight.grad[h]
-            new_em = self.model.entity_embeddings.weight[h].detach() + lr*gradient
-            self.model.entity_embeddings.weight = torch.nn.Parameter(self.model.entity_embeddings.weight.clone().detach(), requires_grad=False)
+            new_em = self.model.entity_embeddings.weight[h].detach() + lr * gradient
+            self.model.entity_embeddings.weight = torch.nn.Parameter(
+                self.model.entity_embeddings.weight.clone().detach(), requires_grad = False)
         elif type(h) is torch.Tensor:
             h = h.detach().requires_grad_(True)
             r = r.detach()
             t_list = [t.detach() for t in t_list]
             delta = score_fn(h, r, t_list[0]) - score_fn(h, r, t_list[1])
             delta.backward()
-            gradient = h.grad #TODO
-            new_em = h + lr*gradient
+            gradient = h.grad  # TODO
+            new_em = h + lr * gradient
         else:
             raise ValueError("h must be either int (is using pre-defined pykeen models) or tensor")
         return new_em
@@ -299,7 +311,7 @@ class TranslationalLikelihood(Measurement):
         if type(h) is int:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             oldscore = score_fn(torch.LongTensor([[h, instr_rel, instr_t]]).to(device))
-            old_em = self.model.entity_embeddings.weight[h].clone()   
+            old_em = self.model.entity_embeddings.weight[h].clone()
             self.model.entity_embeddings.weight[h] = new_h_em
             newscore = score_fn(torch.LongTensor([[h, instr_rel, instr_t]]).to(device))
             self.model.entity_embeddings.weight[h] = old_em
@@ -311,7 +323,7 @@ class TranslationalLikelihood(Measurement):
         score_delta = newscore - oldscore
         return score_delta
 
-    def calculate_relation(self, dataset, model, target_relation, bias_relation, score_fn=None):
+    def calculate_relation(self, dataset, model, target_relation, bias_relation, score_fn = None):
         """
         Calculate the translational likelihood bias score on each head entity having the (possibly) biased relation(bias_relation),
         and save the result table to current directory. 
@@ -331,16 +343,13 @@ class TranslationalLikelihood(Measurement):
         self.model = model
         _, instr_entities = self.get_entities(dataset, [target_relation])
         instr_entities = set(instr_entities)
-        
-        pre_def_models = (pykeen.models.TransE, 
-                          pykeen.models.TransD,
-                          pykeen.models.DistMult,
-                          pykeen.models.ComplEx,
-                          pykeen.models.ConvE,
-                          pykeen.models.RotatE)
+
+        pre_def_models = (
+        pykeen.models.TransE, pykeen.models.TransD, pykeen.models.DistMult, pykeen.models.ComplEx,
+        pykeen.models.ConvE, pykeen.models.RotatE)
 
         if isinstance(model, pre_def_models):
-            instr_rel_idx = dataset.relation_to_id[target_relation] 
+            instr_rel_idx = dataset.relation_to_id[target_relation]
             sensit_rel_idx = dataset.relation_to_id[bias_relation]
             sensit_heads, sensit_tails = self.get_entities(dataset, [bias_relation])
             # Binarize sensitive tail values: two most popular
@@ -348,9 +357,11 @@ class TranslationalLikelihood(Measurement):
                 most_pop_tail = {}
                 for t in sensit_tails:
                     most_pop_tail[t] = most_pop_tail.setdefault(t, 0) + 1
-                bi_sensit_tails = [i[0] for i in sorted(most_pop_tail.items(), key=lambda x: x[1], reverse=True)[:2]]
-                sensit_heads = set([h for i, h in enumerate(sensit_heads) if sensit_tails[i] in bi_sensit_tails])
-            elif len(set(sensit_tails)) < 2: 
+                bi_sensit_tails = [i[0] for i in sorted(most_pop_tail.items(), key = lambda x: x[1],
+                                                        reverse = True)[:2]]
+                sensit_heads = set(
+                    [h for i, h in enumerate(sensit_heads) if sensit_tails[i] in bi_sensit_tails])
+            elif len(set(sensit_tails)) < 2:
                 raise ValueError(f"The to-be-detect sensitive attribute {set(sensit_tails)} connects to \
                                    a tail entity having less than 2 value types. \
                                    Cannot be used for translational likelihood bias measurement.")
@@ -358,8 +369,8 @@ class TranslationalLikelihood(Measurement):
                 bi_sensit_tails = list(set(sensit_tails))
             sensit_tails_idx = [dataset.entity_to_id[i] for i in bi_sensit_tails]
             score_fn = model.score_hrt
-            
-            bias = {"instrumental_entities":[], bi_sensit_tails[0]:[], bi_sensit_tails[1]:[]}
+
+            bias = {"instrumental_entities": [], bi_sensit_tails[0]: [], bi_sensit_tails[1]: []}
             print("Num of instrumental entities: {}".format(len(instr_entities)))
             for instr in instr_entities:
                 start_time = time.time()
@@ -369,67 +380,81 @@ class TranslationalLikelihood(Measurement):
                 for h in sensit_heads:
                     try:
                         h_idx = dataset.entity_to_id[h]
-                        new_em_0 = self.update_head_embedding(h_idx, sensit_rel_idx, sensit_tails_idx, score_fn, lr=1e-3)
+                        new_em_0 = self.update_head_embedding(h_idx, sensit_rel_idx,
+                                                              sensit_tails_idx, score_fn, lr = 1e-3)
                         sensit_tails_idx.reverse()
-                        new_em_1 = self.update_head_embedding(h_idx, sensit_rel_idx, sensit_tails_idx, score_fn, lr=1e-3)
+                        new_em_1 = self.update_head_embedding(h_idx, sensit_rel_idx,
+                                                              sensit_tails_idx, score_fn, lr = 1e-3)
                         sensit_tails_idx.reverse()
-                        bias_score_0 += self.calc_bias_on_instr_tail(h_idx, new_em_0, instr_rel_idx, instr_tail_idx, score_fn)
-                        bias_score_1 += self.calc_bias_on_instr_tail(h_idx, new_em_1, instr_rel_idx, instr_tail_idx, score_fn)
+                        bias_score_0 += self.calc_bias_on_instr_tail(h_idx, new_em_0, instr_rel_idx,
+                                                                     instr_tail_idx, score_fn)
+                        bias_score_1 += self.calc_bias_on_instr_tail(h_idx, new_em_1, instr_rel_idx,
+                                                                     instr_tail_idx, score_fn)
                     except KeyError:
                         continue
                 end_time = time.time()
                 # print("Elapse ~{} mins".format((end_time-start_time)//60))
-                bias_score_0 = bias_score_0/len(sensit_heads)
-                bias_score_1 = bias_score_1/len(sensit_heads)
-                bias["instrumental_entities"].append(instr) 
+                bias_score_0 = bias_score_0 / len(sensit_heads)
+                bias_score_1 = bias_score_1 / len(sensit_heads)
+                bias["instrumental_entities"].append(instr)
                 bias[bi_sensit_tails[0]].append(bias_score_0.item())
                 bias[bi_sensit_tails[1]].append(bias_score_1.item())
-                
+
             bias = pd.DataFrame(bias)
         else:
             if score_fn is None:
-                raise NotImplementedError("The model is not an instance of pykeen models, score_fn must be provided")
+                raise NotImplementedError(
+                    "The model is not an instance of pykeen models, score_fn must be provided")
             # Get relevant embeddings
-            sensit_rel_em = self.get_embedding(dataset, model, bias_relation, is_rel=True)
-            instr_rel_em =  self.get_embedding(dataset, model, target_relation, is_rel=True)
-            sensit_heads, sensit_tails = self.get_entities(dataset, [bias_relation]) #e.g heads: a list of people, tails: [male, female]
-            
+            sensit_rel_em = self.get_embedding(dataset, model, bias_relation, is_rel = True)
+            instr_rel_em = self.get_embedding(dataset, model, target_relation, is_rel = True)
+            sensit_heads, sensit_tails = self.get_entities(dataset, [
+                bias_relation])  # e.g heads: a list of people, tails: [male, female]
+
             if len(set(sensit_tails)) == 2:
-                sensit_tails_em = [self.get_embedding(dataset, model, label, is_rel=False) for label in set(sensit_tails)]
+                sensit_tails_em = [self.get_embedding(dataset, model, label, is_rel = False) for
+                                   label in set(sensit_tails)]
                 bi_sensit_tails = list(set(sensit_tails))
-            elif len(set(sensit_tails)) > 2: # Binarize sensitive tail values: two most popular
+            elif len(set(sensit_tails)) > 2:  # Binarize sensitive tail values: two most popular
                 most_pop_tail = {}
                 for t in sensit_tails:
                     most_pop_tail[t] = most_pop_tail.setdefault(t, 0) + 1
-                bi_sensit_tails = [i[0] for i in sorted(most_pop_tail.items(), key=lambda x: x[1], reverse=True)[:2]]
-                sensit_heads = [h for i, h in enumerate(sensit_heads) if sensit_tails[i] in bi_sensit_tails]
-                sensit_tails_em = [self.get_embedding(dataset, model, label, is_rel=False) for label in bi_sensit_tails]
+                bi_sensit_tails = [i[0] for i in sorted(most_pop_tail.items(), key = lambda x: x[1],
+                                                        reverse = True)[:2]]
+                sensit_heads = [h for i, h in enumerate(sensit_heads) if
+                                sensit_tails[i] in bi_sensit_tails]
+                sensit_tails_em = [self.get_embedding(dataset, model, label, is_rel = False) for
+                                   label in bi_sensit_tails]
             else:
                 raise ValueError(f"The to-be-detect sensitive attribute {set(sensit_tails)} connects to \
                                    a tail entity having less than 2 value types. \
-                                   Cannot be used for translational likelihood bias measurement.") 
+                                   Cannot be used for translational likelihood bias measurement.")
             for instr in instr_entities:
-                instr_tail_em = self.get_embedding(dataset, model, instr, is_rel=False)
+                instr_tail_em = self.get_embedding(dataset, model, instr, is_rel = False)
                 bias_score_0 = 0
                 bias_score_1 = 0
                 for h in sensit_heads:
                     try:
-                        old_em = self.get_embedding(dataset, model, h,False)
-                        new_em_0 = self.update_head_embedding(old_em, sensit_rel_em, sensit_tails_em, score_fn, lr=1e-3)
+                        old_em = self.get_embedding(dataset, model, h, False)
+                        new_em_0 = self.update_head_embedding(old_em, sensit_rel_em,
+                                                              sensit_tails_em, score_fn, lr = 1e-3)
                         sensit_tails_em.reverse()
-                        new_em_1 = self.update_head_embedding(old_em, sensit_rel_em, sensit_tails_em, score_fn, lr=1e-3)
+                        new_em_1 = self.update_head_embedding(old_em, sensit_rel_em,
+                                                              sensit_tails_em, score_fn, lr = 1e-3)
                         sensit_tails_em.reverse()
-                        bias_score_0 += self.calc_bias_on_instr_tail(old_em, new_em_0, instr_rel_em, instr_tail_em, score_fn)
-                        bias_score_1 += self.calc_bias_on_instr_tail(old_em, new_em_1, instr_rel_em, instr_tail_em, score_fn)
+                        bias_score_0 += self.calc_bias_on_instr_tail(old_em, new_em_0, instr_rel_em,
+                                                                     instr_tail_em, score_fn)
+                        bias_score_1 += self.calc_bias_on_instr_tail(old_em, new_em_1, instr_rel_em,
+                                                                     instr_tail_em, score_fn)
                     except KeyError:
                         continue
-                bias_score_0 = bias_score_0/len(sensit_heads)
-                bias_score_1 = bias_score_1/len(sensit_heads)
+                bias_score_0 = bias_score_0 / len(sensit_heads)
+                bias_score_1 = bias_score_1 / len(sensit_heads)
                 bias[instr] = (bias_score_0, bias_score_1)
             bias = pd.DataFrame(bias, columns = bi_sensit_tails)
-        bias.to_csv("./{}_{}.csv",format(bias_relation, str(model).split("(")[0]))
+        bias.to_csv("./{}_{}.csv", format(bias_relation, str(model).split("(")[0]))
         return bias
-        
+
     def calculate(self, evaluator, bias_relations):
         """
         Iterate over a list of relations of interest to calculate the translational likelihood bias
@@ -442,7 +467,7 @@ class TranslationalLikelihood(Measurement):
         dataset = evaluator.dataset
         bias_relations = evaluator.bias_relations
         target_rel = evaluator.target_relation
-        trained_model = evaluator.trained_model 
+        trained_model = evaluator.trained_model
         # Iterate over bias relations
         result = {}
         for r in bias_relations:
