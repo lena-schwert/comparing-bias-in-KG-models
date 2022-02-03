@@ -1,12 +1,9 @@
-from Measurement import DemographicParity, PredictiveParity
 from sklearn.metrics import balanced_accuracy_score, accuracy_score
-from matplotlib import pyplot as plt
 import pandas as pd
 from pykeen.datasets import FB15k237
-from utils import suggest_relations
-from classifier import TargetRelationClassifier, RFRelationClassifier
-from predict_tails import predict_relation_tails, get_preds_df, add_relation_values
-from collections import Counter
+from src.utils import suggest_relations
+from classifier import RFRelationClassifier
+from predict_tails import predict_relation_tails, add_relation_values
 
 #fname = "/Users/alacrity/Documents/uni/Fairness/trained_model.pkl"
 fname =  '/Users/alacrity/Documents/uni/Fairness/fb15k237/conve/replicates/replicate-00000/trained_model.pkl'

@@ -8,6 +8,7 @@ import numpy as np
 import os
 import torch
 from collections import Counter
+from datetime import datetime
 
 #### Internal Imports
 from code_from_other_papers.Keidar_automatic_bias_detec.utils import get_classifier, \
@@ -154,20 +155,16 @@ def eval_bias(evaluator, classifier_args, model_args, bias_relations = None, bia
 
 
 if __name__ == '__main__':
+    # IMPORTANT calculation of bias scores based on preds_df starts here
+
+    START_TIME = datetime.now()
+
     import argparse
     from classifier import RFRelationClassifier
     from Measurement import DemographicParity, PredictiveParity, TranslationalLikelihood
     from sklearn.metrics import balanced_accuracy_score, accuracy_score
     from visualization import preds_histogram
     from collections import Counter
-
-    dataset = FB15k237()
-    dataset_name = 'fb15k237'
-
-    target_relation, bias_relations = suggest_relations(dataset_name)
-    measures = [DemographicParity(), PredictiveParity()]
-
-    LOCAL_PATH_TO_EMBEDDING = '/Users/alacrity/Documents/uni/Fairness/'
 
     # Parser
     parser = argparse.ArgumentParser()
@@ -194,7 +191,10 @@ if __name__ == '__main__':
     #     MODEL_PATH = args.embedding_path  # override default if specifying a full path
     print("Load embedding model from: {}".format(MODEL_PATH))
 
+    measures = [DemographicParity(), PredictiveParity()]
+
     # Init dataset and relations of interest
+    #if args.data
     dataset = FB15k237()
     target_relation, bias_relations = suggest_relations(args.dataset)
 
@@ -210,18 +210,17 @@ if __name__ == '__main__':
     #                         preds_df_path = PREDS_DF_PATH)
 
     # Specify your local file paths here
-    file_names = ['/path/to/fb15k237/distmult/replicates/replicate-00000/trained_model.pkl',
-                  '/path/to/fb15k237/trans_e/replicates/replicate-00000/trained_model.pkl',
-                  '/path/to/fb15k237/conve/replicates/replicate-00000/trained_model.pkl',
-                  '/path/to/fb15k237/rotate/replicates/replicate-00000/trained_model.pkl',
-                  '/path/to/fb15k237/complex/replicates/replicate-00000/trained_model.pkl']
+    # file_names = ['/path/to/fb15k237/distmult/replicates/replicate-00000/trained_model.pkl',
+    #               '/path/to/fb15k237/trans_e/replicates/replicate-00000/trained_model.pkl',
+    #               '/path/to/fb15k237/conve/replicates/replicate-00000/trained_model.pkl',
+    #               '/path/to/fb15k237/rotate/replicates/replicate-00000/trained_model.pkl',
+    #               '/path/to/fb15k237/complex/replicates/replicate-00000/trained_model.pkl']
 
     model_names = ['transe', 'distmult', 'conve', 'rotate', 'complex']
 
     # TODO in this loop, the PPD and DPD bias scores are calculated for each KGE model!
     for model_name in model_names:
         preds_df = pd.read_csv(f'./preds_dfs/preds_df_' + model_name + '.csv')
-        measures = [DemographicParity(), PredictiveParity(), TranslationalLikelihood()]
 
         evaluator = BiasEvaluator(dataset, measures)
         # pass the dataframe to self.predictions such that it has access to classification results
@@ -232,54 +231,63 @@ if __name__ == '__main__':
         d_parity, p_parity = bias_eval['demographic_parity'], bias_eval['predictive_parity']
 
         # save results of bias calculation here for each of the two bias criteria
-        d_parity.to_csv(f'./preds_dfs/DPD_' + model_name + '.csv')
-        p_parity.to_csv(f'./preds_dfs/PPD_' + model_name + '.csv')
+        d_parity.to_csv(f'./preds_dfs/DPD_' + model_name + '_Lena' + '.csv')
+        p_parity.to_csv(f'./preds_dfs/PPD_' + model_name + '_Lena' + '.csv')
 
         acc = accuracy_score(preds_df.pred, preds_df.true_tail)
         bacc = balanced_accuracy_score(y_pred = preds_df.pred, y_true = preds_df.true_tail)
         print(acc)
         print(bacc)
 
-    fname = "/Users/alacrity/Documents/uni/Fairness/trained_model.pkl"
-    # Trained Model Path
-    # fname = '/local/scratch/kge_fairness/models/fb15k237/transe_openkeparams_alpha1/replicates/replicate-00000/trained_model.pkl'
-    dataset = FB15k237()
-    dataset_name = 'fb15k237'
-    GENDER_RELATION = '/people/person/gender'
-    PROFESSION_RELATION = '/people/person/profession'
+    END_TIME = datetime.now()
+    print('Finished calculating bias scores for all models.')
+    print(f'Start time: {START_TIME.strftime("%d.%m.%Y %H:%M")}')
+    print(f'End time: {END_TIME.strftime("%d.%m.%Y %H:%M")}')
+    print(f'Calculation took {END_TIME-START_TIME}')
 
-    target_relation, bias_relations = suggest_relations(dataset_name)
-    num_classes = 6
 
-    rf = RFRelationClassifier(dataset = dataset, embedding_model_path = fname,
-        target_relation = target_relation, num_classes = num_classes, batch_size = 500,
-        class_weight = 'balanced', max_depth = 6, random_state = 111, n_estimators = 100, )
+# %% This code part manually calculates bias for FB15k237
 
-    rf.train()
-
-    target_test_triplets = dataset.testing.get_triples_for_relations([target_relation])
-    preds_df = pd.DataFrame(
-        {'entity': target_test_triplets[:, 0], 'relation': target_test_triplets[:, 1],
-         'true_tail': target_test_triplets[:, 2], })
-    target_relation = preds_df.relation.loc[0]
-
-    preds_df = predict_relation_tails(dataset, rf, target_test_triplets)
-    preds_df = add_relation_values(dataset, preds_df, bias_relations)
-
-    random_preds = [np.random.randint(num_classes) for __ in preds_df.pred]
-    print("classification accuracy for random labels",
-          accuracy_score(preds_df.true_tail, random_preds))
-    print("balanced classification accuracy for random labels",
-          balanced_accuracy_score(preds_df.true_tail, random_preds))
-
-    print("classification accuracy for rf model", accuracy_score(preds_df.true_tail, preds_df.pred))
-    print("balanced classification accuracy for rf model",
-          balanced_accuracy_score(preds_df.true_tail, preds_df.pred))
-    preds_histogram(preds_df)
-
-    measures = [DemographicParity(), PredictiveParity()]
-
-    evaluator = BiasEvaluator(dataset, measures)
-    evaluator.set_predictions_df(preds_df)
-    bias_eval = evaluator.evaluate_bias(bias_relations = bias_relations, bias_measures = measures)
-    d_parity, p_parity = bias_eval['demographic_parity'], bias_eval['predictive_parity']
+    # fname = "/Users/alacrity/Documents/uni/Fairness/trained_model.pkl"
+    # # Trained Model Path
+    # # fname = '/local/scratch/kge_fairness/models/fb15k237/transe_openkeparams_alpha1/replicates/replicate-00000/trained_model.pkl'
+    # dataset = FB15k237()
+    # dataset_name = 'fb15k237'
+    # # GENDER_RELATION = '/people/person/gender'
+    # # PROFESSION_RELATION = '/people/person/profession'
+    #
+    # target_relation, bias_relations = suggest_relations(dataset_name)
+    # num_classes = 6
+    #
+    # rf = RFRelationClassifier(dataset = dataset, embedding_model_path = fname,
+    #     target_relation = target_relation, num_classes = num_classes, batch_size = 500,
+    #     class_weight = 'balanced', max_depth = 6, random_state = 111, n_estimators = 100, )
+    #
+    # rf.train()
+    #
+    # target_test_triplets = dataset.testing.get_triples_for_relations([target_relation])
+    # preds_df = pd.DataFrame(
+    #     {'entity': target_test_triplets[:, 0], 'relation': target_test_triplets[:, 1],
+    #      'true_tail': target_test_triplets[:, 2], })
+    # target_relation = preds_df.relation.loc[0]
+    #
+    # preds_df = predict_relation_tails(dataset, rf, target_test_triplets)
+    # preds_df = add_relation_values(dataset, preds_df, bias_relations)
+    #
+    # random_preds = [np.random.randint(num_classes) for __ in preds_df.pred]
+    # print("classification accuracy for random labels",
+    #       accuracy_score(preds_df.true_tail, random_preds))
+    # print("balanced classification accuracy for random labels",
+    #       balanced_accuracy_score(preds_df.true_tail, random_preds))
+    #
+    # print("classification accuracy for rf model", accuracy_score(preds_df.true_tail, preds_df.pred))
+    # print("balanced classification accuracy for rf model",
+    #       balanced_accuracy_score(preds_df.true_tail, preds_df.pred))
+    # preds_histogram(preds_df)
+    #
+    # measures = [DemographicParity(), PredictiveParity()]
+    #
+    # evaluator = BiasEvaluator(dataset, measures)
+    # evaluator.set_predictions_df(preds_df)
+    # bias_eval = evaluator.evaluate_bias(bias_relations = bias_relations, bias_measures = measures)
+    # d_parity, p_parity = bias_eval['demographic_parity'], bias_eval['predictive_parity']

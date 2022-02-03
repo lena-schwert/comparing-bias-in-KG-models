@@ -1,10 +1,10 @@
 import os
 import numpy as np
 import pickle
-from pykeen.datasets.base import PathDataSet
+from pykeen.datasets.base import PathDataset
 from pykeen.triples import TriplesFactory
 
-class Wiki5m(PathDataSet):
+class Wiki5m(PathDataset):
     def __init__(self, **kwargs):
         cache_root = "./data/wiki5m"
         self.name = "wiki5m"

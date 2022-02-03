@@ -36,24 +36,39 @@ dataset_man = FB15k237()
 # '/award/award_category/disciplines_or_subjects': 2, '/award/award_category/nominees./award/award_nomination/nominated_for': 3
 
 # MANUAL MAPPING FROM PYKEEN IDs to Freebase stuff
+# --> just search the Freebase ID in Wikidata!
 
-# gender
-# 8663
-# 5420
+# '/people/person/gender'
+# 8663 = /m/05zppz =  male organism (Q44148), male animal or plant
+# 5420 = /m/02zsn =  female organism (Q43445), female animal or plant
 
+# '/people/person/languages'
+# 4353 = /m/02h40lc = English (Q1860), West Germanic language originating in England
 
+# '/people/person/nationality'
+# 4458 = /m/02jx1
+# 10390 = /m/09c7w0
 
-def search_keys_by_val(dict, byVal):
+# '/people/person/profession'
+
+# '/people/person/places_lived./people/place_lived/location'
+
+# '/people/person/spouse_s./people/marriage/type_of_union'
+
+# '/people/person/religion'
+
+def search_keys_by_val(entity_to_id_dict, byVal):
     keysList = []
-    itemsList = dict.items()
+    itemsList = entity_to_id_dict.items()
     for item in itemsList:
         if item[1] == byVal:
             keysList.append(f'key: {item[0]}, value: {byVal})')
     return keysList
 
-def search_val_by_key(dict, byKey):
+
+def search_val_by_key(entity_to_id_dict, byKey):
     valList = []
-    itemsList = dict.items()
+    itemsList = entity_to_id_dict.items()
     for item in itemsList:
         if item[0] == byKey:
             valList.append(f'key: {item[0]}, value: {byKey})')

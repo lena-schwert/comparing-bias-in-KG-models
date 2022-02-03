@@ -75,6 +75,9 @@ classifier_args = {'epochs': args.epochs,
 # You can set a path to save the predictions dataframe
 SAVE_PATH = None
 
+# TODO if you don't want to train a classifier, provide a path to a preds_df
+PATH_TO_PREDS_DF = '/home/lena/git/master_thesis_bias_in_NLP/code_from_other_papers/Keidar_automatic_bias_detec/preds_dfs/preds_df_transe.csv'
+
 preds_df = get_preds_df(dataset,
                         classifier_args,
                         model_args,

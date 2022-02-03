@@ -38,10 +38,13 @@ class DemographicParity(Measurement):
         Return:
         demographic_parity_distance: float
         """
+        ### prepare data objects needed for the loop that calculates bias
         # create list of unique true labels, e.g. [0, 1, 2, 3, 4, 5]
         true_target_values = list(set(preds_df.true_tail.values))
         true_target_values = [trgt for trgt in true_target_values if trgt in set(preds_df.pred)]
         attributes = preds_df[relation]
+        print(f'{len(attributes[attributes != -1])} people have information on this relation')
+
         # create list of unique values for current bias relation
         attribute_set = list(set(attributes))
 
@@ -59,14 +62,37 @@ class DemographicParity(Measurement):
             # P[y=target_val|a=relation_val] - p[y=target_val|a!=relation_val]
             # for all true target values
             for target_val in true_target_values:
+                # identify all rows where entities are predicted to have current target_value occupation
+                # e.g. All women that are predicted to have the occupation politician.
                 pred_current_target = (preds_df.pred == target_val)
 
+                # from this, select only the facts/rows where the current attribute value
+                # e.g. From the previous vector, only select the rows where the person is female.
+                # len(given_a) = sum(attributes == attr) =  number of rows selected
                 given_a = pred_current_target[attributes == attr]
-                given_not_a = pred_current_target[attributes != attr]
 
+                # then select only the facts/rows that are NOT equal to the current attribute value
+                # TODO Isn't this a mistake and -1 values should be filtered out here?
+                # from predictive parity: given_not_a = preds_df[np.logical_and(preds_df[rel] != attr, preds_df[rel] != -1)]
+                given_not_a = pred_current_target[attributes != attr]
+                assert len(given_a) + len(given_not_a) == len(pred_current_target), 'Sanity check failed.'
+
+                # Which percentage of people having this attribute are predicted to have this profession?
+                # in math this is: P[y = target_val | a = relation_val]
                 prob_y_given_a = sum(given_a) / len(given_a)
 
+                # Which percentage of people NOT having this attribute are predicted to have this profession?
+                # in math this is: P[y = target_val | a != relation_val]
                 prob_y_given_not_a = sum(given_not_a) / len(given_not_a)
+
+                # What is the probability overall to prediction of target profession target_val?
+                #sum(pred_current_target) / len(pred_current_target)
+
+                # alternative:
+                #given_not_a_without_NA = pred_current_target[np.logical_and(attributes != attr, attributes != -1)]
+                #prob_y_given_not_a_without_NA = sum(given_not_a_without_NA) / len(given_not_a_without_NA)
+                #demographic_parity_distance_alternative = abs(prob_y_given_a - prob_y_given_not_a_without_NA)
+
                 # Calculate the difference of the probabilities P(y=t|a) and P(y=t|not a),
                 # We note that P(y=t|a) + P(y=t|~a) = P(y=t)
                 # Therefore |P(y=t|a) - P(y=t|~a)| <= P(y=t)
@@ -75,7 +101,8 @@ class DemographicParity(Measurement):
                 demographic_parity_distance += abs(prob_y_given_a - prob_y_given_not_a)
 
         # Normalize the demographic parity distance score, to get a value between 0 and 1
-        demographic_parity_distance = demographic_parity_distance / (len(attribute_set) + 1)
+        # TODO Why is this normalized by + 1? Isn't this incorrect and should be omitted?
+        demographic_parity_distance = demographic_parity_distance / (len(attribute_set))
         return demographic_parity_distance
 
     def calculate(self, evaluator, bias_relations):
@@ -94,7 +121,7 @@ class DemographicParity(Measurement):
         preds_df = evaluator.predictions
         bias_scores = []
         for r in bias_relations:
-            print(f"{r}")
+            print(f"Calculating bias score for relation: {r}")
             bias_scores.append(self.calculate_one_relation(preds_df, r))
         dp_df = pd.DataFrame({"relations": bias_relations, "bias_scores": bias_scores})
         return dp_df
@@ -150,6 +177,7 @@ class PredictiveParity(Measurement):
         """
         attributes = preds_df[rel].values
         attribute_set = list(set(attributes))
+        print(f'{len(attributes[attributes != -1])} people have information on this relation')
 
         if -1 in attribute_set:
             attribute_set.remove(-1)
