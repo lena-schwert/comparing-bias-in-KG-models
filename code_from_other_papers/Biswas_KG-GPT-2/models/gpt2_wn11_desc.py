@@ -125,7 +125,7 @@ print('Loading model...')
 model = GPT2ForSequenceClassification.from_pretrained(pretrained_model_name_or_path=model_name_or_path, config=model_config)
 model.resize_token_embeddings(len(tokenizer))
 model.config.pad_token_id = model.config.eos_token_id
-odel.to(device)
+model.to(device)
 print('Model loaded to `%s`'%device)
 
 

@@ -5,20 +5,18 @@ import os
 os.system(
     "export PYTHONPATH='${PYTHONPATH}:/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis'")
 
-import pandas as pd
 from datetime import datetime
 
 import torch
 import pykeen
 from pykeen.datasets.base import PathDataset
-from pykeen.hpo import hpo_pipeline
 from pykeen.triples import TriplesFactory
 from pykeen.pipeline import pipeline
-from pykeen.trackers import CSVResultTracker, TensorBoardResultTracker
+from pykeen.trackers import CSVResultTracker
 from pykeen.evaluation import RankBasedEvaluator
-from pykeen.utils import set_random_seed, is_cudnn_error, is_cuda_oom_error, check_shapes
+from pykeen.utils import set_random_seed
 
-from utils import set_base_path_based_on_host
+from src.utils import set_base_path_based_on_host
 
 # TODO change this back!
 BASE_PATH_HOST = set_base_path_based_on_host()

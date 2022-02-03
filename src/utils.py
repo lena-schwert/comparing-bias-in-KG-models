@@ -21,7 +21,7 @@ def set_base_path_based_on_host():
     :return: string that is the base path of the synced git folder
     """
     if socket.gethostname() == 'Schlepptop':
-        base_dir = '/home/lena/git/master_thesis_bias_in_NLP/'
+        base_dir = '//'
     # covers all CPU + GPU nodes of the HPI
     elif 'node' in socket.gethostname() or socket.gethostname() in ['a6k5-01', 'dgxa100-01', 'ac922-01', 'ac922-02']:
         base_dir = '/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis'
@@ -73,12 +73,47 @@ def improve_pandas_viewing_options():
     pd.set_option('display.max_rows', 100)
 
 
+def search_keys_by_val(entity_to_id_dict: dict, byVal):
+    keysList = []
+    itemsList = entity_to_id_dict.items()
+    for item in itemsList:
+        if item[1] == byVal:
+            keysList.append(f'key: {item[0]}, value: {byVal})')
+    return keysList
+
+
+def search_val_by_key(entity_to_id_dict: dict, byKey: str):
+    valList = []
+    itemsList = entity_to_id_dict.items()
+    for item in itemsList:
+        if item[0] == byKey:
+            valList.append(f'key: {item[0]}, value: {byKey})')
+    return valList
+
+
+def start_time():
+    from datetime import datetime
+    START_TIME = datetime.now()
+    return START_TIME
+
+
+def end_time():
+    from datetime import datetime
+    END_TIME = datetime.now()
+    return END_TIME
+
+
+def time_passed(START_TIME, END_TIME):
+    result = END_TIME-START_TIME
+    return
+
+
 # %%  Project-specific utilities
 
 
 def get_triples_df(name_of_dataset_processed):
     """
-    For each dataset, read in the
+    For each dataset, read in the official files
 
     Also returns property_encoding_ID, which is helpful
 
@@ -91,14 +126,14 @@ def get_triples_df(name_of_dataset_processed):
     if name_of_dataset_processed.lower() == 'wikidata5m':
         # file names: e.g. wikidata5m_all_triplets.txt
         # each line is a triple: Q29387131	P31	Q5 (tab-separated)
-        dataset_folder = os.path.join(base_path, 'data/SOTA_datasets_raw_downloads/Wikidata5M/')
+        dataset_folder = os.path.join(base_path, '../data/SOTA_datasets_raw_downloads/Wikidata5M/')
         file_name = 'wikidata5m_all_triplets.txt'
         triples_df = pd.read_csv(os.path.join(dataset_folder, file_name), sep = '\t',
                                  names = ['head_entity', 'relation', 'tail_entity'])
         property_encoding_ID = 'P_ID'
 
     elif name_of_dataset_processed.lower() == 'wikidatasets-humans':
-        dataset_folder = os.path.join(base_path, 'data/Wikidatasets_humans/')
+        dataset_folder = os.path.join(base_path, '../data/Wikidatasets_humans/')
         # 44 million rows, needs 1GB RAM, rows are integers only
         # contains all triples where the tail entity is no human
         attributes_df = pd.read_csv(os.path.join(dataset_folder, 'attributes.tsv'), sep = '\t',
@@ -130,7 +165,7 @@ def get_triples_df(name_of_dataset_processed):
         property_encoding_ID = 'OpenKE_ID'
 
     elif name_of_dataset_processed.lower() == 'codex-l' or name_of_dataset_processed.lower() == 'codex-m' or name_of_dataset_processed.lower() == 'codex-s':
-        dataset_folder = os.path.join(base_path, 'data/Codex_S_M_L/triples/')
+        dataset_folder = os.path.join(base_path, '../data/Codex_S_M_L/triples/')
         train_triples = pd.read_csv(
             os.path.join(dataset_folder, name_of_dataset_processed.lower(), 'train.txt'),
             sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
@@ -211,7 +246,7 @@ def filter_pykeen_results_file(path, filter_str: list, save: bool = True,
 
     Returns
     -------
-
+    a filtered dataframe
     """
     if format == 'csv':
         all_results = pd.read_csv(path)
@@ -223,7 +258,7 @@ def filter_pykeen_results_file(path, filter_str: list, save: bool = True,
 
     # filter for results
     filtered_results = all_results
-    # TODO maybe change this to a regular expresssion instead?
+    # TODO maybe change this to a regular expression instead?
     for i in filter_str:
         filter_str = filtered_results['key'].str.contains(i)
         filtered_results = filtered_results[filter_str]

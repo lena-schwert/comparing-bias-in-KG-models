@@ -2,11 +2,9 @@
 
 import os
 
-from utils import set_base_path_based_on_host, get_triples_df
+from src.utils import set_base_path_based_on_host, get_triples_df
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 pd.set_option('display.max_columns', 1000)
 pd.set_option('display.width', 1000)

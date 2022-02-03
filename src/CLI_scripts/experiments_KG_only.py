@@ -11,7 +11,7 @@ from datetime import datetime
 import sys
 
 if socket.gethostname() == 'Schlepptop':
-    path_to_append = '/home/lena/git/master_thesis_bias_in_NLP/'
+    path_to_append = '//'
 # covers all CPU + GPU nodes of the HPI
 elif 'node' in socket.gethostname() or socket.gethostname() in ['a6k5-01', 'dgxa100-01', 'ac922-01',
                                                                 'ac922-02']:
@@ -22,19 +22,17 @@ else:
 sys.path.append(path_to_append)
 
 # 3rd party custom modules
-import pandas as pd
 import torch
 import pykeen
 from pykeen.datasets.base import PathDataset
-from pykeen.hpo import hpo_pipeline
 from pykeen.triples import TriplesFactory
 from pykeen.pipeline import pipeline
-from pykeen.trackers import CSVResultTracker, TensorBoardResultTracker
+from pykeen.trackers import CSVResultTracker
 from pykeen.evaluation import RankBasedEvaluator
-from pykeen.utils import set_random_seed, is_cudnn_error, is_cuda_oom_error, check_shapes
+from pykeen.utils import set_random_seed
 
 # imports from my own code
-from utils import set_base_path_based_on_host, initialize_my_logger
+from src.utils import set_base_path_based_on_host, initialize_my_logger
 
 BASE_PATH_HOST = set_base_path_based_on_host()
 
@@ -44,7 +42,7 @@ BASE_PATH_HOST = set_base_path_based_on_host()
 parser = argparse.ArgumentParser(
     description = 'Run experiments with Wikidata5M as the data source and knowledge graph embeddings (pykeen) as the model(s).')
 parser.add_argument('-n', '--name', type = str,
-                    help = 'Experiment name, a folder with this name will be created in the results folder.')
+                    help = 'Experiment name, a folder with this name will be created in the results/KG_only folder.')
 parser.add_argument('--kge', type = list,
                     help = 'Provide a list [...] of strings, where each string must match a pykeen model name.')
 parser.add_argument('-d', '--debug', action = 'store_true',
@@ -157,7 +155,7 @@ def run_pykeen_hpo_pipeline(KGE_MODEL_NAME_S: list = args.kge, EXPERIMENT_NAME: 
         rel_validation_set_path = rel_validation_set_path
         rel_test_set_path = rel_test_set_path
     # create path for saving all the result files
-    DIRECTORY_FOR_SAVING = os.path.join(BASE_PATH_HOST, 'results', EXPERIMENT_NAME)
+    DIRECTORY_FOR_SAVING = os.path.join(BASE_PATH_HOST, 'results/KG_only', EXPERIMENT_NAME)
 
     # create directory and then use it as working directory
     if not os.path.isdir(DIRECTORY_FOR_SAVING):
@@ -243,7 +241,7 @@ def run_pykeen_hpo_pipeline(KGE_MODEL_NAME_S: list = args.kge, EXPERIMENT_NAME: 
             result_tracker = CSVResultTracker,  # supply either pykeen.trackers class or string
             result_tracker_kwargs = dict(
                 # experiment_path = DIRECTORY_FOR_SAVING,  # only applicable to TensorBoardResultTracker
-                path = os.path.join(BASE_PATH_HOST, 'results', EXPERIMENT_NAME,
+                path = os.path.join(BASE_PATH_HOST, 'results/KG_only', EXPERIMENT_NAME,
                                     f'pykeen_params_metrics_{EXPERIMENT_NAME}_{START_TIME}.csv'),
                 # name = 'bla.csv'  # optional give custom name instead of timestamp
             ),  # stopper = 'early',  # PLACEHOLDER ######################
@@ -252,7 +250,7 @@ def run_pykeen_hpo_pipeline(KGE_MODEL_NAME_S: list = args.kge, EXPERIMENT_NAME: 
                                    checkpoint_name = 'checkpoint_' + EXPERIMENT_NAME + '.pt',
                                    checkpoint_frequency = 30,
                                    # After how many minutes should a checkpoint be saved?
-                                   checkpoint_directory = os.path.join(BASE_PATH_HOST, 'results',
+                                   checkpoint_directory = os.path.join(BASE_PATH_HOST, 'results/KG_only',
                                                                        EXPERIMENT_NAME,
                                                                        'checkpoints'),
                                    checkpoint_on_failure = True
