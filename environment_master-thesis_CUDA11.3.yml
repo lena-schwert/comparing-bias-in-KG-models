@@ -4,22 +4,23 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.8
-  - pytorch
+  - python=3.9
+  - pytorch=1.9
   - torchvision  # 11.1. to run MNIST as GPU test
   - cudatoolkit=11.3 # newest version 11.3 might not work
+  - transformers=4.15
   - pandas
-  - scikit-learn
+  - scikit-learn=1.0
   - seaborn
-  - transformers
   - tensorboard
   - requests
   - sparqlwrapper
   - ipython
   - tqdm
+  - ignite  # 20.1.22: necessary for running Keidar code
   - pip
   - pip:
-    - pykeen
+    - pykeen==1.6.0
     - torchmetrics
     - pylustrator  # 17.12.21
     - tensorboard  # 4.1.21

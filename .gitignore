@@ -1,5 +1,7 @@
 /.idea/
 /data/
 
-/data_preprocessing/wikidata5m_human_facts_subset_complete_050122.tsv
+/src/data_preprocessing/wikidata5m_human_facts_subset_complete_050122.tsv
 /exploration/data/MNIST/raw/train-images-idx3-ubyte
+/src/CLI_scripts/__pycache__/experiments_KG_only.cpython-39.pyc
+*.cpython-39.pyc

@@ -1,24 +1,25 @@
-name: master-thesis_16_11_21
+name: master-thesis-cpu
 channels:
   - pytorch
   - conda-forge
   - defaults
 dependencies:
-  - python=3.8
-  - pandas
-  - scikit-learn
-  - seaborn
-  - pytorch
+  - python=3.9
+  - pytorch=1.9
   - cpuonly  # makes only sense when no NVIDIA GPU is accessible!
-  - transformers
+  - transformers=4.15
+  - pandas
+  - scikit-learn=1.0
+  - seaborn
   - tensorboard
   - requests
   - sparqlwrapper
   - ipython
   - tqdm
+  - ignite  # 20.1.22: necessary for running Keidar code, conda install ignite -c pytorch
   - pip
   - pip:
-    - pykeen
+    - pykeen==1.6.0
     - torchmetrics
     - pylustrator  # 17.12.21
     - tensorboard  # 4.1.21
