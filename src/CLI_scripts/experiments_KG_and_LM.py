@@ -18,22 +18,27 @@
 # %% Imports
 
 # in-built modules
+import socket
 import argparse
 import csv
 import logging
 import os
 import random
 import sys
+import time
 from datetime import datetime
+import shutil
+from tqdm import tqdm, trange
 
 # installed modules
 import numpy as np
 import torch
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler, TensorDataset)
 from torch.utils.data.distributed import DistributedSampler
-from tqdm import tqdm, trange
-
 from torch.nn import CrossEntropyLoss, MSELoss
+from torch.utils.tensorboard import SummaryWriter
+import torch.nn.functional as F
+from torchmetrics import MetricCollection, Accuracy, Precision, Recall
 from sklearn import metrics
 
 # imports for BERT
@@ -43,12 +48,13 @@ from transformers import AdamW, \
     get_linear_schedule_with_warmup  # instead of BertAdam, WarmupLinearSchedule
 
 # imports from my own code
-from src.utils import set_base_path_based_on_host, initialize_my_logger, improve_pandas_viewing_options
+from src.utils import set_base_path_based_on_host, initialize_my_logger, improve_pandas_viewing_options, save_argparse_obj_to_disk
 
 BASE_PATH_HOST = set_base_path_based_on_host()
 improve_pandas_viewing_options()
 
 logger = logging.getLogger(__name__)
+
 
 
 class InputExample(object):
@@ -164,17 +170,17 @@ class KGProcessor(DataProcessor):
 
     def get_train_triples(self, data_dir):
         """Gets training triples."""
-        logger.debug('Reading train.tsv...')
+        logging.debug('Reading train.tsv...')
         return self._read_tsv(os.path.join(data_dir, "train.tsv"))
 
     def get_dev_triples(self, data_dir):
         """Gets validation triples."""
-        logger.debug('Reading dev.tsv...')
+        logging.debug('Reading dev.tsv...')
         return self._read_tsv(os.path.join(data_dir, "dev.tsv"))
 
     def get_test_triples(self, data_dir):
         """Gets test triples."""
-        logger.debug('Reading test.tsv...')
+        logging.debug('Reading test.tsv...')
         return self._read_tsv(os.path.join(data_dir, "test.tsv"))
 
     def _create_examples(self, lines, set_type, data_dir):
@@ -221,7 +227,7 @@ class KGProcessor(DataProcessor):
         lines_str_set = set(['\t'.join(line) for line in lines])
         examples = []
 
-        logger.info('Creating examples ')
+        logging.info('Creating examples ')
         for (i, line) in enumerate(tqdm(lines)):
 
             head_ent_text = ent2text[line[0]]
@@ -302,16 +308,16 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                                  print_info = True):
     """Loads a data file into a list of `InputBatch`s."""
 
-    logger.debug(
+    logging.debug(
         'Creating features, i.e. vectors from the previously created examples (which are text instead of entity/relation IDs).')
     label_map = {label: i for i, label in enumerate(label_list)}
 
     features = []
     for (ex_index, example) in enumerate(tqdm(examples)):
         if ex_index % 10000 == 0 and print_info:
-            logger.info("Writing example %d of %d" % (ex_index, len(examples)))
+            logging.info("Writing example %d of %d" % (ex_index, len(examples)))
         # TODO remove this when no longer needed, this is a lot!
-        # logger.debug(f'Current example: {example.guid}')
+        # logging.debug(f'Current example: {example.guid}')
 
         # tokenize the head entity, outputs a list of strings
         tokens_a = tokenizer.tokenize(example.text_a)
@@ -397,13 +403,13 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         # print information about the first 5 examples of the dataset
         if ex_index < 5 and print_info:
-            logger.info(f"*** Example {ex_index + 1}***")
-            logger.info("guid: %s" % (example.guid))
-            logger.info("tokens: %s" % " ".join([str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-            logger.info("label: %s (id = %d)" % (example.label, label_id))
+            logging.info(f"*** Example {ex_index + 1}***")
+            logging.info("guid: %s" % (example.guid))
+            logging.info("tokens: %s" % " ".join([str(x) for x in tokens]))
+            logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+            logging.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
+            logging.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+            logging.info("label: %s (id = %d)" % (example.label, label_id))
 
         features.append(
             InputFeatures(input_ids = input_ids, input_mask = input_mask, segment_ids = segment_ids,
@@ -449,216 +455,40 @@ def _truncate_seq_triple(tokens_a, tokens_b, tokens_c, max_length):
             tokens_c.pop()
 
 
-def simple_accuracy(preds, labels):
-    return (preds == labels).mean()
 
 
-def compute_metrics(task_name, preds, labels):
-    assert len(preds) == len(labels)
-    if task_name == "kg":
-        return {"acc": simple_accuracy(preds, labels)}
-    else:
-        raise KeyError(task_name)
+
+def compute_metrics(predictions, true_labels):
+    accuracy = Accuracy()
+
+    accuracy = accuracy(predictions, true_labels)
+
+    if args.fp16:
+        raise NotImplementedError
+
+    return accuracy
+
+    # from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+    #
+    #
+    # labels = pred.label_ids
+    # preds = pred.predictions.argmax(-1)
+    # precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='binary')
+    # acc = accuracy_score(labels, preds)
+    # return {
+    #     'accuracy': acc,
+    #     'f1': f1,
+    #     'precision': precision,
+    #     'recall': recall
+    # }
 
 
-# TODO custom code by Lena: measure the RAM size of objects
-import gc
+def train_and_validate():
+    START_TRAINING = time.perf_counter()
+    #############------------- PREPARE FOR TRAINING ---------------#################
 
-
-def actualsize(input_obj):
-    memory_size = 0
-    ids = set()
-    objects = [input_obj]
-    while objects:
-        new = []
-        for obj in objects:
-            if id(obj) not in ids:
-                ids.add(id(obj))
-                memory_size += sys.getsizeof(obj)
-                new.append(obj)
-        objects = gc.get_referents(*new)
-    if memory_size >= 1024 * 1024:
-        memory_size_MB = memory_size / (1024 * 1024)
-        output = f'{memory_size} MB'
-    output = f'{memory_size} Bytes'
-    return output
-
-
-def main():
-    parser = argparse.ArgumentParser()
-
-    ## Required parameters (set default to None)
-    # TODO change back to None, provided manual defaults for debugging
-
-    # debugging example: FB15k237
-    parser.add_argument("--data_dir",
-                        default = '/home/lena/git/master_thesis_bias_in_NLP/code_from_other_papers/Yao_KG_BERT/data/FB15k-237',
-                        type = str, required = True,
-                        help = "The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--bert_model", default = 'bert-base-cased', type = str, required = True,
-                        help = "Bert pre-trained model selected in the list: bert-base-uncased, "
-                               "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
-                               "bert-base-multilingual-cased, bert-base-chinese.")
-    parser.add_argument("--task_name", default = 'kg', type = str, required = True,
-                        help = "The name of the task to train.")
-    parser.add_argument("--output_dir",
-                        default = '/home/lena/git/master_thesis_bias_in_NLP/code_from_other_papers/Yao_KG_BERT/output_FB15k237',
-                        type = str, required = True,
-                        help = "The output directory where the model predictions and checkpoints will be written.")
-
-    ## Other parameters
-    parser.add_argument("--debug", action = 'store_true',
-                        help = "Add this flag when debugging. Will adapt parameters such that the model runs way faster.")
-    parser.add_argument("--cache_dir", default = "", type = str,
-                        help = "Where do you want to store the pre-trained models downloaded from s3")
-    parser.add_argument("--max_seq_length", default = 128, type = int,
-                        help = "The maximum total input sequence length after WordPiece tokenization. \n"
-                               "Sequences longer than this will be truncated, and sequences shorter \n"
-                               "than this will be padded.")
-    parser.add_argument("--do_train", action = 'store_true', help = "Whether to run training.")
-    parser.add_argument("--do_eval", action = 'store_true',
-                        help = "Whether to run eval on the dev set.")
-    parser.add_argument("--do_predict", action = 'store_true',
-                        help = "Whether to run eval on the test set.")
-    parser.add_argument("--do_lower_case", action = 'store_true',
-                        help = "Set this flag if you are using an uncased model.")
-    parser.add_argument("--train_batch_size", default = 32, type = int,
-                        help = "Total batch size for training.")
-    parser.add_argument("--eval_batch_size", default = 8, type = int,
-                        help = "Total batch size for eval.")
-    parser.add_argument("--learning_rate", default = 5e-5, type = float,
-                        help = "The initial learning rate for Adam.")
-    parser.add_argument("--num_train_epochs", default = 3.0, type = float,
-                        help = "Total number of training epochs to perform.")
-    parser.add_argument("--warmup_proportion", default = 0.1, type = float,
-                        help = "Proportion of training to perform linear learning rate warmup for. "
-                               "E.g., 0.1 = 10%% of training.")
-    parser.add_argument("--no_cuda", action = 'store_true',
-                        help = "Whether not to use CUDA when available")
-    parser.add_argument("--local_rank", type = int, default = -1,
-                        help = "Specify local_rank for distributed training on gpus. If -1, distributed training is disabled.")
-    parser.add_argument('--seed', type = int, default = 42, help = "random seed for initialization")
-    parser.add_argument('--gradient_accumulation_steps', type = int, default = 1,
-                        help = "Number of updates steps to accumulate before performing a backward/update pass.")
-    parser.add_argument('--fp16', action = 'store_true',
-                        help = "Whether to use 16-bit float precision instead of 32-bit")
-    parser.add_argument('--loss_scale', type = float, default = 0,
-                        help = "Loss scaling to improve fp16 numeric stability. Only used when fp16 set to True.\n"
-                               "0 (default value): dynamic loss scaling.\n"
-                               "Positive power of 2: static loss scaling value.\n")
-    parser.add_argument('--server_ip', type = str, default = '',
-                        help = "Can be used for distant debugging.")
-    parser.add_argument('--server_port', type = str, default = '',
-                        help = "Can be used for distant debugging.")
-    args = parser.parse_args()
-
-    # TODO create a meaningful file name
-
-    if args.server_ip and args.server_port:
-        # Distant debugging - see https://code.visualstudio.com/docs/python/debugging#_attach-to-a-local-script
-        import ptvsd
-        print("Waiting for debugger attach")
-        ptvsd.enable_attach(address = (args.server_ip, args.server_port), redirect_output = True)
-        ptvsd.wait_for_attach()
-
-    if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
-        raise ValueError(
-            "Output directory ({}) already exists and is not empty.".format(args.output_dir))
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
-
-    # configure the logging
-    # important: custom logging by Lena to stdout and file
-    format = '%(asctime)s - %(levelname)s - %(filename)s/%(funcName)s: %(message)s'
-    logging.basicConfig(format = format,
-                        level = logging.INFO if args.local_rank in [-1, 0] else logging.WARN,
-                        datefmt = "%d.%m.%Y %H:%M:%S", handlers = [
-            logging.FileHandler(f'log_{os.path.split(args.data_dir)[1]}_{START_TIME}.txt',
-                                mode = 'a'), logging.StreamHandler(sys.stdout)])
-
-    # set the correct CUDA device, check for number of devices
-    if args.local_rank == -1 or args.no_cuda:
-        # important: if no_cuda is enabled, use CPU even though GPU is available
-        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-        n_gpu = torch.cuda.device_count()
-        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    else:
-        logger.info('Distributed training.')
-        torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
-        n_gpu = 1
-        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
-        torch.distributed.init_process_group(backend = 'nccl')
-
-    logger.info('******* CUDA INFO *********')
-    logger.info(
-        f"device: {device} n_gpu: {n_gpu}, distributed training: {bool(args.local_rank != -1)},"
-        f" 16-bits training: {args.fp16}")
-
-    if args.debug:
-        # important: if debugging, use small version of FB15K237!
-        # test + dev have 100 examples, training has 500
-        logger.info('DEBUGGING MODE: Using a very small subset of FB15k237.')
-        args.data_dir = os.path.join(args.data_dir, 'for_debugging')
-        logger.info(f'File path: {args.data_dir}')
-
-    if args.gradient_accumulation_steps < 1:
-        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
-            args.gradient_accumulation_steps))
-
-    # divide batch size by gradient accumulation steps
-    # this is not relevant for the results, usually = 1!
-    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
-
-    # set the random seeds
-    args.seed = random.randint(1, 200)
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    # TODO decide whether to use this: torch.backends.cudnn.deterministic = True
-
-    if n_gpu > 0:
-        torch.cuda.manual_seed_all(args.seed)
-
-    # TODO uncomment this
-    # if not args.do_train and not args.do_eval:
-    #     raise ValueError("At least one of `do_train` or `do_eval` must be True.")
-
-    # create a KGProcessor + task name
-    processors = {"kg": KGProcessor, }
-
-    task_name = args.task_name.lower()
-
-    if task_name not in processors:
-        raise ValueError("Task not found: %s" % (task_name))
-
-    # create a KGProcessor object
-    processor = processors[task_name]()
-
-    # access to entities.txt file to create a list object
-    # important access to file entities.txt
-    label_list = processor.get_labels(args.data_dir)
-    num_labels = len(label_list)
-    entity_list = processor.get_entities(args.data_dir)
-
-    # important added custom logging
-    logger.info(f'There are {len(entity_list)} entities in the dataset.')
-    logger.info(f'Entity list takes {actualsize(entity_list)} of RAM.')
-
+    ### load model and tokenizer
     tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case = args.do_lower_case)
-
-    # get training examples + create NEGATIVE/CORRUPT triples for each of it
-
-    train_examples = None
-    num_train_optimization_steps = 0
-    if args.do_train:
-        # important: this call takes a long time!
-        logger.info('Creating examples from the training split of the dataset.')
-        train_examples = processor.get_train_examples(args.data_dir)
-        num_train_optimization_steps = int(
-            len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
-        if args.local_rank != -1:
-            num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
 
     # Prepare model, download BERT for sequence classification
     # create cache folder so the model is only downloaded when the script is run for the first time on the machine
@@ -668,12 +498,13 @@ def main():
 
     # parameters will be loaded as float 32
     model = BertForSequenceClassification.from_pretrained(args.bert_model, cache_dir = cache_dir,
-                                                          num_labels = num_labels)
+                                                          num_labels = NUM_LABELS)
 
     # if specified, cast the model to float 16 datatype
     if args.fp16:
         model.half()
 
+    # send the model to device (cpu or gpu)
     model.to(device)
 
     # if specified, enable distributed training on GPUs using torch.nn.DataParallel(model)
@@ -688,16 +519,15 @@ def main():
     elif n_gpu > 1:
         model = torch.nn.DataParallel(model)  # model = torch.nn.parallel.data_parallel(model)
 
-    # Prepare optimizer
+    ### Prepare optimizer: account for fp16
     param_optimizer = list(model.named_parameters())
 
-    # show all parameter names
-    # for name, param in model.named_parameters():
-    #    print(name)
-
-    # add all parameters except decay?
+    # IMPORTANT: specify layers where no weight decay should be done
+    # (it does not make sense to decay the bias terms)
+    # taken from the original bert paper: https://github.com/google-research/bert/blob/master/optimization.py#L65
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-    # TODO unclear: set weight decay to zero?
+    # set weight decay = 0 for selected layers
+    # model parameters are split into two groups: with and without weight decay
     optimizer_grouped_parameters = [
         {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
          'weight_decay': 0.01},
@@ -729,126 +559,244 @@ def main():
         #                      lr=args.learning_rate,
         #                      warmup=args.warmup_proportion,
         #                      t_total=num_train_optimization_steps)
+        # Important: To reproduce the old BertAdam specific behavior set correct_bias=False
         optimizer = AdamW(optimizer_grouped_parameters, lr = args.learning_rate,
-                          correct_bias = False)  # Important: To reproduce BertAdam specific behavior set correct_bias=False
+                          correct_bias = False)
+        warmup_linear = None
 
-    global_step = 0  # ?
-    nb_tr_steps = 0
-    tr_loss = 0  # accumulate training loss?
+    # use gradient accumulation step to set training batch size
+    if args.gradient_accumulation_steps < 1:
+        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
+            args.gradient_accumulation_steps))
 
-    # DO THE TRAINING!!!
-    if args.do_train:
+    # divide batch size by gradient accumulation steps
+    # this is not relevant for the results, usually = 1!
+    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
 
-        train_features = convert_examples_to_features(train_examples, label_list,
-                                                      args.max_seq_length, tokenizer)
-        logger.info("***** Running training *****")
-        logger.info("  Num examples = %d", len(train_examples))
-        logger.info("  Batch size = %d", args.train_batch_size)
-        logger.info("  Num steps = %d", num_train_optimization_steps)
+    #############------------- PREPARE TRAINING DATA ---------------#################
 
-        # create 4 separate variables out of train_features
-        # store everything in a long Tensor
-        all_input_ids = torch.tensor([f.input_ids for f in train_features], dtype = torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype = torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype = torch.long)
-        all_label_ids = torch.tensor([f.label_id for f in train_features], dtype = torch.long)
+    # get training examples + create NEGATIVE/CORRUPT triples for each of it
+    logger.info('Creating examples from the training split of the dataset.')
+    train_examples = processor.get_train_examples(args.data_dir)
+    num_train_optimization_steps = int(
+        len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
+    if args.local_rank != -1:
+        num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
 
-        # wrap all tensors into a torch.TensorDataset
-        train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+    train_features = convert_examples_to_features(train_examples, label_list, args.max_seq_length,
+                                                  tokenizer)
+    logger.info('################# TRAINING dataset #################')
+    logger.info("  Num examples = %d", len(train_examples))
+    logger.info("  Batch size = %d", args.train_batch_size)
 
-        if args.local_rank == -1:
-            train_sampler = RandomSampler(train_data)  # default: replacement = False
-        else:
-            train_sampler = DistributedSampler(train_data)
+    # create 4 separate variables out of train_features
+    all_input_ids_train = torch.tensor([f.input_ids for f in train_features], dtype = torch.long)
+    all_input_mask_train = torch.tensor([f.input_mask for f in train_features], dtype = torch.long)
+    all_segment_ids_train = torch.tensor([f.segment_ids for f in train_features], dtype = torch.long)
+    all_label_ids_train = torch.tensor([f.label_id for f in train_features], dtype = torch.long)
 
-        # Pytorch data_loader, not shuffled (RandomSampler does that)
-        train_dataloader = DataLoader(train_data, sampler = train_sampler,
-                                      batch_size = args.train_batch_size)
+    # wrap all tensors into a torch.TensorDataset
+    train_data = TensorDataset(all_input_ids_train, all_input_mask_train, all_segment_ids_train, all_label_ids_train)
 
-        model.train()  # set model to train mode
+    if args.local_rank == -1:
+        train_sampler = RandomSampler(train_data)  # default: replacement = False
+    else:
+        train_sampler = DistributedSampler(train_data)
 
-        for _ in trange(int(args.num_train_epochs), desc = "Epoch"):
-            # note that global_step is not set to zero
-            tr_loss = 0
-            nb_tr_examples, nb_tr_steps = 0, 0
-            for step, batch in enumerate(tqdm(train_dataloader, desc = "Iteration")):
-                batch = tuple(t.to(device) for t in batch)  # unpack and send each tensor to device
-                input_ids, input_mask, segment_ids, label_ids = batch  # unpack the batch
+    # Pytorch data_loader, not shuffled (RandomSampler does that)
+    train_dataloader = DataLoader(train_data, sampler = train_sampler,
+                                  batch_size = args.train_batch_size)
 
-                # calculate predictions for current batch
-                # do not automatically calculate the loss! (do not provide labels)
-                logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+    #############------------- PREPARE VALIDATION DATA ---------------#################
 
-                # TODO Why is it initialized here inside the batch loop? - bottleneck?
-                loss_fct = CrossEntropyLoss()
-                # calculate loss, make sure that the tensors have correct dimensionality
-                # view(-1) makes the tensor shape flexible
-                loss = loss_fct(logits.view(-1, model.num_labels), label_ids.view(-1))
+    # simply load the validation set and prepare it as BERT input (no corruption)
+    logger.info('Creating examples from the validation split of the dataset.')
+    eval_examples = processor.get_dev_examples(args.data_dir)
+    eval_features = convert_examples_to_features(eval_examples, label_list, args.max_seq_length,
+                                                 tokenizer)
+    logger.info('################# EVALUATION dataset #################')
+    logger.info("  Num examples = %d", len(eval_examples))
+    logger.info("  Batch size = %d", args.eval_batch_size)
+    all_input_ids_eval = torch.tensor([f.input_ids for f in eval_features], dtype = torch.long)
+    all_input_mask_eval = torch.tensor([f.input_mask for f in eval_features], dtype = torch.long)
+    all_segment_ids_eval = torch.tensor([f.segment_ids for f in eval_features], dtype = torch.long)
+    all_label_ids_eval = torch.tensor([f.label_id for f in eval_features], dtype = torch.long)
 
-                if n_gpu > 1:
-                    loss = loss.mean()  # mean() to average on multi-gpu.
-                if args.gradient_accumulation_steps > 1:
-                    loss = loss / args.gradient_accumulation_steps
+    eval_data = TensorDataset(all_input_ids_eval, all_input_mask_eval, all_segment_ids_eval, all_label_ids_eval)
+    # Run prediction for full data
+    eval_sampler = SequentialSampler(eval_data)
+    eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
+                                 batch_size = args.eval_batch_size)
 
-                # calculate the backprogration with the loss
-                if args.fp16:
-                    optimizer.backward(loss)
-                else:
-                    loss.backward()  # TODO decide whether to add gradient clipping (part of pytorch_pretrained migration)  # torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+    ############------------- TRAINING ---------------#################
+    logger.info('################# Starting TRAINING #################')
+    logger.info("  Num examples = %d", len(train_examples))
+    logger.info("  Batch size = %d", args.train_batch_size)
+    logger.info("  Num steps = %d", num_train_optimization_steps)
 
-                # add the loss value to the logging variables
-                tr_loss += loss.item()
-                nb_tr_examples += input_ids.size(0)
-                nb_tr_steps += 1
-                # this is always executed if gradient_accumulation_steps = 1
-                if (step + 1) % args.gradient_accumulation_steps == 0:
-                    if args.fp16:
-                        # modify learning rate with special warm up BERT uses
-                        # if args.fp16 is False, BertAdam is used that handles this automatically
-                        lr_this_step = args.learning_rate * warmup_linear.get_lr(
-                            global_step / num_train_optimization_steps, args.warmup_proportion)
-                        for param_group in optimizer.param_groups:
-                            param_group['lr'] = lr_this_step
-                    # update the weights and set optimizer to zero
-                    optimizer.step()
-                    optimizer.zero_grad()
-                    global_step += 1
-            logger.info("Training loss: ", tr_loss,
-                        nb_tr_examples)  # TODO log + save training loss after each epoch!
+    # create Tensorboard writer
+    writer_tb = SummaryWriter(log_dir = DIRECTORY_FOR_SAVING_OR_LOADING, flush_secs = 30)
 
-        logger.info('********** Finished training **********')
+    start_datetime = datetime.now()
+    last_epoch = False
 
-    if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
-        # Save a trained model, configuration and tokenizer
-        # model_to_save = model.module if hasattr(model,
-        #                                         'module') else model  # Only save the model it-self
+    for i in trange(int(args.num_train_epochs), desc = "Training epoch"):
+        start_time_epoch = time.perf_counter()
+        logger.info(f'Epoch {i + 1} has started.')
+        if i + 1 == args.num_train_epochs:
+            last_epoch = True
+        ############------------- TRAINING ---------------#################
+        model.train()
+        start_time_epoch_train = time.perf_counter()
+        epoch_train_loss = train(train_loader = train_dataloader, model = model,
+                                 optimizer = optimizer, lr_warmup = warmup_linear,
+                                 num_train_optimization_steps = num_train_optimization_steps)
+        end_time_epoch_train = time.perf_counter()
+        ############------------- VALIDATION ---------------#################
+        # validate the trained model for loss + accuracy
+        model.eval()
+        start_time_epoch_validate = time.perf_counter()
+        epoch_validate_loss = validate(data_loader = eval_dataloader,
+                                                               model = model, tokenizer = tokenizer,
+                                                               last_epoch = last_epoch)
+        end_time_epoch_validate = time.perf_counter()
+        end_time_epoch = time.perf_counter()
+        ############------------- LOGGING ---------------#################
+        # add weights and gradients to tensorboard
+        for parameter_name, values in model.named_parameters():
+            if values.requires_grad is True:
+                writer_tb.add_histogram(parameter_name, values, i)
+                writer_tb.add_histogram(f'{parameter_name}.grad', values.grad, i)
 
-        # # If we save using the predefined names, we can load using `from_pretrained`
-        # output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
-        # output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+        # add losses and evaluation metrics to tensorboard
+        metric_dict = {'loss/training_loss': epoch_train_loss,
+                       'loss/validation_loss': epoch_validate_loss,
+                       # 'classification_metrics/accuracy': classification_metrics.get(
+                       #     'top1_accuracy'),
+                       'timings/total_epoch_runtime_min': round(
+                           (end_time_epoch - start_time_epoch) / 60, 2),
+                       'timings/train_runtime_min': round(
+                           (end_time_epoch_train - start_time_epoch_train) / 60, 2),
+                       'timings/validation_runtime_min': round(
+                           (end_time_epoch_validate - start_time_epoch_validate) / 60, 2)}
 
+        # add the metrics to tensorboard (all in a single file)
+        for key, value in metric_dict.items():
+            writer_tb.add_scalar(key, value, i)
+
+        # save hyperparameters to tensorboard in last epoch
+        if last_epoch:
+            writer_tb.add_hparams(
+                hparam_dict = args.__dict__,
+                metric_dict = metric_dict)
+
+        # make sure that the values are written to disk immediately
+        writer_tb.flush()
+
+        logger.info(f'Saved results of epoch {i + 1} to disk.')
+        logger.info(
+            f'Epoch {i + 1} of {args.num_train_epochs} ran for {round((end_time_epoch - start_time_epoch_train) / 60, 2)} minutes.')
+
+    ############------------- AFTER TRAINING IS COMPLETED ---------------#################
+    logger.info('################# Finished TRAINING #################')
+
+    # save the model (if not running distributed training)
+    if args.local_rank == -1 or torch.distributed.get_rank() == 0:
+        # Save the trained model, configuration and tokenizer
         # save model.bin, config.json and vocab.txt to disk
-        model.save_pretrained(args.output_dir, save_config = True)
-        tokenizer.save_vocabulary(args.output_dir)
+        model.save_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING, save_config = True)
+        tokenizer.save_vocabulary(DIRECTORY_FOR_SAVING_OR_LOADING)
+    logger.info('Trained model saved to disk.')
 
-        # TODO Why is a model loaded here?  # Load a trained model and vocabulary that you have fine-tuned
-    #     model = BertForSequenceClassification.from_pretrained(args.output_dir,
-    #                                                           num_labels = num_labels)
-    #     tokenizer = BertTokenizer.from_pretrained(args.output_dir,
-    #                                               do_lower_case = args.do_lower_case)
-    # else:
-    #     model = BertForSequenceClassification.from_pretrained(args.bert_model,
-    #                                                           num_labels = num_labels)
+    writer_tb.flush()
+    writer_tb.close()
 
-    # model.to(device)
+    END_TRAINING = time.perf_counter()
+    logger.info(f'Training and validation took {round((END_TRAINING - START_TRAINING) / 60, 2)} minutes in total.')
 
-    # IMPORTANT: EVALUATION starts here
-    if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+    return model, tokenizer
+
+
+def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmup):
+    global global_step
+
+    training_loss = 0
+    nb_tr_examples, nb_tr_steps = 0, 0
+
+    loss_fct = CrossEntropyLoss()
+
+    for step, batch in enumerate(tqdm(train_loader, desc = "Iteration")):
+        batch = tuple(t.to(device) for t in batch)  # unpack and send each tensor to device
+        input_ids, input_mask, segment_ids, label_ids = batch  # unpack the batch
+
+        # calculate predictions for current batch
+        # do not automatically calculate the loss! (do not provide labels)
+        logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+
+        # calculate loss, make sure that the tensors have correct dimensionality
+        # view(-1) makes the tensor shape flexible
+        loss = loss_fct(logits.view(-1, model.num_labels), label_ids.view(-1))
+
+        if n_gpu > 1:
+            loss = loss.mean()  # mean() to average on multi-gpu.
+        if args.gradient_accumulation_steps > 1:
+            loss = loss / args.gradient_accumulation_steps
+
+        # calculate the backprogration with the loss
+        if args.fp16:
+            optimizer.backward(loss)
+        else:
+            loss.backward()  # TODO decide whether to add gradient clipping (part of pytorch_pretrained migration)  # torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+
+        # add the loss value to the logging variables
+        training_loss += loss.item()
+        nb_tr_examples += input_ids.size(0)
+        nb_tr_steps += 1
+        # this is always executed if gradient_accumulation_steps = 1
+        if (step + 1) % args.gradient_accumulation_steps == 0:
+            if args.fp16:
+                # modify learning rate with special warm up BERT uses
+                # if args.fp16 is False, BertAdam is used that handles this automatically
+                lr_this_step = args.learning_rate * lr_warmup.get_lr(
+                    global_step / num_train_optimization_steps, args.warmup_proportion)
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = lr_this_step
+            # update the weights and set optimizer to zero
+            optimizer.step()
+            optimizer.zero_grad()
+            global_step += 1
+    logger.info(f'Training loss: {training_loss}')
+
+    return training_loss
+
+
+def validate(model, tokenizer, data_loader, last_epoch):
+
+    # TODO make it so that this function can also be used independent of training
+
+    # TODO make an indented code block like e.g. "only validation"
+    if not args.do_train:
+
+        # in case evaluation is run independent of training
+        # --> load a trained model and vocabulary that you have fine-tuned earlie
+        model = BertForSequenceClassification.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
+                                                              num_labels = NUM_LABELS)
+
+        # folder needs to contain a config.json and a vocab.txt file
+        tokenizer = BertTokenizer.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
+                                                  do_lower_case = args.do_lower_case)
+
+        # do typechecking to see that this was loaded correctly
+        assert type(model) == BertForSequenceClassification, 'Model was not loaded correctly.'
+        assert type(tokenizer) == BertTokenizer, 'Tokenizer was not loaded correctly.'
+
+        model.to(device)
+        model.eval()
 
         eval_examples = processor.get_dev_examples(args.data_dir)
         eval_features = convert_examples_to_features(eval_examples, label_list, args.max_seq_length,
                                                      tokenizer)
-        logger.info("***** Running evaluation *****")
+        logger.info('################# Starting EVALUATION #################')
         logger.info("  Num examples = %d", len(eval_examples))
         logger.info("  Batch size = %d", args.eval_batch_size)
         all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype = torch.long)
@@ -860,107 +808,456 @@ def main():
         eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
         # Run prediction for full data
         eval_sampler = SequentialSampler(eval_data)
-        eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
+        data_loader = DataLoader(eval_data, sampler = eval_sampler,
                                      batch_size = args.eval_batch_size)
 
-        # Load a trained model and vocabulary that you have fine-tuned
-        model = BertForSequenceClassification.from_pretrained(args.output_dir,
-                                                              num_labels = num_labels)
+    eval_loss_accum = 0
+    nb_eval_steps = 0
+    # TODO continue here
+    # use this to collect all logits
+    prediction_prob = torch.Tensor().float().to(device)
+    all_true_labels = torch.Tensor().long().to(device)
+
+    loss_fct = CrossEntropyLoss()
+
+    for input_ids, input_mask, segment_ids, label_ids in tqdm(data_loader, desc = "Evaluating"):
+        input_ids = input_ids.to(device)
+        input_mask = input_mask.to(device)
+        segment_ids = segment_ids.to(device)
+        label_ids = label_ids.to(device)
+
+        with torch.no_grad():
+            logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+
+        # create eval loss and other metric required by the task
+        tmp_eval_loss = loss_fct(logits.view(-1, NUM_LABELS), label_ids.view(-1))
+
+        # accumulate the loss over all batches (use mean() for multi-gpu case)
+        eval_loss_accum += tmp_eval_loss.mean().item()
+        logger.debug(f'accumulated eval_loss: {eval_loss_accum}')
+        nb_eval_steps += 1
+        # append the current predictions + true labels to the running tensor
+        # TODO convert logits to probabilities first
+        prediction_prob_batch = F.softmax(logits, dim = 1)
+        prediction_prob = torch.cat((prediction_prob, prediction_prob_batch.detach()))
+        all_true_labels = torch.cat((all_true_labels, label_ids.detach()))
+
+    # calculate mean evaluation loss by dividing through number of batches
+    eval_loss_mean = eval_loss_accum / nb_eval_steps
+
+    # make sure that dimensions are as expected
+
+    # get the position (0 or 1) for the largest value
+    # TODO doesn't this need to be transformed with softmax first?
+    #label_preds = torch.argmax(prediction_prob, dim = 1)
+    # calculate accuracy for the entire evaluation set
+    # TODO add torchmetrics calculation here
+    #evaluation_metrics = compute_metrics(prediction_prob, all_true_labels)
+
+    return eval_loss_mean#, evaluation_metrics
+
+
+def test(model = None, tokenizer = None):
+    from pykeen.evaluation import RankBasedEvaluator
+    # interesting functions:  process_tail_scores_, process_head_scores_
+    # they require: hrt_batch: MappedTriples
+    # MappedTriples = torch.LongTensor
+    # TODO test out what the exact shape of MappedTriples when this is run
+    # (probably integer tensors, i.e. the numeric ID of each relation/entity
+
+
+    pass
+
+
+# def main():
+#     ### Declare global variables: used for training, evaluation and prediction
+#     global args
+#     global processor
+#     global label_list
+#     global NUM_LABELS
+#     global entity_list
+#     global global_step
+#     global DIRECTORY_FOR_SAVING_OR_LOADING
+#     global n_gpu
+#     global device
+
+START_TIME = datetime.now().strftime("%d.%m.%Y_%H:%M")
+
+parser = argparse.ArgumentParser(
+    description = 'Run experiments with Wikidata5M as the data source and '
+                  'a fine-tuned BERT, i.e. KG-BERT as the model.')
+
+## Required parameters (set default to None)
+# TODO change back to None, provided manual defaults for debugging
+
+# debugging example: FB15k237
+parser.add_argument("--data_dir",
+                    default = '/home/lena/git/master_thesis_bias_in_NLP/code_from_other_papers/Yao_KG_BERT/data/FB15k-237',
+                    type = str, required = True,
+                    help = "The input data dir. Should contain the .tsv files (or other data files) for the task.")
+parser.add_argument("--bert_model", default = 'bert-base-cased', type = str, required = True,
+                    help = "Bert pre-trained model selected in the list: bert-base-uncased, "
+                           "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
+                           "bert-base-multilingual-cased, bert-base-chinese.")
+parser.add_argument('-n', '--name', type = str,
+                    help = 'Experiment name, a folder with this name will be created  or loaded from'
+                           'in the results/KG_and_LM folder.')
+
+## Other parameters
+parser.add_argument('-d', "--debug", action = 'store_true',
+                    help = "Add this flag when debugging. Will adapt parameters such that the model runs way faster.")
+parser.add_argument("--cache_dir", default = "", type = str,
+                    help = "Where do you want to store the pre-trained models downloaded from s3")
+parser.add_argument("--max_seq_length", default = 128, type = int,
+                    help = "The maximum total input sequence length after WordPiece tokenization. \n"
+                           "Sequences longer than this will be truncated, and sequences shorter \n"
+                           "than this will be padded.")
+parser.add_argument("--do_train", action = 'store_true', help = "Whether to run training and validation.")
+# parser.add_argument("--do_eval", action = 'store_true',
+#                     help = "Whether to run eval on the dev set.")
+parser.add_argument("--do_predict", action = 'store_true',
+                    help = "Whether to run eval on the test set.")
+parser.add_argument("--do_lower_case", action = 'store_true',
+                    help = "Set this flag if you are using an uncased model.")
+parser.add_argument("--train_batch_size", default = 32, type = int,
+                    help = "Total batch size for training.")
+parser.add_argument("--eval_batch_size", default = 8, type = int,
+                    help = "Total batch size for eval.")
+parser.add_argument("--learning_rate", default = 5e-5, type = float,
+                    help = "The initial learning rate for Adam.")
+parser.add_argument("--num_train_epochs", default = 3.0, type = float,
+                    help = "Total number of training epochs to perform.")
+parser.add_argument("--warmup_proportion", default = 0.1, type = float,
+                    help = "Proportion of training to perform linear learning rate warmup for. "
+                           "E.g., 0.1 = 10%% of training.")
+parser.add_argument("--no_cuda", action = 'store_true',
+                    help = "Whether not to use CUDA when available")
+parser.add_argument("--local_rank", type = int, default = -1,
+                    help = "Specify local_rank for distributed training on gpus. If -1, distributed training is disabled.")
+parser.add_argument('--seed', type = int, default = 42, help = "random seed for initialization")
+parser.add_argument('--gradient_accumulation_steps', type = int, default = 1,
+                    help = "Number of updates steps to accumulate before performing a backward/update pass.")
+parser.add_argument('--fp16', action = 'store_true',
+                    help = "Whether to use 16-bit float precision instead of 32-bit")
+parser.add_argument('--loss_scale', type = float, default = 0,
+                    help = "Loss scaling to improve fp16 numeric stability. Only used when fp16 set to True.\n"
+                           "0 (default value): dynamic loss scaling.\n"
+                           "Positive power of 2: static loss scaling value.\n")
+args = parser.parse_args()
+
+# only save certain things when actually training a model
+if args.do_train:
+    # set dataset paths and experiment name
+    if args.debug:
+        EXPERIMENT_NAME = 'DEBUGGING_' + START_TIME + '_' + args.name
+        # important: if debugging, use small version of FB15K237!
+        # test + dev have 100 examples, training has 500
+        args.data_dir = os.path.join(args.data_dir, 'for_debugging')
+    else:
+        EXPERIMENT_NAME = START_TIME + '_' + args.name
+
+    # create path for saving all the result files
+    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM', EXPERIMENT_NAME)
+
+    # create directory and then use it as working directory
+    if os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING) and os.listdir(DIRECTORY_FOR_SAVING_OR_LOADING) and args.do_train:
+        raise ValueError(
+            "Output directory ({}) already exists and is not empty.".format(DIRECTORY_FOR_SAVING_OR_LOADING))
+    if not os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING):
+        os.makedirs(DIRECTORY_FOR_SAVING_OR_LOADING)
+
+    # change working directory to respective folder
+    os.chdir(DIRECTORY_FOR_SAVING_OR_LOADING)
+
+    # save the currently running script file for later reference
+    file_name_script = 'script_' + EXPERIMENT_NAME + '.py'
+    source_path = os.path.join(BASE_PATH_HOST, 'src/CLI_scripts', __file__)
+    shutil.copy(src = source_path, dst = os.path.join(os.getcwd(), file_name_script))
+
+    # save the argparse arguments to disk
+    save_argparse_obj_to_disk(argparse_namespace = args)
+
+    # configure the logging
+    # important: custom logging to stdout and file
+    logger = initialize_my_logger(
+        file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_train.log', level = logging.INFO)
+
+    logger.info(f'Saving everything in folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
+
+    if args.debug:
+        logger.info('DEBUGGING MODE: Using a very small subset of FB15k237.')
+
+else:
+    # if not training, save everything to the folder where the model is loaded from
+    EXPERIMENT_NAME = args.name
+    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM', EXPERIMENT_NAME)
+    if not os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING):
+        raise FileNotFoundError('Directory does not exist! Experiment name must refer to an existing'
+                                'directory inside results/KG_and_LM!')
+    # change working directory to respective folder
+    os.chdir(DIRECTORY_FOR_SAVING_OR_LOADING)
+
+    # configure the logging
+    # important: custom logging to stdout and file
+    # if args.do_eval:
+    #     logger = initialize_my_logger(
+    #         file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_eval.log', level = logging.INFO)
+    if args.do_predict:
+        logger = initialize_my_logger(
+            file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.log',
+            level = logging.INFO)
+    # else:
+    #     logger = initialize_my_logger(
+    #         file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_eval_predict.log',
+    #         level = logging.INFO)
+
+    logger.info(f'Loading model from folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
+
+# set the correct CUDA device, check for number of devices
+if args.local_rank == -1 or args.no_cuda:
+    # important: if no_cuda is enabled, use CPU even though GPU is available
+    device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+    n_gpu = torch.cuda.device_count()
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+else:
+    logger.info('Distributed training.')
+    torch.cuda.set_device(args.local_rank)
+    device = torch.device("cuda", args.local_rank)
+    n_gpu = 1
+    # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+    torch.distributed.init_process_group(backend = 'nccl')
+
+logger.info('################# DEVICE INFORMATION #################')
+logger.info(f'Device used: {device}')
+logger.info(f"CUDA is used: {torch.cuda.is_available()}")
+logger.info(f'Using {n_gpu} devices.')
+logger.info(f'Using distributed training: {bool(args.local_rank != -1)}')
+logger.info(f'Using half-precision float16 datatype: {args.fp16}')
+
+# set the random seeds
+args.seed = random.randint(1, 200)
+random.seed(args.seed)
+np.random.seed(args.seed)
+torch.manual_seed(args.seed)
+# TODO decide whether to use this: torch.backends.cudnn.deterministic = True
+
+if n_gpu > 0:
+    torch.cuda.manual_seed_all(args.seed)
+
+# TODO uncomment this
+# if not args.do_train and not args.do_eval:
+#     raise ValueError("At least one of `do_train` or `do_eval` must be True.")
+
+### load KG Processor, entity list and label list of the dataset
+processor = KGProcessor()
+
+# access to binary labels + entities.txt file to create a list object
+# IMPORTANT:  access to file entities.txt
+label_list = processor.get_labels(args.data_dir)
+NUM_LABELS = len(label_list)
+entity_list = processor.get_entities(args.data_dir)
+
+global_step = 0  # counts steps across all functions: train, validate, test
+nb_tr_steps = 0
+tr_loss = 0  # accumulate training loss?
+
+# IMPORTANT: Training starts here
+if args.do_train:
+    trained_model, loaded_tokenizer = train_and_validate()
+
+# IMPORTANT: Running evaluation on test set starting from here
+if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+
+    # load or access trained model and its tokenizer
+    if args.do_train:
+        # simply continue using the model in case training happened right before evaluation
+        model = trained_model
+        tokenizer = loaded_tokenizer
+    else:
+        # in case evaluation is run independent of training
+        # --> load a trained model and vocabulary that you have fine-tuned earlie
+        model = BertForSequenceClassification.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
+                                                              num_labels = NUM_LABELS)
 
         # folder needs to contain a config.json and a vocab.txt file
-        tokenizer = BertTokenizer.from_pretrained(args.output_dir,
+        tokenizer = BertTokenizer.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
                                                   do_lower_case = args.do_lower_case)
-        model.to(device)
 
-        model.eval()
-        eval_loss = 0
-        nb_eval_steps = 0
-        preds = []
+    model.to(device)
+    model.eval()
 
-        for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader,
-                                                                  desc = "Evaluating"):
-            input_ids = input_ids.to(device)
-            input_mask = input_mask.to(device)
-            segment_ids = segment_ids.to(device)
-            label_ids = label_ids.to(device)
+    # load all triples of the dataset (train.tsv, dev.tsv, test.tsv)
+    train_triples = processor.get_train_triples(args.data_dir)
+    dev_triples = processor.get_dev_triples(args.data_dir)
+    test_triples = processor.get_test_triples(args.data_dir)
+    all_triples = train_triples + dev_triples + test_triples
 
-            with torch.no_grad():
-                logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+    # create a set of strings
+    # each string is the 3 parts of the triple joined by \t
+    all_triples_str_set = set()
+    for triple in all_triples:
+        triple_str = '\t'.join(triple)
+        all_triples_str_set.add(triple_str)
 
-            # create eval loss and other metric required by the task
-            loss_fct = CrossEntropyLoss()
-            tmp_eval_loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
-            # print(label_ids.view(-1))
+    test_examples = processor.get_test_examples(args.data_dir)
+    test_features = convert_examples_to_features(test_examples, label_list, args.max_seq_length,
+                                                 tokenizer)
+    logger.info("***** Running Prediction on Test Set *****")
+    logger.info("  Num examples = %d", len(test_examples))
+    logger.info("  Batch size = %d", args.eval_batch_size)
 
-            eval_loss += tmp_eval_loss.mean().item()
-            nb_eval_steps += 1
-            if len(preds) == 0:
-                preds.append(logits.detach().cpu().numpy())
+    all_input_ids = torch.tensor([f.input_ids for f in test_features], dtype = torch.long)
+    all_input_mask = torch.tensor([f.input_mask for f in test_features], dtype = torch.long)
+    all_segment_ids = torch.tensor([f.segment_ids for f in test_features], dtype = torch.long)
+    all_label_ids = torch.tensor([f.label_id for f in test_features], dtype = torch.long)
+
+    test_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+    # Run prediction for full data
+    test_sampler = SequentialSampler(test_data)
+    test_dataloader = DataLoader(test_data, sampler = test_sampler,
+                                 batch_size = args.eval_batch_size)
+
+    test_loss_accum = 0
+    nb_test_steps = 0
+    preds = []
+
+    for input_ids, input_mask, segment_ids, label_ids in tqdm(test_dataloader,
+                                                              desc = "Testing"):
+        input_ids = input_ids.to(device)
+        input_mask = input_mask.to(device)
+        segment_ids = segment_ids.to(device)
+        label_ids = label_ids.to(device)
+
+        with torch.no_grad():
+            logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+
+        loss_fct = CrossEntropyLoss()
+        tmp_test_loss = loss_fct(logits.view(-1, NUM_LABELS), label_ids.view(-1))
+
+        # accumulate the loss over all batches (use mean() for multi-gpu case)
+        test_loss_accum += tmp_test_loss.mean().item()
+        nb_test_steps += 1
+        # TODO change to tensor to use torchmetrics
+        # append the current predictions to the preds object (tensor)
+        if len(preds) == 0:
+            preds.append(logits.detach().cpu().numpy())
+        else:
+            preds[0] = np.append(preds[0], logits.detach().cpu().numpy(), axis = 0)
+
+    test_loss_mean = test_loss_accum / nb_test_steps
+
+    preds = preds[0]
+
+    all_label_ids = all_label_ids.numpy()
+
+    preds = np.argmax(preds, axis = 1)
+
+    result = compute_metrics(preds, all_label_ids)
+    train_loss = tr_loss / nb_tr_steps if args.do_train else 'NA'
+
+    result['test_loss'] = test_loss_mean
+    result['global_step'] = global_step
+    result['train_loss'] = train_loss
+
+    output_test_file = os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, "test_results.txt")
+    with open(output_test_file, "w") as writer:
+        logger.info("***** Test results *****")
+        for key in sorted(result.keys()):
+            logger.info("  %s = %s", key, str(result[key]))
+            writer.write("%s = %s\n" % (key, str(result[key])))
+
+    ### Calculate link prediction metrics
+    logger.info('*********** Start calculating link prediction metrics ***********')
+    ranks = []
+    ranks_left = []
+    ranks_right = []
+
+    hits_left = []
+    hits_right = []
+    hits = []
+
+    top_ten_hit_count = 0
+
+    # create 10 empty  entries in the lists
+    for i in range(10):
+        hits_left.append([])
+        hits_right.append([])
+        hits.append([])
+    '''
+    file_prefix = str(args.data_dir[7:])
+    f = open(file_prefix + '_ranks.txt','r')
+    lines = f.readlines()
+    for line in lines:
+        temp = line.strip().split()
+        rank1 = int(temp[0])
+        ranks_left.append(rank1+1)
+        print('left: ', rank1)
+        ranks.append(rank1+1)
+        if rank1 < 10:
+            top_ten_hit_count += 1
+        rank2 = int(temp[1])
+        ranks.append(rank2+1)
+        ranks_right.append(rank2+1)
+        print('right: ', rank2)
+        print('mean rank until now: ', np.mean(ranks))
+        if rank2 < 10:
+            top_ten_hit_count += 1
+        print("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))                
+        for hits_level in range(10):
+            if rank1 <= hits_level:
+                hits[hits_level].append(1.0)
+                hits_left[hits_level].append(1.0)
             else:
-                preds[0] = np.append(preds[0], logits.detach().cpu().numpy(), axis = 0)
+                hits[hits_level].append(0.0)
+                hits_left[hits_level].append(0.0)
 
-        eval_loss = eval_loss / nb_eval_steps
-        preds = preds[0]
+            if rank2 <= hits_level:
+                hits[hits_level].append(1.0)
+                hits_right[hits_level].append(1.0)
+            else:
+                hits[hits_level].append(0.0)
+                hits_right[hits_level].append(0.0)
 
-        preds = np.argmax(preds, axis = 1)
-        result = compute_metrics(task_name, preds, all_label_ids.numpy())
-        loss = tr_loss / nb_tr_steps if args.do_train else None
+    '''
 
-        result['eval_loss'] = eval_loss
-        result['global_step'] = global_step
-        result['loss'] = loss
+    for test_triple in test_triples:
+        head = test_triple[0]
+        relation = test_triple[1]
+        tail = test_triple[2]
+        logger.debug(f'Current test triple: {test_triple, head, relation, tail}')
 
-        # IMPORTANT write evaluation results to a file
-        # loop through result dict and write each pair to a line
-        output_eval_file = os.path.join(args.output_dir, "eval_results.csv")
-        with open(output_eval_file, "w") as writer:
-            logger.info("***** Eval results *****")
-            for key in sorted(result.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
+        head_corrupt_list = [test_triple]
+        for corrupt_ent in entity_list:
+            if corrupt_ent != head:
+                tmp_triple = [corrupt_ent, relation, tail]
+                tmp_triple_str = '\t'.join(tmp_triple)
+                if tmp_triple_str not in all_triples_str_set:
+                    # may be slow
+                    head_corrupt_list.append(tmp_triple)
 
-    if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
-
-        train_triples = processor.get_train_triples(args.data_dir)
-        dev_triples = processor.get_dev_triples(args.data_dir)
-        test_triples = processor.get_test_triples(args.data_dir)
-        all_triples = train_triples + dev_triples + test_triples
-
-        all_triples_str_set = set()
-        for triple in all_triples:
-            triple_str = '\t'.join(triple)
-            all_triples_str_set.add(triple_str)
-
-        eval_examples = processor.get_test_examples(args.data_dir)
-        eval_features = convert_examples_to_features(eval_examples, label_list, args.max_seq_length,
-                                                     tokenizer)
-        logger.info("***** Running Prediction on Test Set *****")
-        logger.info("  Num examples = %d", len(eval_examples))
-        logger.info("  Batch size = %d", args.eval_batch_size)
-        all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype = torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype = torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype = torch.long)
-
-        all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype = torch.long)
+        tmp_examples = processor._create_examples(head_corrupt_list, "test", args.data_dir)
+        logger.info(len(tmp_examples))
+        tmp_features = convert_examples_to_features(tmp_examples, label_list,
+                                                    args.max_seq_length, tokenizer,
+                                                    print_info = False)
+        all_input_ids = torch.tensor([f.input_ids for f in tmp_features], dtype = torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in tmp_features], dtype = torch.long)
+        all_segment_ids = torch.tensor([f.segment_ids for f in tmp_features],
+                                       dtype = torch.long)
+        all_label_ids = torch.tensor([f.label_id for f in tmp_features], dtype = torch.long)
 
         eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-        # Run prediction for full data
+        # Run prediction for temp data
         eval_sampler = SequentialSampler(eval_data)
         eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
                                      batch_size = args.eval_batch_size)
-        # Load a trained model and vocabulary that you have fine-tuned
-        model = BertForSequenceClassification.from_pretrained(args.output_dir,
-                                                              num_labels = num_labels)
-        tokenizer = BertTokenizer.from_pretrained(args.output_dir,
-                                                  do_lower_case = args.do_lower_case)
-        model.to(device)
         model.eval()
-        eval_loss = 0
-        nb_eval_steps = 0
+
         preds = []
 
         for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader,
                                                                   desc = "Testing"):
+
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)
             segment_ids = segment_ids.to(device)
@@ -968,262 +1265,133 @@ def main():
 
             with torch.no_grad():
                 logits = model(input_ids, segment_ids, input_mask, labels = None).logits
-
-            loss_fct = CrossEntropyLoss()
-            tmp_eval_loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
-
-            eval_loss += tmp_eval_loss.mean().item()
-            nb_eval_steps += 1
             if len(preds) == 0:
-                preds.append(logits.detach().cpu().numpy())
+                batch_logits = logits.detach().cpu().numpy()
+                preds.append(batch_logits)
+
             else:
-                preds[0] = np.append(preds[0], logits.detach().cpu().numpy(), axis = 0)
+                batch_logits = logits.detach().cpu().numpy()
+                preds[0] = np.append(preds[0], batch_logits, axis = 0)
 
-        eval_loss = eval_loss / nb_eval_steps
         preds = preds[0]
+        # get the dimension corresponding to current label 1
         # print(preds, preds.shape)
+        rel_values = preds[:, all_label_ids[0]]
+        rel_values = torch.tensor(rel_values)
+        # print(rel_values, rel_values.shape)
+        _, argsort1 = torch.sort(rel_values, descending = True)
+        # print(max_values)
+        # print(argsort1)
+        argsort1 = argsort1.cpu().numpy()
+        rank1 = np.where(argsort1 == 0)[0][0]
+        logger.info('left: ', rank1)
+        ranks.append(rank1 + 1)
+        ranks_left.append(rank1 + 1)
+        if rank1 < 10:
+            top_ten_hit_count += 1
 
-        all_label_ids = all_label_ids.numpy()
+        tail_corrupt_list = [test_triple]
+        for corrupt_ent in entity_list:
+            if corrupt_ent != tail:
+                tmp_triple = [head, relation, corrupt_ent]
+                tmp_triple_str = '\t'.join(tmp_triple)
+                if tmp_triple_str not in all_triples_str_set:
+                    # may be slow
+                    tail_corrupt_list.append(tmp_triple)
 
-        preds = np.argmax(preds, axis = 1)
+        tmp_examples = processor._create_examples(tail_corrupt_list, "test", args.data_dir)
+        # print(len(tmp_examples))
+        tmp_features = convert_examples_to_features(tmp_examples, label_list,
+                                                    args.max_seq_length, tokenizer,
+                                                    print_info = False)
+        all_input_ids = torch.tensor([f.input_ids for f in tmp_features], dtype = torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in tmp_features], dtype = torch.long)
+        all_segment_ids = torch.tensor([f.segment_ids for f in tmp_features],
+                                       dtype = torch.long)
+        all_label_ids = torch.tensor([f.label_id for f in tmp_features], dtype = torch.long)
 
-        result = compute_metrics(task_name, preds, all_label_ids)
-        loss = tr_loss / nb_tr_steps if args.do_train else None
+        eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+        # Run prediction for temp data
+        eval_sampler = SequentialSampler(eval_data)
+        eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
+                                     batch_size = args.eval_batch_size)
+        model.eval()
+        preds = []
 
-        result['eval_loss'] = eval_loss
-        result['global_step'] = global_step
-        result['loss'] = loss
+        for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader,
+                                                                  desc = "Testing"):
 
-        output_eval_file = os.path.join(args.output_dir, "test_results.txt")
-        with open(output_eval_file, "w") as writer:
-            logger.info("***** Test results *****")
-            for key in sorted(result.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
-        logger.info("Triple classification acc is : ")
-        logger.info(metrics.accuracy_score(all_label_ids, preds))
+            input_ids = input_ids.to(device)
+            input_mask = input_mask.to(device)
+            segment_ids = segment_ids.to(device)
+            label_ids = label_ids.to(device)
 
-        # run link prediction
-        ranks = []
-        ranks_left = []
-        ranks_right = []
+            with torch.no_grad():
+                logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+            if len(preds) == 0:
+                batch_logits = logits.detach().cpu().numpy()
+                preds.append(batch_logits)
 
-        hits_left = []
-        hits_right = []
-        hits = []
+            else:
+                batch_logits = logits.detach().cpu().numpy()
+                preds[0] = np.append(preds[0], batch_logits, axis = 0)
 
-        top_ten_hit_count = 0
+        preds = preds[0]
+        # get the dimension corresponding to current label 1
+        rel_values = preds[:, all_label_ids[0]]
+        rel_values = torch.tensor(rel_values)
+        _, argsort1 = torch.sort(rel_values, descending = True)
+        argsort1 = argsort1.cpu().numpy()
+        rank2 = np.where(argsort1 == 0)[0][0]
+        ranks.append(rank2 + 1)
+        ranks_right.append(rank2 + 1)
+        logger.info('right: ', rank2)
+        logger.info('mean rank until now: ', np.mean(ranks))
+        if rank2 < 10:
+            top_ten_hit_count += 1
+        logger.info("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))
 
-        for i in range(10):
-            hits_left.append([])
-            hits_right.append([])
-            hits.append([])
-        '''
-        file_prefix = str(args.data_dir[7:])
-        f = open(file_prefix + '_ranks.txt','r')
-        lines = f.readlines()
-        for line in lines:
-            temp = line.strip().split()
-            rank1 = int(temp[0])
-            ranks_left.append(rank1+1)
-            print('left: ', rank1)
-            ranks.append(rank1+1)
-            if rank1 < 10:
-                top_ten_hit_count += 1
-            rank2 = int(temp[1])
-            ranks.append(rank2+1)
-            ranks_right.append(rank2+1)
-            print('right: ', rank2)
-            print('mean rank until now: ', np.mean(ranks))
-            if rank2 < 10:
-                top_ten_hit_count += 1
-            print("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))                
-            for hits_level in range(10):
-                if rank1 <= hits_level:
-                    hits[hits_level].append(1.0)
-                    hits_left[hits_level].append(1.0)
-                else:
-                    hits[hits_level].append(0.0)
-                    hits_left[hits_level].append(0.0)
+        file_name_script = 'ranks_testset_bs' + str(args.train_batch_size) + "_lr" + str(
+            args.learning_rate) + "_maxseq" + str(args.max_seq_length) + "_ep" + str(
+            args.num_train_epochs) + '.txt'
 
-                if rank2 <= hits_level:
-                    hits[hits_level].append(1.0)
-                    hits_right[hits_level].append(1.0)
-                else:
-                    hits[hits_level].append(0.0)
-                    hits_right[hits_level].append(0.0)
+        f = open(file_name_script, 'a')
+        f.write(str(rank1) + '\t' + str(rank2) + '\n')
+        f.close()
+        # this could be done more elegantly, but here you go
+        for hits_level in range(10):
+            if rank1 <= hits_level:
+                hits[hits_level].append(1.0)
+                hits_left[hits_level].append(1.0)
+            else:
+                hits[hits_level].append(0.0)
+                hits_left[hits_level].append(0.0)
 
-        '''
-        for test_triple in test_triples:
-            head = test_triple[0]
-            relation = test_triple[1]
-            tail = test_triple[2]
-            # logger.info(test_triple, head, relation, tail)
+            if rank2 <= hits_level:
+                hits[hits_level].append(1.0)
+                hits_right[hits_level].append(1.0)
+            else:
+                hits[hits_level].append(0.0)
+                hits_right[hits_level].append(0.0)
 
-            head_corrupt_list = [test_triple]
-            for corrupt_ent in entity_list:
-                if corrupt_ent != head:
-                    tmp_triple = [corrupt_ent, relation, tail]
-                    tmp_triple_str = '\t'.join(tmp_triple)
-                    if tmp_triple_str not in all_triples_str_set:
-                        # may be slow
-                        head_corrupt_list.append(tmp_triple)
+    for i in [0, 2, 9]:
+        logger.info('Hits left @{0}: {1}'.format(i + 1, np.mean(hits_left[i])))
+        logger.info('Hits right @{0}: {1}'.format(i + 1, np.mean(hits_right[i])))
+        logger.info('Hits @{0}: {1}'.format(i + 1, np.mean(hits[i])))
+    logger.info('Mean rank left: {0}'.format(np.mean(ranks_left)))
+    logger.info('Mean rank right: {0}'.format(np.mean(ranks_right)))
+    logger.info('Mean rank: {0}'.format(np.mean(ranks)))
+    logger.info('Mean reciprocal rank left: {0}'.format(np.mean(1. / np.array(ranks_left))))
+    logger.info('Mean reciprocal rank right: {0}'.format(np.mean(1. / np.array(ranks_right))))
+    logger.info('Mean reciprocal rank: {0}'.format(np.mean(1. / np.array(ranks))))
 
-            tmp_examples = processor._create_examples(head_corrupt_list, "test", args.data_dir)
-            logger.info(len(tmp_examples))
-            tmp_features = convert_examples_to_features(tmp_examples, label_list,
-                                                        args.max_seq_length, tokenizer,
-                                                        print_info = False)
-            all_input_ids = torch.tensor([f.input_ids for f in tmp_features], dtype = torch.long)
-            all_input_mask = torch.tensor([f.input_mask for f in tmp_features], dtype = torch.long)
-            all_segment_ids = torch.tensor([f.segment_ids for f in tmp_features],
-                                           dtype = torch.long)
-            all_label_ids = torch.tensor([f.label_id for f in tmp_features], dtype = torch.long)
+logging.info(f'Finished running the script at: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
 
-            eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-            # Run prediction for temp data
-            eval_sampler = SequentialSampler(eval_data)
-            eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
-                                         batch_size = args.eval_batch_size)
-            model.eval()
-
-            preds = []
-
-            for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader,
-                                                                      desc = "Testing"):
-
-                input_ids = input_ids.to(device)
-                input_mask = input_mask.to(device)
-                segment_ids = segment_ids.to(device)
-                label_ids = label_ids.to(device)
-
-                with torch.no_grad():
-                    logits = model(input_ids, segment_ids, input_mask, labels = None).logits
-                if len(preds) == 0:
-                    batch_logits = logits.detach().cpu().numpy()
-                    preds.append(batch_logits)
-
-                else:
-                    batch_logits = logits.detach().cpu().numpy()
-                    preds[0] = np.append(preds[0], batch_logits, axis = 0)
-
-            preds = preds[0]
-            # get the dimension corresponding to current label 1
-            # print(preds, preds.shape)
-            rel_values = preds[:, all_label_ids[0]]
-            rel_values = torch.tensor(rel_values)
-            # print(rel_values, rel_values.shape)
-            _, argsort1 = torch.sort(rel_values, descending = True)
-            # print(max_values)
-            # print(argsort1)
-            argsort1 = argsort1.cpu().numpy()
-            rank1 = np.where(argsort1 == 0)[0][0]
-            logger.info('left: ', rank1)
-            ranks.append(rank1 + 1)
-            ranks_left.append(rank1 + 1)
-            if rank1 < 10:
-                top_ten_hit_count += 1
-
-            tail_corrupt_list = [test_triple]
-            for corrupt_ent in entity_list:
-                if corrupt_ent != tail:
-                    tmp_triple = [head, relation, corrupt_ent]
-                    tmp_triple_str = '\t'.join(tmp_triple)
-                    if tmp_triple_str not in all_triples_str_set:
-                        # may be slow
-                        tail_corrupt_list.append(tmp_triple)
-
-            tmp_examples = processor._create_examples(tail_corrupt_list, "test", args.data_dir)
-            # print(len(tmp_examples))
-            tmp_features = convert_examples_to_features(tmp_examples, label_list,
-                                                        args.max_seq_length, tokenizer,
-                                                        print_info = False)
-            all_input_ids = torch.tensor([f.input_ids for f in tmp_features], dtype = torch.long)
-            all_input_mask = torch.tensor([f.input_mask for f in tmp_features], dtype = torch.long)
-            all_segment_ids = torch.tensor([f.segment_ids for f in tmp_features],
-                                           dtype = torch.long)
-            all_label_ids = torch.tensor([f.label_id for f in tmp_features], dtype = torch.long)
-
-            eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-            # Run prediction for temp data
-            eval_sampler = SequentialSampler(eval_data)
-            eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
-                                         batch_size = args.eval_batch_size)
-            model.eval()
-            preds = []
-
-            for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader,
-                                                                      desc = "Testing"):
-
-                input_ids = input_ids.to(device)
-                input_mask = input_mask.to(device)
-                segment_ids = segment_ids.to(device)
-                label_ids = label_ids.to(device)
-
-                with torch.no_grad():
-                    logits = model(input_ids, segment_ids, input_mask, labels = None).logits
-                if len(preds) == 0:
-                    batch_logits = logits.detach().cpu().numpy()
-                    preds.append(batch_logits)
-
-                else:
-                    batch_logits = logits.detach().cpu().numpy()
-                    preds[0] = np.append(preds[0], batch_logits, axis = 0)
-
-            preds = preds[0]
-            # get the dimension corresponding to current label 1
-            rel_values = preds[:, all_label_ids[0]]
-            rel_values = torch.tensor(rel_values)
-            _, argsort1 = torch.sort(rel_values, descending = True)
-            argsort1 = argsort1.cpu().numpy()
-            rank2 = np.where(argsort1 == 0)[0][0]
-            ranks.append(rank2 + 1)
-            ranks_right.append(rank2 + 1)
-            logger.info('right: ', rank2)
-            logger.info('mean rank until now: ', np.mean(ranks))
-            if rank2 < 10:
-                top_ten_hit_count += 1
-            logger.info("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))
-
-            file_name = 'ranks_testset_bs' + str(args.train_batch_size) + "_lr" + str(
-                args.learning_rate) + "_maxseq" + str(args.max_seq_length) + "_ep" + str(
-                args.num_train_epochs) + '.txt'
-
-            f = open(file_name, 'a')
-            f.write(str(rank1) + '\t' + str(rank2) + '\n')
-            f.close()
-            # this could be done more elegantly, but here you go
-            for hits_level in range(10):
-                if rank1 <= hits_level:
-                    hits[hits_level].append(1.0)
-                    hits_left[hits_level].append(1.0)
-                else:
-                    hits[hits_level].append(0.0)
-                    hits_left[hits_level].append(0.0)
-
-                if rank2 <= hits_level:
-                    hits[hits_level].append(1.0)
-                    hits_right[hits_level].append(1.0)
-                else:
-                    hits[hits_level].append(0.0)
-                    hits_right[hits_level].append(0.0)
-
-        for i in [0, 2, 9]:
-            logger.info('Hits left @{0}: {1}'.format(i + 1, np.mean(hits_left[i])))
-            logger.info('Hits right @{0}: {1}'.format(i + 1, np.mean(hits_right[i])))
-            logger.info('Hits @{0}: {1}'.format(i + 1, np.mean(hits[i])))
-        logger.info('Mean rank left: {0}'.format(np.mean(ranks_left)))
-        logger.info('Mean rank right: {0}'.format(np.mean(ranks_right)))
-        logger.info('Mean rank: {0}'.format(np.mean(ranks)))
-        logger.info('Mean reciprocal rank left: {0}'.format(np.mean(1. / np.array(ranks_left))))
-        logger.info('Mean reciprocal rank right: {0}'.format(np.mean(1. / np.array(ranks_right))))
-        logger.info('Mean reciprocal rank: {0}'.format(np.mean(1. / np.array(ranks))))
-
-
-if __name__ == "__main__":
-    main()
-    logger.info(f'Finished running the script at: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
-
+# if __name__ == "__main__":
+#     START_TIME = datetime.now().strftime("%d.%m.%Y_%H:%M")
+#     main()
+#     logging.info(f'Finished running the script at: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
+#
 
 
 
