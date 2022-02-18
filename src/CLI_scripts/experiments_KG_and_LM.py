@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# IMPORTANT: This code is for the most part taken from: https://github.com/yao8839836/kg-bert
+
 
 # %% Imports
 
@@ -28,6 +30,8 @@ import sys
 import time
 from datetime import datetime
 import shutil
+
+import pandas as pd
 from tqdm import tqdm, trange
 
 # installed modules
@@ -48,13 +52,14 @@ from transformers import AdamW, \
     get_linear_schedule_with_warmup  # instead of BertAdam, WarmupLinearSchedule
 
 # imports from my own code
-from src.utils import set_base_path_based_on_host, initialize_my_logger, improve_pandas_viewing_options, save_argparse_obj_to_disk
+from src.utils import set_base_path_based_on_host, initialize_my_logger, \
+    improve_pandas_viewing_options, save_argparse_obj_to_disk
 
 BASE_PATH_HOST = set_base_path_based_on_host()
 improve_pandas_viewing_options()
 
+# makes it compatible with logging coming from other sources
 logger = logging.getLogger(__name__)
-
 
 
 class InputExample(object):
@@ -187,7 +192,7 @@ class KGProcessor(DataProcessor):
         """Creates examples for the training and dev sets."""
         # entity to text
         ent2text = {}
-        # TODO access to file entity2text.txt
+        # access to file entity2text.txt
         with open(os.path.join(data_dir, "entity2text.txt"), 'r') as f:
             ent_lines = f.readlines()
             for line in ent_lines:
@@ -333,10 +338,10 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             tokens_c = tokenizer.tokenize(example.text_c)
             # Modifies `tokens_a`, `tokens_b` and `tokens_c`in place so that the total
             # length is less than the specified length.
-            # TODO Account for [CLS], [SEP], [SEP], [SEP] with "- 4" with max_seq_length - 4
             # _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)  # use for relation prediction only
 
             # IMPORTANT shorten the whole triple token sequence if necessary to comply with max sequence length
+            # Account for [CLS], [SEP], [SEP], [SEP] with "- 4" with max_seq_length - 4
             _truncate_seq_triple(tokens_a, tokens_b, tokens_c, max_seq_length - 4)
         else:
             # Account for [CLS] and [SEP] with "- 2"
@@ -378,7 +383,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             tokens += tokens_c + ["[SEP]"]
             segment_ids += [0] * (len(tokens_c) + 1)
 
-            # look up each token in the vocabulary of the tokenizer (the IDs are fixed)
+        # look up each token in the vocabulary of the tokenizer (the IDs are fixed)
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
 
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
@@ -455,9 +460,6 @@ def _truncate_seq_triple(tokens_a, tokens_b, tokens_c, max_length):
             tokens_c.pop()
 
 
-
-
-
 def compute_metrics(predictions, true_labels):
     accuracy = Accuracy()
 
@@ -468,19 +470,7 @@ def compute_metrics(predictions, true_labels):
 
     return accuracy
 
-    # from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-    #
-    #
-    # labels = pred.label_ids
-    # preds = pred.predictions.argmax(-1)
-    # precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='binary')
-    # acc = accuracy_score(labels, preds)
-    # return {
-    #     'accuracy': acc,
-    #     'f1': f1,
-    #     'precision': precision,
-    #     'recall': recall
-    # }
+    # from sklearn.metrics import accuracy_score, precision_recall_fscore_support  #  #  # labels = pred.label_ids  # preds = pred.predictions.argmax(-1)  # precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='binary')  # acc = accuracy_score(labels, preds)  # return {  #     'accuracy': acc,  #     'f1': f1,  #     'precision': precision,  #     'recall': recall  # }
 
 
 def train_and_validate():
@@ -559,7 +549,7 @@ def train_and_validate():
         #                      lr=args.learning_rate,
         #                      warmup=args.warmup_proportion,
         #                      t_total=num_train_optimization_steps)
-        # Important: To reproduce the old BertAdam specific behavior set correct_bias=False
+        # IMPORTANT: To reproduce the old BertAdam specific behavior set correct_bias=False
         optimizer = AdamW(optimizer_grouped_parameters, lr = args.learning_rate,
                           correct_bias = False)
         warmup_linear = None
@@ -592,11 +582,13 @@ def train_and_validate():
     # create 4 separate variables out of train_features
     all_input_ids_train = torch.tensor([f.input_ids for f in train_features], dtype = torch.long)
     all_input_mask_train = torch.tensor([f.input_mask for f in train_features], dtype = torch.long)
-    all_segment_ids_train = torch.tensor([f.segment_ids for f in train_features], dtype = torch.long)
+    all_segment_ids_train = torch.tensor([f.segment_ids for f in train_features],
+                                         dtype = torch.long)
     all_label_ids_train = torch.tensor([f.label_id for f in train_features], dtype = torch.long)
 
     # wrap all tensors into a torch.TensorDataset
-    train_data = TensorDataset(all_input_ids_train, all_input_mask_train, all_segment_ids_train, all_label_ids_train)
+    train_data = TensorDataset(all_input_ids_train, all_input_mask_train, all_segment_ids_train,
+                               all_label_ids_train)
 
     if args.local_rank == -1:
         train_sampler = RandomSampler(train_data)  # default: replacement = False
@@ -622,7 +614,8 @@ def train_and_validate():
     all_segment_ids_eval = torch.tensor([f.segment_ids for f in eval_features], dtype = torch.long)
     all_label_ids_eval = torch.tensor([f.label_id for f in eval_features], dtype = torch.long)
 
-    eval_data = TensorDataset(all_input_ids_eval, all_input_mask_eval, all_segment_ids_eval, all_label_ids_eval)
+    eval_data = TensorDataset(all_input_ids_eval, all_input_mask_eval, all_segment_ids_eval,
+                              all_label_ids_eval)
     # Run prediction for full data
     eval_sampler = SequentialSampler(eval_data)
     eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
@@ -656,9 +649,10 @@ def train_and_validate():
         # validate the trained model for loss + accuracy
         model.eval()
         start_time_epoch_validate = time.perf_counter()
-        epoch_validate_loss = validate(data_loader = eval_dataloader,
-                                                               model = model, tokenizer = tokenizer,
-                                                               last_epoch = last_epoch)
+        epoch_validate_loss, link_prediction_metrics = validate(data_loader = eval_dataloader,
+                                                                model = model,
+                                                                tokenizer = tokenizer,
+                                                                last_epoch = last_epoch)
         end_time_epoch_validate = time.perf_counter()
         end_time_epoch = time.perf_counter()
         ############------------- LOGGING ---------------#################
@@ -686,9 +680,7 @@ def train_and_validate():
 
         # save hyperparameters to tensorboard in last epoch
         if last_epoch:
-            writer_tb.add_hparams(
-                hparam_dict = args.__dict__,
-                metric_dict = metric_dict)
+            writer_tb.add_hparams(hparam_dict = args.__dict__, metric_dict = metric_dict)
 
         # make sure that the values are written to disk immediately
         writer_tb.flush()
@@ -706,13 +698,14 @@ def train_and_validate():
         # save model.bin, config.json and vocab.txt to disk
         model.save_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING, save_config = True)
         tokenizer.save_vocabulary(DIRECTORY_FOR_SAVING_OR_LOADING)
-    logger.info('Trained model saved to disk.')
+        logger.info('Trained model saved to disk.')
 
     writer_tb.flush()
     writer_tb.close()
 
     END_TRAINING = time.perf_counter()
-    logger.info(f'Training and validation took {round((END_TRAINING - START_TRAINING) / 60, 2)} minutes in total.')
+    logger.info(
+        f'Training and validation took {round((END_TRAINING - START_TRAINING) / 60, 2)} minutes in total.')
 
     return model, tokenizer
 
@@ -770,13 +763,11 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
     return training_loss
 
 
-def validate(model, tokenizer, data_loader, last_epoch):
-
+def validate(data_loader, last_epoch = False, model = None, tokenizer = None):
     # TODO make it so that this function can also be used independent of training
 
     # TODO make an indented code block like e.g. "only validation"
-    if not args.do_train:
-
+    if model is None and tokenizer is None:
         # in case evaluation is run independent of training
         # --> load a trained model and vocabulary that you have fine-tuned earlie
         model = BertForSequenceClassification.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
@@ -785,10 +776,6 @@ def validate(model, tokenizer, data_loader, last_epoch):
         # folder needs to contain a config.json and a vocab.txt file
         tokenizer = BertTokenizer.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
                                                   do_lower_case = args.do_lower_case)
-
-        # do typechecking to see that this was loaded correctly
-        assert type(model) == BertForSequenceClassification, 'Model was not loaded correctly.'
-        assert type(tokenizer) == BertTokenizer, 'Tokenizer was not loaded correctly.'
 
         model.to(device)
         model.eval()
@@ -802,20 +789,25 @@ def validate(model, tokenizer, data_loader, last_epoch):
         all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype = torch.long)
         all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype = torch.long)
         all_segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype = torch.long)
-
         all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype = torch.long)
 
         eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
         # Run prediction for full data
         eval_sampler = SequentialSampler(eval_data)
         data_loader = DataLoader(eval_data, sampler = eval_sampler,
-                                     batch_size = args.eval_batch_size)
+                                 batch_size = args.eval_batch_size)
+
+    # do typechecking to see that this was loaded correctly
+    assert type(model) == BertForSequenceClassification, 'Model was not loaded correctly.'
+    assert type(tokenizer) == BertTokenizer, 'Tokenizer was not loaded correctly.'
 
     eval_loss_accum = 0
     nb_eval_steps = 0
-    # TODO continue here
-    # use this to collect all logits
+
+    ### intiate tensors used for metric calculation
+    # use this to collect all logits converted to probabilities
     prediction_prob = torch.Tensor().float().to(device)
+    # collect all true labels across batches
     all_true_labels = torch.Tensor().long().to(device)
 
     loss_fct = CrossEntropyLoss()
@@ -844,42 +836,348 @@ def validate(model, tokenizer, data_loader, last_epoch):
 
     # calculate mean evaluation loss by dividing through number of batches
     eval_loss_mean = eval_loss_accum / nb_eval_steps
+    logger.info(f'Evaluation loss: {eval_loss_mean}')
 
     # make sure that dimensions are as expected
-
+    # TODO decide whether probabilities are needed at all
     # get the position (0 or 1) for the largest value
-    # TODO doesn't this need to be transformed with softmax first?
-    #label_preds = torch.argmax(prediction_prob, dim = 1)
     # calculate accuracy for the entire evaluation set
     # TODO add torchmetrics calculation here
-    #evaluation_metrics = compute_metrics(prediction_prob, all_true_labels)
+    # evaluation_metrics = compute_metrics(prediction_prob, all_true_labels)
 
-    return eval_loss_mean#, evaluation_metrics
+    # TODO in the last epoch, calculate the link prediction metrics
+    # this calculation is very time intensive so it is only done at the end
+    link_prediction_metrics = None
+    if last_epoch:
+        logger.info('Last epoch reached, calculating the link prediction metrics...')
+        link_prediction_metrics = calculate_link_prediction_metrics(model, tokenizer)
 
-
-def test(model = None, tokenizer = None):
-    from pykeen.evaluation import RankBasedEvaluator
-    # interesting functions:  process_tail_scores_, process_head_scores_
-    # they require: hrt_batch: MappedTriples
-    # MappedTriples = torch.LongTensor
-    # TODO test out what the exact shape of MappedTriples when this is run
-    # (probably integer tensors, i.e. the numeric ID of each relation/entity
+    return eval_loss_mean, link_prediction_metrics
 
 
+def evaluate_on_test_set(model = None, tokenizer = None):
+    # load or access trained model and its tokenizer
+    if model is None and tokenizer is None:
+        logger.info(f'Loading trained model and tokenizer from: {DIRECTORY_FOR_SAVING_OR_LOADING}')
+        # in case evaluation on test set is run independent of training
+        # --> load a trained model and vocabulary that you have fine-tuned earlie
+        model = BertForSequenceClassification.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
+                                                              num_labels = NUM_LABELS)
+
+        # folder needs to contain a config.json and a vocab.txt file
+        tokenizer = BertTokenizer.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
+                                                  do_lower_case = args.do_lower_case)
+
+    #############------------- CALCULATE TEST LOSS ---------------#################
+
+    model.to(device)
+    model.eval()
+
+    ### calculate loss on the test set
+    test_examples = processor.get_test_examples(args.data_dir)
+    test_features = convert_examples_to_features(test_examples, label_list, args.max_seq_length,
+                                                 tokenizer)
+    logger.info("***** Calculating loss for test set *****")
+    logger.info("  Num examples = %d", len(test_examples))
+    logger.info("  Batch size = %d", args.eval_batch_size)
+
+    all_input_ids = torch.tensor([f.input_ids for f in test_features], dtype = torch.long)
+    all_input_mask = torch.tensor([f.input_mask for f in test_features], dtype = torch.long)
+    all_segment_ids = torch.tensor([f.segment_ids for f in test_features], dtype = torch.long)
+    all_label_ids = torch.tensor([f.label_id for f in test_features], dtype = torch.long)
+
+    test_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+
+    test_sampler = SequentialSampler(test_data)
+    test_dataloader = DataLoader(test_data, sampler = test_sampler,
+                                 batch_size = args.eval_batch_size)
+
+    test_loss = validate(model = model, tokenizer = tokenizer, data_loader = test_dataloader)
+
+    link_prediction_metrics = calculate_link_prediction_metrics(model, tokenizer)
+
+    return test_loss, link_prediction_metrics
+
+
+def calculate_link_prediction_metrics(model, tokenizer):
+    ### Calculate link prediction metrics
+    logger.info('*********** Start calculating link prediction metrics ***********')
+
+    #############------------- PREPARE ALL VARIABLES ---------------#################
+
+    # load all triples of the dataset (train.tsv, dev.tsv, test.tsv)
+    train_triples = processor.get_train_triples(args.data_dir)
+    dev_triples = processor.get_dev_triples(args.data_dir)
+    test_triples = processor.get_test_triples(args.data_dir)
+    all_triples = train_triples + dev_triples + test_triples
+
+    # create a set of strings
+    # each string is the 3 parts of the triple joined by \t
+    all_triples_str_set = set()
+    for triple in all_triples:
+        triple_str = '\t'.join(triple)
+        all_triples_str_set.add(triple_str)
+
+    ranks = []
+    ranks_left = []
+    ranks_right = []
+
+    hits_left = []
+    hits_right = []
+    hits = []
+
+    top_ten_hit_count = 0
+
+    # create 10 empty  entries in the lists
+    for i in range(10):
+        hits_left.append([])
+        hits_right.append([])
+        hits.append([])
+
+    # IMPORTANT: uncomment this code if you calculate hits@10 using an existing ranks file
+    '''
+    # execute this code 
+    file_prefix = str(args.data_dir[7:])
+    f = open(file_prefix + '_ranks.txt','r')
+    lines = f.readlines()
+    for line in lines:
+        temp = line.strip().split()
+        rank1 = int(temp[0])
+        ranks_left.append(rank1+1)
+        print('left: ', rank1)
+        ranks.append(rank1+1)
+        if rank1 < 10:
+            top_ten_hit_count += 1
+        rank2 = int(temp[1])
+        ranks.append(rank2+1)
+        ranks_right.append(rank2+1)
+        print('right: ', rank2)
+        print('mean rank until now: ', np.mean(ranks))
+        if rank2 < 10:
+            top_ten_hit_count += 1
+        print("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))                
+        for hits_level in range(10):
+            if rank1 <= hits_level:
+                hits[hits_level].append(1.0)
+                hits_left[hits_level].append(1.0)
+            else:
+                hits[hits_level].append(0.0)
+                hits_left[hits_level].append(0.0)
+
+            if rank2 <= hits_level:
+                hits[hits_level].append(1.0)
+                hits_right[hits_level].append(1.0)
+            else:
+                hits[hits_level].append(0.0)
+                hits_right[hits_level].append(0.0)
+
+    '''
+
+    # Loop through all test triples
+    for test_triple in tqdm(test_triples, desc = 'Test triple'):
+        head = test_triple[0]
+        relation = test_triple[1]
+        tail = test_triple[2]
+        logger.debug(f'Current test triple: {head, relation, tail}')
+
+        #############------------- CALCULATE RANK LEFT ---------------#################
+
+        # create head_corrupt_list: the first item is the true triple
+        # all remaining lines are triples that are incorrect, because the head entity is incorrect
+        # filtered setting: exclude any triples that exist in the dataset!
+        head_corrupt_list = [test_triple]
+        for corrupt_ent in entity_list:
+            # do this for all entities except the actual head
+            if corrupt_ent != head:
+                tmp_triple = [corrupt_ent, relation, tail]
+                tmp_triple_str = '\t'.join(tmp_triple)
+                # only append the corrupted triple if it does not exist in the dataset
+                if tmp_triple_str not in all_triples_str_set:
+                    # may be slow
+                    head_corrupt_list.append(tmp_triple)
+
+        logger.debug(f'Length of head_corrupt list is: {len(head_corrupt_list)}')
+
+        rank_left = calculate_rank_given_corrupt_list(corrupt_list = head_corrupt_list,
+                                                      model = model, tokenizer = tokenizer)
+
+        logger.info(f'Rank left for current triple: {rank_left}')
+        # TODO change this to a tensor!
+        # add this rank to the collecting variables
+        ranks.append(rank_left + 1)
+        ranks_left.append(rank_left + 1)
+        if rank_left < 10:
+            top_ten_hit_count += 1
+
+        #############------------- CALCULATE RANK RIGHT ---------------#################
+
+        # create tailcorrupt_list: the first item is the true triple
+        # all remaining lines are triples that are incorrect, because the tail entity is incorrect
+        # filtered setting: exclude any triples that exist in the dataset!
+        tail_corrupt_list = [test_triple]
+        for corrupt_ent in entity_list:
+            if corrupt_ent != tail:
+                tmp_triple = [head, relation, corrupt_ent]
+                tmp_triple_str = '\t'.join(tmp_triple)
+                # only append the corrupted triple if it does not exist in the dataset
+                if tmp_triple_str not in all_triples_str_set:
+                    # may be slow
+                    tail_corrupt_list.append(tmp_triple)
+
+        logger.debug(f'Length of tail_corrupt list is: {len(tail_corrupt_list)}')
+
+        rank_right = calculate_rank_given_corrupt_list(corrupt_list = tail_corrupt_list,
+                                                       model = model, tokenizer = tokenizer)
+
+        # TODO change everything that follows to tensor calculation!
+        ranks.append(rank_right + 1)
+        ranks_right.append(rank_right + 1)
+        logger.info(f'Rank right for current triple: {rank_right}')
+        logger.info('mean rank until now: ', np.mean(ranks))
+
+        if rank_right < 10:
+            top_ten_hit_count += 1
+        logger.info("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))
+
+        # Save the current left + right rank to disk
+        # TODO change file name, make it like experiment name
+        file_name_script = 'ranks_testset_bs' + str(args.train_batch_size) + "_lr" + str(
+            args.learning_rate) + "_maxseq" + str(args.max_seq_length) + "_ep" + str(
+            args.num_train_epochs) + '.txt'
+
+        f = open(file_name_script, 'a')
+        f.write(str(rank_left) + '\t' + str(rank_right) + '\n')
+        f.close()
+
+        #############------------- CALCULATE HITS@K ---------------#################
+
+        # (original comment: this could be done more elegantly, but here you go)
+        for hits_level in range(10):
+            if rank_left <= hits_level:
+                hits[hits_level].append(1.0)
+                hits_left[hits_level].append(1.0)
+            else:
+                hits[hits_level].append(0.0)
+                hits_left[hits_level].append(0.0)
+
+            if rank_right <= hits_level:
+                hits[hits_level].append(1.0)
+                hits_right[hits_level].append(1.0)
+            else:
+                hits[hits_level].append(0.0)
+                hits_right[hits_level].append(0.0)
+
+    ### Calculate all link prediction metrics after having gone through all test triples
+    # Log hits @1, @3, @5 and @10
+    for i in [0, 2, 4, 9]:
+        logger.info(f'Hits left @{i + 1}: {np.mean(hits_left[i])}')
+        logger.info(f'Hits right @{i + 1}: {np.mean(hits_right[i])}')
+        logger.info(f'Hits @{i + 1}: {np.mean(hits[i])}')
+    logger.info(f'Mean rank left: {np.mean(ranks_left)}')
+    logger.info(f'Mean rank right: {np.mean(ranks_right)}')
+    logger.info(f'Mean rank: {np.mean(ranks)}')
+    logger.info(f'Mean reciprocal rank left: {np.mean(1. / np.array(ranks_left))}')
+    logger.info(f'Mean reciprocal rank right: {np.mean(1. / np.array(ranks_right))}')
+    logger.info(f'Mean reciprocal rank: {np.mean(1. / np.array(ranks))}')
+    # TODO add more metrics if required to compare with pykeen models!
+    # adjusted mean rank by Berrendorf (2020)
+    # adjusted mean rank index by Berrendorf (2020)
+    # optimistic vs. pessimistic vs. realistic
+
+    # each metric is a column
+    result_dict = {'experiment_name': 'bla',
+                   'mean_rank': np.mean(ranks),
+                   'mean_rank_left': np.mean(ranks_left),
+                   'mean_rank_right': np.mean(ranks_left),
+                   'mean_reciprocal_rank': np.mean(1. / np.array(ranks)),
+                   'mean_reciprocal_rank_left': np.mean(1. / np.array(ranks_left)),
+                   'mean_reciprocal_rank_right': np.mean(1. / np.array(ranks_left)),
+                   'hits_at_1': np.mean(hits_left[0]),
+                   'hits_at_3': np.mean(hits_left[2]),
+                   'hits_at_5': np.mean(hits_left[4]),
+                   'hits_at_10': np.mean(hits_left[9])}
+
+    # dict keys = dataframe columns
+    metric_results_df = pd.DataFrame.from_dict(result_dict)
+
+    # Save all metrics to a file
+    file_name_metrics = 'link_prediction_results_test.csv'
+    metric_results_df.to_csv(file_name_metrics)
+
+
+def calculate_rank_given_corrupt_list(corrupt_list: list, model, tokenizer):
+    """
+    Parameters
+    ----------
+    corrupt_list: List where the first item is the true triple.
+    model:
+    tokenizer:
+
+    Returns
+    -------
+
+    """
+    ### convert string triples to BERT input feature vectors
+    # this accesses the labels as text for each relation and entity
+    tmp_examples = processor._create_examples(corrupt_list, set_type = "test",
+                                              data_dir = args.data_dir)
+    tmp_features = convert_examples_to_features(tmp_examples, label_list, args.max_seq_length,
+                                                tokenizer, print_info = False)
+    all_input_ids = torch.tensor([f.input_ids for f in tmp_features], dtype = torch.long)
+    all_input_mask = torch.tensor([f.input_mask for f in tmp_features], dtype = torch.long)
+    all_segment_ids = torch.tensor([f.segment_ids for f in tmp_features], dtype = torch.long)
+    all_label_ids = torch.tensor([f.label_id for f in tmp_features], dtype = torch.long)
+
+    eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+    # Run prediction for temp data
+    eval_sampler = SequentialSampler(eval_data)
+    eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
+                                 batch_size = args.eval_batch_size)
+    model.eval()
+
+    prediction_logits = torch.Tensor().float().to(device)
+
+    for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader,
+                                                              desc = "Calculating metrics for current test triple"):
+        input_ids = input_ids.to(device)
+        input_mask = input_mask.to(device)
+        segment_ids = segment_ids.to(device)
+        label_ids = label_ids.to(device)
+
+        with torch.no_grad():
+            logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+
+        prediction_logits = torch.cat((prediction_logits, logits))
+
+    # IMPORTANT: Why did the original code use the logits here?
+    prediction_probs = F.softmax(prediction_logits, dim = 1)
+    # get the dimension corresponding to the label that indicates a true triple
+    # label 1 = true triple
+    position_of_correct_label = all_label_ids[0]
+    rel_values = prediction_probs[:, position_of_correct_label]
+    logger.debug(
+        f'Shape of probability vector prediction for "triple is correct: {rel_values.size()}')
+    # retrieve sorted descending order of plausibility predictions
+    _, argsort = torch.sort(rel_values, descending = True)
+    # TODO print the 10 highest probabilities, the true triple and the predicted entities
+    # logger.debug()
+    argsort_numpy = argsort.cpu().numpy()
+    # Retrieve the rank of the correct triple that has
+    # remember: within the data, the first item was the only correct triple, the rest
+    # were corrupted ones, i.e. created by replacing the head entity
+    # TODO also do this with pytorch!
+    rank = np.where(argsort_numpy == 0)[0][0]
+
+    return rank
+
+
+def get_KG_BERT_embeddings():
+    # load the trained model
+
+    # when running predictions with the model, set output_hidden_states = True
+    raise NotImplementedError()
     pass
 
-
-# def main():
-#     ### Declare global variables: used for training, evaluation and prediction
-#     global args
-#     global processor
-#     global label_list
-#     global NUM_LABELS
-#     global entity_list
-#     global global_step
-#     global DIRECTORY_FOR_SAVING_OR_LOADING
-#     global n_gpu
-#     global device
 
 START_TIME = datetime.now().strftime("%d.%m.%Y_%H:%M")
 
@@ -912,7 +1210,8 @@ parser.add_argument("--max_seq_length", default = 128, type = int,
                     help = "The maximum total input sequence length after WordPiece tokenization. \n"
                            "Sequences longer than this will be truncated, and sequences shorter \n"
                            "than this will be padded.")
-parser.add_argument("--do_train", action = 'store_true', help = "Whether to run training and validation.")
+parser.add_argument("--do_train", action = 'store_true',
+                    help = "Whether to run training and validation.")
 # parser.add_argument("--do_eval", action = 'store_true',
 #                     help = "Whether to run eval on the dev set.")
 parser.add_argument("--do_predict", action = 'store_true',
@@ -950,19 +1249,20 @@ if args.do_train:
     # set dataset paths and experiment name
     if args.debug:
         EXPERIMENT_NAME = 'DEBUGGING_' + START_TIME + '_' + args.name
-        # important: if debugging, use small version of FB15K237!
         # test + dev have 100 examples, training has 500
         args.data_dir = os.path.join(args.data_dir, 'for_debugging')
     else:
         EXPERIMENT_NAME = START_TIME + '_' + args.name
 
     # create path for saving all the result files
-    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM', EXPERIMENT_NAME)
+    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM',
+                                                   EXPERIMENT_NAME)
 
     # create directory and then use it as working directory
-    if os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING) and os.listdir(DIRECTORY_FOR_SAVING_OR_LOADING) and args.do_train:
-        raise ValueError(
-            "Output directory ({}) already exists and is not empty.".format(DIRECTORY_FOR_SAVING_OR_LOADING))
+    if os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING) and os.listdir(
+            DIRECTORY_FOR_SAVING_OR_LOADING) and args.do_train:
+        raise ValueError("Output directory ({}) already exists and is not empty.".format(
+            DIRECTORY_FOR_SAVING_OR_LOADING))
     if not os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING):
         os.makedirs(DIRECTORY_FOR_SAVING_OR_LOADING)
 
@@ -977,10 +1277,10 @@ if args.do_train:
     # save the argparse arguments to disk
     save_argparse_obj_to_disk(argparse_namespace = args)
 
-    # configure the logging
-    # important: custom logging to stdout and file
+    # configure the logging to stdout and file
     logger = initialize_my_logger(
-        file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_train.log', level = logging.INFO)
+        file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_train.log',
+        level = logging.INFO)
 
     logger.info(f'Saving everything in folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
 
@@ -990,22 +1290,23 @@ if args.do_train:
 else:
     # if not training, save everything to the folder where the model is loaded from
     EXPERIMENT_NAME = args.name
-    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM', EXPERIMENT_NAME)
+    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM',
+                                                   EXPERIMENT_NAME)
     if not os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING):
-        raise FileNotFoundError('Directory does not exist! Experiment name must refer to an existing'
-                                'directory inside results/KG_and_LM!')
+        raise FileNotFoundError(
+            'Directory does not exist! Experiment name must refer to an existing'
+            'directory inside results/KG_and_LM!')
     # change working directory to respective folder
     os.chdir(DIRECTORY_FOR_SAVING_OR_LOADING)
 
     # configure the logging
-    # important: custom logging to stdout and file
     # if args.do_eval:
     #     logger = initialize_my_logger(
     #         file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_eval.log', level = logging.INFO)
     if args.do_predict:
         logger = initialize_my_logger(
             file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.log',
-            level = logging.INFO)
+            level = logging.DEBUG)
     # else:
     #     logger = initialize_my_logger(
     #         file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_eval_predict.log',
@@ -1044,15 +1345,10 @@ torch.manual_seed(args.seed)
 if n_gpu > 0:
     torch.cuda.manual_seed_all(args.seed)
 
-# TODO uncomment this
-# if not args.do_train and not args.do_eval:
-#     raise ValueError("At least one of `do_train` or `do_eval` must be True.")
-
 ### load KG Processor, entity list and label list of the dataset
 processor = KGProcessor()
 
 # access to binary labels + entities.txt file to create a list object
-# IMPORTANT:  access to file entities.txt
 label_list = processor.get_labels(args.data_dir)
 NUM_LABELS = len(label_list)
 entity_list = processor.get_entities(args.data_dir)
@@ -1068,330 +1364,11 @@ if args.do_train:
 # IMPORTANT: Running evaluation on test set starting from here
 if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
 
-    # load or access trained model and its tokenizer
     if args.do_train:
-        # simply continue using the model in case training happened right before evaluation
-        model = trained_model
-        tokenizer = loaded_tokenizer
+        loss_on_test_set, test_link_prediction_metrics = evaluate_on_test_set(trained_model,
+                                                                              loaded_tokenizer)
     else:
-        # in case evaluation is run independent of training
-        # --> load a trained model and vocabulary that you have fine-tuned earlie
-        model = BertForSequenceClassification.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
-                                                              num_labels = NUM_LABELS)
+        # if running test without training, load model + tokenizer from working directory
+        loss_on_test_set, test_link_prediction_metrics = evaluate_on_test_set()
 
-        # folder needs to contain a config.json and a vocab.txt file
-        tokenizer = BertTokenizer.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
-                                                  do_lower_case = args.do_lower_case)
-
-    model.to(device)
-    model.eval()
-
-    # load all triples of the dataset (train.tsv, dev.tsv, test.tsv)
-    train_triples = processor.get_train_triples(args.data_dir)
-    dev_triples = processor.get_dev_triples(args.data_dir)
-    test_triples = processor.get_test_triples(args.data_dir)
-    all_triples = train_triples + dev_triples + test_triples
-
-    # create a set of strings
-    # each string is the 3 parts of the triple joined by \t
-    all_triples_str_set = set()
-    for triple in all_triples:
-        triple_str = '\t'.join(triple)
-        all_triples_str_set.add(triple_str)
-
-    test_examples = processor.get_test_examples(args.data_dir)
-    test_features = convert_examples_to_features(test_examples, label_list, args.max_seq_length,
-                                                 tokenizer)
-    logger.info("***** Running Prediction on Test Set *****")
-    logger.info("  Num examples = %d", len(test_examples))
-    logger.info("  Batch size = %d", args.eval_batch_size)
-
-    all_input_ids = torch.tensor([f.input_ids for f in test_features], dtype = torch.long)
-    all_input_mask = torch.tensor([f.input_mask for f in test_features], dtype = torch.long)
-    all_segment_ids = torch.tensor([f.segment_ids for f in test_features], dtype = torch.long)
-    all_label_ids = torch.tensor([f.label_id for f in test_features], dtype = torch.long)
-
-    test_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-    # Run prediction for full data
-    test_sampler = SequentialSampler(test_data)
-    test_dataloader = DataLoader(test_data, sampler = test_sampler,
-                                 batch_size = args.eval_batch_size)
-
-    test_loss_accum = 0
-    nb_test_steps = 0
-    preds = []
-
-    for input_ids, input_mask, segment_ids, label_ids in tqdm(test_dataloader,
-                                                              desc = "Testing"):
-        input_ids = input_ids.to(device)
-        input_mask = input_mask.to(device)
-        segment_ids = segment_ids.to(device)
-        label_ids = label_ids.to(device)
-
-        with torch.no_grad():
-            logits = model(input_ids, segment_ids, input_mask, labels = None).logits
-
-        loss_fct = CrossEntropyLoss()
-        tmp_test_loss = loss_fct(logits.view(-1, NUM_LABELS), label_ids.view(-1))
-
-        # accumulate the loss over all batches (use mean() for multi-gpu case)
-        test_loss_accum += tmp_test_loss.mean().item()
-        nb_test_steps += 1
-        # TODO change to tensor to use torchmetrics
-        # append the current predictions to the preds object (tensor)
-        if len(preds) == 0:
-            preds.append(logits.detach().cpu().numpy())
-        else:
-            preds[0] = np.append(preds[0], logits.detach().cpu().numpy(), axis = 0)
-
-    test_loss_mean = test_loss_accum / nb_test_steps
-
-    preds = preds[0]
-
-    all_label_ids = all_label_ids.numpy()
-
-    preds = np.argmax(preds, axis = 1)
-
-    result = compute_metrics(preds, all_label_ids)
-    train_loss = tr_loss / nb_tr_steps if args.do_train else 'NA'
-
-    result['test_loss'] = test_loss_mean
-    result['global_step'] = global_step
-    result['train_loss'] = train_loss
-
-    output_test_file = os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, "test_results.txt")
-    with open(output_test_file, "w") as writer:
-        logger.info("***** Test results *****")
-        for key in sorted(result.keys()):
-            logger.info("  %s = %s", key, str(result[key]))
-            writer.write("%s = %s\n" % (key, str(result[key])))
-
-    ### Calculate link prediction metrics
-    logger.info('*********** Start calculating link prediction metrics ***********')
-    ranks = []
-    ranks_left = []
-    ranks_right = []
-
-    hits_left = []
-    hits_right = []
-    hits = []
-
-    top_ten_hit_count = 0
-
-    # create 10 empty  entries in the lists
-    for i in range(10):
-        hits_left.append([])
-        hits_right.append([])
-        hits.append([])
-    '''
-    file_prefix = str(args.data_dir[7:])
-    f = open(file_prefix + '_ranks.txt','r')
-    lines = f.readlines()
-    for line in lines:
-        temp = line.strip().split()
-        rank1 = int(temp[0])
-        ranks_left.append(rank1+1)
-        print('left: ', rank1)
-        ranks.append(rank1+1)
-        if rank1 < 10:
-            top_ten_hit_count += 1
-        rank2 = int(temp[1])
-        ranks.append(rank2+1)
-        ranks_right.append(rank2+1)
-        print('right: ', rank2)
-        print('mean rank until now: ', np.mean(ranks))
-        if rank2 < 10:
-            top_ten_hit_count += 1
-        print("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))                
-        for hits_level in range(10):
-            if rank1 <= hits_level:
-                hits[hits_level].append(1.0)
-                hits_left[hits_level].append(1.0)
-            else:
-                hits[hits_level].append(0.0)
-                hits_left[hits_level].append(0.0)
-
-            if rank2 <= hits_level:
-                hits[hits_level].append(1.0)
-                hits_right[hits_level].append(1.0)
-            else:
-                hits[hits_level].append(0.0)
-                hits_right[hits_level].append(0.0)
-
-    '''
-
-    for test_triple in test_triples:
-        head = test_triple[0]
-        relation = test_triple[1]
-        tail = test_triple[2]
-        logger.debug(f'Current test triple: {test_triple, head, relation, tail}')
-
-        head_corrupt_list = [test_triple]
-        for corrupt_ent in entity_list:
-            if corrupt_ent != head:
-                tmp_triple = [corrupt_ent, relation, tail]
-                tmp_triple_str = '\t'.join(tmp_triple)
-                if tmp_triple_str not in all_triples_str_set:
-                    # may be slow
-                    head_corrupt_list.append(tmp_triple)
-
-        tmp_examples = processor._create_examples(head_corrupt_list, "test", args.data_dir)
-        logger.info(len(tmp_examples))
-        tmp_features = convert_examples_to_features(tmp_examples, label_list,
-                                                    args.max_seq_length, tokenizer,
-                                                    print_info = False)
-        all_input_ids = torch.tensor([f.input_ids for f in tmp_features], dtype = torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in tmp_features], dtype = torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in tmp_features],
-                                       dtype = torch.long)
-        all_label_ids = torch.tensor([f.label_id for f in tmp_features], dtype = torch.long)
-
-        eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-        # Run prediction for temp data
-        eval_sampler = SequentialSampler(eval_data)
-        eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
-                                     batch_size = args.eval_batch_size)
-        model.eval()
-
-        preds = []
-
-        for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader,
-                                                                  desc = "Testing"):
-
-            input_ids = input_ids.to(device)
-            input_mask = input_mask.to(device)
-            segment_ids = segment_ids.to(device)
-            label_ids = label_ids.to(device)
-
-            with torch.no_grad():
-                logits = model(input_ids, segment_ids, input_mask, labels = None).logits
-            if len(preds) == 0:
-                batch_logits = logits.detach().cpu().numpy()
-                preds.append(batch_logits)
-
-            else:
-                batch_logits = logits.detach().cpu().numpy()
-                preds[0] = np.append(preds[0], batch_logits, axis = 0)
-
-        preds = preds[0]
-        # get the dimension corresponding to current label 1
-        # print(preds, preds.shape)
-        rel_values = preds[:, all_label_ids[0]]
-        rel_values = torch.tensor(rel_values)
-        # print(rel_values, rel_values.shape)
-        _, argsort1 = torch.sort(rel_values, descending = True)
-        # print(max_values)
-        # print(argsort1)
-        argsort1 = argsort1.cpu().numpy()
-        rank1 = np.where(argsort1 == 0)[0][0]
-        logger.info('left: ', rank1)
-        ranks.append(rank1 + 1)
-        ranks_left.append(rank1 + 1)
-        if rank1 < 10:
-            top_ten_hit_count += 1
-
-        tail_corrupt_list = [test_triple]
-        for corrupt_ent in entity_list:
-            if corrupt_ent != tail:
-                tmp_triple = [head, relation, corrupt_ent]
-                tmp_triple_str = '\t'.join(tmp_triple)
-                if tmp_triple_str not in all_triples_str_set:
-                    # may be slow
-                    tail_corrupt_list.append(tmp_triple)
-
-        tmp_examples = processor._create_examples(tail_corrupt_list, "test", args.data_dir)
-        # print(len(tmp_examples))
-        tmp_features = convert_examples_to_features(tmp_examples, label_list,
-                                                    args.max_seq_length, tokenizer,
-                                                    print_info = False)
-        all_input_ids = torch.tensor([f.input_ids for f in tmp_features], dtype = torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in tmp_features], dtype = torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in tmp_features],
-                                       dtype = torch.long)
-        all_label_ids = torch.tensor([f.label_id for f in tmp_features], dtype = torch.long)
-
-        eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-        # Run prediction for temp data
-        eval_sampler = SequentialSampler(eval_data)
-        eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
-                                     batch_size = args.eval_batch_size)
-        model.eval()
-        preds = []
-
-        for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader,
-                                                                  desc = "Testing"):
-
-            input_ids = input_ids.to(device)
-            input_mask = input_mask.to(device)
-            segment_ids = segment_ids.to(device)
-            label_ids = label_ids.to(device)
-
-            with torch.no_grad():
-                logits = model(input_ids, segment_ids, input_mask, labels = None).logits
-            if len(preds) == 0:
-                batch_logits = logits.detach().cpu().numpy()
-                preds.append(batch_logits)
-
-            else:
-                batch_logits = logits.detach().cpu().numpy()
-                preds[0] = np.append(preds[0], batch_logits, axis = 0)
-
-        preds = preds[0]
-        # get the dimension corresponding to current label 1
-        rel_values = preds[:, all_label_ids[0]]
-        rel_values = torch.tensor(rel_values)
-        _, argsort1 = torch.sort(rel_values, descending = True)
-        argsort1 = argsort1.cpu().numpy()
-        rank2 = np.where(argsort1 == 0)[0][0]
-        ranks.append(rank2 + 1)
-        ranks_right.append(rank2 + 1)
-        logger.info('right: ', rank2)
-        logger.info('mean rank until now: ', np.mean(ranks))
-        if rank2 < 10:
-            top_ten_hit_count += 1
-        logger.info("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))
-
-        file_name_script = 'ranks_testset_bs' + str(args.train_batch_size) + "_lr" + str(
-            args.learning_rate) + "_maxseq" + str(args.max_seq_length) + "_ep" + str(
-            args.num_train_epochs) + '.txt'
-
-        f = open(file_name_script, 'a')
-        f.write(str(rank1) + '\t' + str(rank2) + '\n')
-        f.close()
-        # this could be done more elegantly, but here you go
-        for hits_level in range(10):
-            if rank1 <= hits_level:
-                hits[hits_level].append(1.0)
-                hits_left[hits_level].append(1.0)
-            else:
-                hits[hits_level].append(0.0)
-                hits_left[hits_level].append(0.0)
-
-            if rank2 <= hits_level:
-                hits[hits_level].append(1.0)
-                hits_right[hits_level].append(1.0)
-            else:
-                hits[hits_level].append(0.0)
-                hits_right[hits_level].append(0.0)
-
-    for i in [0, 2, 9]:
-        logger.info('Hits left @{0}: {1}'.format(i + 1, np.mean(hits_left[i])))
-        logger.info('Hits right @{0}: {1}'.format(i + 1, np.mean(hits_right[i])))
-        logger.info('Hits @{0}: {1}'.format(i + 1, np.mean(hits[i])))
-    logger.info('Mean rank left: {0}'.format(np.mean(ranks_left)))
-    logger.info('Mean rank right: {0}'.format(np.mean(ranks_right)))
-    logger.info('Mean rank: {0}'.format(np.mean(ranks)))
-    logger.info('Mean reciprocal rank left: {0}'.format(np.mean(1. / np.array(ranks_left))))
-    logger.info('Mean reciprocal rank right: {0}'.format(np.mean(1. / np.array(ranks_right))))
-    logger.info('Mean reciprocal rank: {0}'.format(np.mean(1. / np.array(ranks))))
-
-logging.info(f'Finished running the script at: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
-
-# if __name__ == "__main__":
-#     START_TIME = datetime.now().strftime("%d.%m.%Y_%H:%M")
-#     main()
-#     logging.info(f'Finished running the script at: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
-#
-
-
-
+logger.info(f'Finished running the script at: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
