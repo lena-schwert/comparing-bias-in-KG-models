@@ -17,7 +17,7 @@
 # IMPORTANT: This code is for the most part taken from: https://github.com/yao8839836/kg-bert
 
 
-# %% Imports
+# Imports
 
 # in-built modules
 import socket
@@ -232,7 +232,7 @@ class KGProcessor(DataProcessor):
         lines_str_set = set(['\t'.join(line) for line in lines])
         examples = []
 
-        logging.info('Creating examples ')
+        logging.info('Creating InputExamples, i.e. tokens from entity/relation IDs... ')
         for (i, line) in enumerate(tqdm(lines)):
 
             head_ent_text = ent2text[line[0]]
@@ -313,8 +313,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                                  print_info = True):
     """Loads a data file into a list of `InputBatch`s."""
 
-    logging.debug(
-        'Creating features, i.e. vectors from the previously created examples (which are text instead of entity/relation IDs).')
+    logging.info(
+        'Creating InputFeatures, i.e. numeric vectors from the previously created InputExample... ')
     label_map = {label: i for i, label in enumerate(label_list)}
 
     features = []
@@ -475,7 +475,7 @@ def compute_metrics(predictions, true_labels):
 
 def train_and_validate():
     START_TRAINING = time.perf_counter()
-    #############------------- PREPARE FOR TRAINING ---------------#################
+    #############------------- LOAD MODEL ---------------#################
 
     ### load model and tokenizer
     tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case = args.do_lower_case)
@@ -509,70 +509,11 @@ def train_and_validate():
     elif n_gpu > 1:
         model = torch.nn.DataParallel(model)  # model = torch.nn.parallel.data_parallel(model)
 
-    ### Prepare optimizer: account for fp16
-    param_optimizer = list(model.named_parameters())
-
-    # IMPORTANT: specify layers where no weight decay should be done
-    # (it does not make sense to decay the bias terms)
-    # taken from the original bert paper: https://github.com/google-research/bert/blob/master/optimization.py#L65
-    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-    # set weight decay = 0 for selected layers
-    # model parameters are split into two groups: with and without weight decay
-    optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-         'weight_decay': 0.01},
-        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)],
-         'weight_decay': 0.0}]
-
-    # use other optimizers if using float16 data type
-    if args.fp16:
-        logger.debug('Setting optimizer for float 16 model.')
-        try:
-            from apex.optimizers import FP16_Optimizer
-            from apex.optimizers import FusedAdam
-        except ImportError:
-            raise ImportError(
-                "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
-
-        optimizer = FusedAdam(optimizer_grouped_parameters, lr = args.learning_rate,
-                              bias_correction = False, max_grad_norm = 1.0)
-        if args.loss_scale == 0:
-            optimizer = FP16_Optimizer(optimizer, dynamic_loss_scale = True)
-        else:
-            optimizer = FP16_Optimizer(optimizer, static_loss_scale = args.loss_scale)
-        # warmup_linear = WarmupLinearSchedule(warmup=args.warmup_proportion,
-        #                                      t_total=num_train_optimization_steps)
-        warmup_linear = get_linear_schedule_with_warmup()
-
-    else:
-        # optimizer = BertAdam(optimizer_grouped_parameters,
-        #                      lr=args.learning_rate,
-        #                      warmup=args.warmup_proportion,
-        #                      t_total=num_train_optimization_steps)
-        # IMPORTANT: To reproduce the old BertAdam specific behavior set correct_bias=False
-        optimizer = AdamW(optimizer_grouped_parameters, lr = args.learning_rate,
-                          correct_bias = False)
-        warmup_linear = None
-
-    # use gradient accumulation step to set training batch size
-    if args.gradient_accumulation_steps < 1:
-        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
-            args.gradient_accumulation_steps))
-
-    # divide batch size by gradient accumulation steps
-    # this is not relevant for the results, usually = 1!
-    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
-
     #############------------- PREPARE TRAINING DATA ---------------#################
 
     # get training examples + create NEGATIVE/CORRUPT triples for each of it
     logger.info('Creating examples from the training split of the dataset.')
     train_examples = processor.get_train_examples(args.data_dir)
-    num_train_optimization_steps = int(
-        len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
-    if args.local_rank != -1:
-        num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
-
     train_features = convert_examples_to_features(train_examples, label_list, args.max_seq_length,
                                                   tokenizer)
     logger.info('################# TRAINING dataset #################')
@@ -598,6 +539,61 @@ def train_and_validate():
     # Pytorch data_loader, not shuffled (RandomSampler does that)
     train_dataloader = DataLoader(train_data, sampler = train_sampler,
                                   batch_size = args.train_batch_size)
+
+    #############------------- CONFIGURE OPTIMIZER ---------------#################
+
+    ### Prepare optimizer: account for fp16
+    param_optimizer = list(model.named_parameters())
+
+    # IMPORTANT: specify layers where no weight decay should be done
+    # (it does not make sense to decay the bias terms)
+    # taken from the original bert paper: https://github.com/google-research/bert/blob/master/optimization.py#L65
+    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+    # set weight decay = 0 for selected layers
+    # model parameters are split into two groups: with and without weight decay
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+         'weight_decay': 0.01},
+        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)],
+         'weight_decay': 0.0}]
+
+    # calculate total number of training steps (needed for learning rate scheduler)
+    num_train_optimization_steps = len(train_dataloader) * args.num_train_epochs
+    if args.local_rank != -1:
+        num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
+
+    # use other optimizers if using float16 data type
+    if args.fp16:
+        raise NotImplementedError(
+            'Using fp16, doublecheck all settings!')  # logger.debug('Setting optimizer for float 16 model.')  # try:  #     from apex.optimizers import FP16_Optimizer  #     from apex.optimizers import FusedAdam  # except ImportError:  #     raise ImportError(  #         "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")  #  # optimizer = FusedAdam(optimizer_grouped_parameters, lr = args.learning_rate,  #                       bias_correction = False, max_grad_norm = 1.0)  # if args.loss_scale == 0:  #     optimizer = FP16_Optimizer(optimizer, dynamic_loss_scale = True)  # else:  #     optimizer = FP16_Optimizer(optimizer, static_loss_scale = args.loss_scale)
+    #         linear_warmup_lr = get_linear_schedule_with_warmup(
+    #             optimizer,
+    #             num_warmup_steps = args.warmup_proportion * num_train_optimization_steps,
+    #             num_training_steps = num_train_optimization_steps)
+
+    else:
+        # IMPORTANT: This is the original BERT Adam optimizer
+        # optimizer = BertAdam(optimizer_grouped_parameters,
+        #                      lr=args.learning_rate,
+        #                      warmup=args.warmup_proportion,
+        #                      t_total=num_train_optimization_steps)
+        # IMPORTANT: To reproduce the old BertAdam specific behavior set correct_bias=False
+        # Using the more recent AdamW, you need to add some things manually:
+        # linear warmup scheduler for learning rate + gradient clipping
+        optimizer = AdamW(optimizer_grouped_parameters, lr = args.learning_rate,
+                          correct_bias = False)
+        linear_warmup_lr = get_linear_schedule_with_warmup(optimizer,
+                                                           num_warmup_steps = args.warmup_proportion * num_train_optimization_steps,
+                                                           num_training_steps = num_train_optimization_steps)
+
+    # use gradient accumulation step to set training batch size
+    if args.gradient_accumulation_steps < 1:
+        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
+            args.gradient_accumulation_steps))
+
+    # divide batch size by gradient accumulation steps
+    # this is not relevant for the results, usually = 1!
+    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
 
     #############------------- PREPARE VALIDATION DATA ---------------#################
 
@@ -631,30 +627,26 @@ def train_and_validate():
     writer_tb = SummaryWriter(log_dir = DIRECTORY_FOR_SAVING_OR_LOADING, flush_secs = 30)
 
     start_datetime = datetime.now()
-    last_epoch = False
 
     for i in trange(int(args.num_train_epochs), desc = "Training epoch"):
         start_time_epoch = time.perf_counter()
         logger.info(f'Epoch {i + 1} has started.')
-        if i + 1 == args.num_train_epochs:
-            last_epoch = True
         ############------------- TRAINING ---------------#################
         model.train()
         start_time_epoch_train = time.perf_counter()
         epoch_train_loss = train(train_loader = train_dataloader, model = model,
-                                 optimizer = optimizer, lr_warmup = warmup_linear,
+                                 optimizer = optimizer, lr_warmup = linear_warmup_lr,
                                  num_train_optimization_steps = num_train_optimization_steps)
         end_time_epoch_train = time.perf_counter()
         ############------------- VALIDATION ---------------#################
         # validate the trained model for loss + accuracy
         model.eval()
         start_time_epoch_validate = time.perf_counter()
-        epoch_validate_loss, link_prediction_metrics = validate(data_loader = eval_dataloader,
-                                                                model = model,
-                                                                tokenizer = tokenizer,
-                                                                last_epoch = last_epoch)
+        epoch_validate_loss = validate(data_loader = eval_dataloader, model = model,
+                                       tokenizer = tokenizer)
         end_time_epoch_validate = time.perf_counter()
         end_time_epoch = time.perf_counter()
+
         ############------------- LOGGING ---------------#################
         # add weights and gradients to tensorboard
         for parameter_name, values in model.named_parameters():
@@ -665,8 +657,6 @@ def train_and_validate():
         # add losses and evaluation metrics to tensorboard
         metric_dict = {'loss/training_loss': epoch_train_loss,
                        'loss/validation_loss': epoch_validate_loss,
-                       # 'classification_metrics/accuracy': classification_metrics.get(
-                       #     'top1_accuracy'),
                        'timings/total_epoch_runtime_min': round(
                            (end_time_epoch - start_time_epoch) / 60, 2),
                        'timings/train_runtime_min': round(
@@ -678,16 +668,12 @@ def train_and_validate():
         for key, value in metric_dict.items():
             writer_tb.add_scalar(key, value, i)
 
-        # save hyperparameters to tensorboard in last epoch
-        if last_epoch:
-            writer_tb.add_hparams(hparam_dict = args.__dict__, metric_dict = metric_dict)
-
         # make sure that the values are written to disk immediately
         writer_tb.flush()
 
         logger.info(f'Saved results of epoch {i + 1} to disk.')
         logger.info(
-            f'Epoch {i + 1} of {args.num_train_epochs} ran for {round((end_time_epoch - start_time_epoch_train) / 60, 2)} minutes.')
+            f'Epoch {i + 1} of {int(args.num_train_epochs)} ran for {round((end_time_epoch - start_time_epoch_train) / 60, 2)} minutes.')
 
     ############------------- AFTER TRAINING IS COMPLETED ---------------#################
     logger.info('################# Finished TRAINING #################')
@@ -699,6 +685,35 @@ def train_and_validate():
         model.save_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING, save_config = True)
         tokenizer.save_vocabulary(DIRECTORY_FOR_SAVING_OR_LOADING)
         logger.info('Trained model saved to disk.')
+
+    # calculate link prediction metrics after last epoch
+    logger.info(
+        'Last epoch reached, calculating the link prediction metrics on the validation set...')
+    start_time_link_prediction_calculation = time.perf_counter()
+    link_prediction_metrics_dict = calculate_link_prediction_metrics(model, tokenizer)
+    end_time_link_prediction_calculation = time.perf_counter()
+    link_prediction_metrics_df = pd.DataFrame([link_prediction_metrics_dict])
+
+    # Save all metrics to a file
+    file_name_valid_results = 'link_prediction_results_valid.csv'
+    link_prediction_metrics_df.to_csv(file_name_valid_results)
+    logger.info('Saved validation results as CSV file to working directory')
+
+    # TODO check whether this works as expected!
+    writer_tb.add_scalar('timings/total_link_prediction_calc_runtime_min', round(
+                           (end_time_link_prediction_calculation - start_time_link_prediction_calculation) / 60, 2),
+                         i)
+
+    # use link prediction metrics for the hparams view in tensorboard
+    # (they are more insightful than loss and timings)
+    hparams_dict = args.__dict__
+    items_to_remove = ['data_dir', 'name', 'debug', 'cache_dir', 'do_train', 'do_predict', 'no_cuda',
+                       'local_rank']
+    for item in items_to_remove:
+        hparams_dict.pop(item)
+
+    writer_tb.add_hparams(hparam_dict = hparams_dict, metric_dict = link_prediction_metrics_dict,
+                          run_name = EXPERIMENT_NAME)
 
     writer_tb.flush()
     writer_tb.close()
@@ -756,6 +771,8 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
                     param_group['lr'] = lr_this_step
             # update the weights and set optimizer to zero
             optimizer.step()
+            logger.debug(f'Current learning rate is: {optimizer.param_groups[0]["lr"]}')
+            lr_warmup.step()
             optimizer.zero_grad()
             global_step += 1
     logger.info(f'Training loss: {training_loss}')
@@ -763,9 +780,7 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
     return training_loss
 
 
-def validate(data_loader, last_epoch = False, model = None, tokenizer = None):
-    # TODO make it so that this function can also be used independent of training
-
+def validate(data_loader, model = None, tokenizer = None):
     # TODO make an indented code block like e.g. "only validation"
     if model is None and tokenizer is None:
         # in case evaluation is run independent of training
@@ -805,8 +820,8 @@ def validate(data_loader, last_epoch = False, model = None, tokenizer = None):
     nb_eval_steps = 0
 
     ### intiate tensors used for metric calculation
-    # use this to collect all logits converted to probabilities
-    prediction_prob = torch.Tensor().float().to(device)
+    # use this to collect all logits across batches
+    prediction_logits = torch.Tensor().float().to(device)
     # collect all true labels across batches
     all_true_labels = torch.Tensor().long().to(device)
 
@@ -829,9 +844,7 @@ def validate(data_loader, last_epoch = False, model = None, tokenizer = None):
         logger.debug(f'accumulated eval_loss: {eval_loss_accum}')
         nb_eval_steps += 1
         # append the current predictions + true labels to the running tensor
-        # TODO convert logits to probabilities first
-        prediction_prob_batch = F.softmax(logits, dim = 1)
-        prediction_prob = torch.cat((prediction_prob, prediction_prob_batch.detach()))
+        prediction_logits = torch.cat((prediction_logits, logits))
         all_true_labels = torch.cat((all_true_labels, label_ids.detach()))
 
     # calculate mean evaluation loss by dividing through number of batches
@@ -845,14 +858,7 @@ def validate(data_loader, last_epoch = False, model = None, tokenizer = None):
     # TODO add torchmetrics calculation here
     # evaluation_metrics = compute_metrics(prediction_prob, all_true_labels)
 
-    # TODO in the last epoch, calculate the link prediction metrics
-    # this calculation is very time intensive so it is only done at the end
-    link_prediction_metrics = None
-    if last_epoch:
-        logger.info('Last epoch reached, calculating the link prediction metrics...')
-        link_prediction_metrics = calculate_link_prediction_metrics(model, tokenizer)
-
-    return eval_loss_mean, link_prediction_metrics
+    return eval_loss_mean
 
 
 def evaluate_on_test_set(model = None, tokenizer = None):
@@ -894,9 +900,11 @@ def evaluate_on_test_set(model = None, tokenizer = None):
 
     test_loss = validate(model = model, tokenizer = tokenizer, data_loader = test_dataloader)
 
-    link_prediction_metrics = calculate_link_prediction_metrics(model, tokenizer)
+    link_prediction_metrics_dict = calculate_link_prediction_metrics(model, tokenizer)
 
-    return test_loss, link_prediction_metrics
+    link_prediction_metrics_dict['loss_on_test_set'] = test_loss
+
+    return link_prediction_metrics_dict
 
 
 def calculate_link_prediction_metrics(model, tokenizer):
@@ -918,21 +926,22 @@ def calculate_link_prediction_metrics(model, tokenizer):
         triple_str = '\t'.join(triple)
         all_triples_str_set.add(triple_str)
 
-    ranks = []
-    ranks_left = []
-    ranks_right = []
+    # TODO maybe more efficient to initialize already in fin
+    ranks_both = torch.Tensor().float().to(device)
+    ranks_head = torch.Tensor().float().to(device)
+    ranks_tail = torch.Tensor().float().to(device)
 
-    hits_left = []
-    hits_right = []
-    hits = []
+    hits_head = torch.empty(10).float().to(device)
+    hits_tail = torch.empty(10).float().to(device)
+    hits_both = torch.empty(10).float().to(device)
 
     top_ten_hit_count = 0
 
     # create 10 empty  entries in the lists
-    for i in range(10):
-        hits_left.append([])
-        hits_right.append([])
-        hits.append([])
+    # for i in range(10):
+    #     hits_head.append([])
+    #     hits_tail.append([])
+    #     hits_both.append([])
 
     # IMPORTANT: uncomment this code if you calculate hits@10 using an existing ranks file
     '''
@@ -943,33 +952,33 @@ def calculate_link_prediction_metrics(model, tokenizer):
     for line in lines:
         temp = line.strip().split()
         rank1 = int(temp[0])
-        ranks_left.append(rank1+1)
+        ranks_head.append(rank1+1)
         print('left: ', rank1)
-        ranks.append(rank1+1)
+        ranks_both.append(rank1+1)
         if rank1 < 10:
             top_ten_hit_count += 1
         rank2 = int(temp[1])
-        ranks.append(rank2+1)
-        ranks_right.append(rank2+1)
+        ranks_both.append(rank2+1)
+        ranks_tail.append(rank2+1)
         print('right: ', rank2)
-        print('mean rank until now: ', np.mean(ranks))
+        print('mean rank until now: ', np.mean(ranks_both))
         if rank2 < 10:
             top_ten_hit_count += 1
-        print("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))                
+        print("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks_both))                
         for hits_level in range(10):
             if rank1 <= hits_level:
-                hits[hits_level].append(1.0)
-                hits_left[hits_level].append(1.0)
+                hits_both[hits_level].append(1.0)
+                hits_head[hits_level].append(1.0)
             else:
-                hits[hits_level].append(0.0)
-                hits_left[hits_level].append(0.0)
+                hits_both[hits_level].append(0.0)
+                hits_head[hits_level].append(0.0)
 
             if rank2 <= hits_level:
-                hits[hits_level].append(1.0)
-                hits_right[hits_level].append(1.0)
+                hits_both[hits_level].append(1.0)
+                hits_tail[hits_level].append(1.0)
             else:
-                hits[hits_level].append(0.0)
-                hits_right[hits_level].append(0.0)
+                hits_both[hits_level].append(0.0)
+                hits_tail[hits_level].append(0.0)
 
     '''
 
@@ -980,7 +989,7 @@ def calculate_link_prediction_metrics(model, tokenizer):
         tail = test_triple[2]
         logger.debug(f'Current test triple: {head, relation, tail}')
 
-        #############------------- CALCULATE RANK LEFT ---------------#################
+        #############------------- CALCULATE RANK HEAD ---------------#################
 
         # create head_corrupt_list: the first item is the true triple
         # all remaining lines are triples that are incorrect, because the head entity is incorrect
@@ -998,20 +1007,20 @@ def calculate_link_prediction_metrics(model, tokenizer):
 
         logger.debug(f'Length of head_corrupt list is: {len(head_corrupt_list)}')
 
-        rank_left = calculate_rank_given_corrupt_list(corrupt_list = head_corrupt_list,
+        rank_head = calculate_rank_given_corrupt_list(corrupt_list = head_corrupt_list,
                                                       model = model, tokenizer = tokenizer)
 
-        logger.info(f'Rank left for current triple: {rank_left}')
-        # TODO change this to a tensor!
+        logger.info(f'Rank head for current triple: {rank_head.item()}')
         # add this rank to the collecting variables
-        ranks.append(rank_left + 1)
-        ranks_left.append(rank_left + 1)
-        if rank_left < 10:
+        plus_one = torch.ones(1).to(device)
+        ranks_both = torch.cat((ranks_both, rank_head + plus_one))
+        ranks_head = torch.cat((ranks_head, rank_head + plus_one))
+        if rank_head < 10:
             top_ten_hit_count += 1
 
-        #############------------- CALCULATE RANK RIGHT ---------------#################
+        #############------------- CALCULATE RANK TAIL ---------------#################
 
-        # create tailcorrupt_list: the first item is the true triple
+        # create tail_corrupt_list: the first item is the true triple
         # all remaining lines are triples that are incorrect, because the tail entity is incorrect
         # filtered setting: exclude any triples that exist in the dataset!
         tail_corrupt_list = [test_triple]
@@ -1026,83 +1035,78 @@ def calculate_link_prediction_metrics(model, tokenizer):
 
         logger.debug(f'Length of tail_corrupt list is: {len(tail_corrupt_list)}')
 
-        rank_right = calculate_rank_given_corrupt_list(corrupt_list = tail_corrupt_list,
-                                                       model = model, tokenizer = tokenizer)
+        rank_tail = calculate_rank_given_corrupt_list(corrupt_list = tail_corrupt_list,
+                                                      model = model, tokenizer = tokenizer)
 
-        # TODO change everything that follows to tensor calculation!
-        ranks.append(rank_right + 1)
-        ranks_right.append(rank_right + 1)
-        logger.info(f'Rank right for current triple: {rank_right}')
-        logger.info('mean rank until now: ', np.mean(ranks))
+        ranks_both = torch.cat((ranks_both, rank_tail + plus_one))
+        ranks_tail = torch.cat((ranks_tail, rank_tail + plus_one))
+        logger.info(f'Rank tail for current triple: {rank_tail.item()}')
+        logger.info(f'mean rank until now:  {torch.mean(ranks_both)}')
 
-        if rank_right < 10:
+        if rank_tail < 10:
             top_ten_hit_count += 1
-        logger.info("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))
+        logger.info(f"hit@10 until now:  {top_ten_hit_count * 1.0 / len(ranks_both)}")
 
-        # Save the current left + right rank to disk
+        # Save the current head + tail rank to disk
         # TODO change file name, make it like experiment name
         file_name_script = 'ranks_testset_bs' + str(args.train_batch_size) + "_lr" + str(
             args.learning_rate) + "_maxseq" + str(args.max_seq_length) + "_ep" + str(
             args.num_train_epochs) + '.txt'
 
         f = open(file_name_script, 'a')
-        f.write(str(rank_left) + '\t' + str(rank_right) + '\n')
+        f.write(str(rank_head.item()) + '\t' + str(rank_tail.item()) + '\n')
         f.close()
 
         #############------------- CALCULATE HITS@K ---------------#################
 
         # (original comment: this could be done more elegantly, but here you go)
         for hits_level in range(10):
-            if rank_left <= hits_level:
-                hits[hits_level].append(1.0)
-                hits_left[hits_level].append(1.0)
+            if rank_head <= hits_level:
+                hits_both[hits_level] = 1.0
+                hits_head[hits_level] = 1.0
             else:
-                hits[hits_level].append(0.0)
-                hits_left[hits_level].append(0.0)
+                hits_both[hits_level] = 0.0
+                hits_head[hits_level] = 0.0
 
-            if rank_right <= hits_level:
-                hits[hits_level].append(1.0)
-                hits_right[hits_level].append(1.0)
+            if rank_tail <= hits_level:
+                hits_both[hits_level] = 1.0
+                hits_tail[hits_level] = 1.0
             else:
-                hits[hits_level].append(0.0)
-                hits_right[hits_level].append(0.0)
+                hits_both[hits_level] = 0.0
+                hits_tail[hits_level] = 0.0
 
     ### Calculate all link prediction metrics after having gone through all test triples
     # Log hits @1, @3, @5 and @10
     for i in [0, 2, 4, 9]:
-        logger.info(f'Hits left @{i + 1}: {np.mean(hits_left[i])}')
-        logger.info(f'Hits right @{i + 1}: {np.mean(hits_right[i])}')
-        logger.info(f'Hits @{i + 1}: {np.mean(hits[i])}')
-    logger.info(f'Mean rank left: {np.mean(ranks_left)}')
-    logger.info(f'Mean rank right: {np.mean(ranks_right)}')
-    logger.info(f'Mean rank: {np.mean(ranks)}')
-    logger.info(f'Mean reciprocal rank left: {np.mean(1. / np.array(ranks_left))}')
-    logger.info(f'Mean reciprocal rank right: {np.mean(1. / np.array(ranks_right))}')
-    logger.info(f'Mean reciprocal rank: {np.mean(1. / np.array(ranks))}')
+        logger.info(f'Hits head @{i + 1}: {torch.mean(hits_head[i])}')
+        logger.info(f'Hits tail @{i + 1}: {torch.mean(hits_tail[i])}')
+        logger.info(f'Hits both @{i + 1}: {torch.mean(hits_both[i])}')
+    logger.info(f'Mean rank head: {torch.mean(ranks_head)}')
+    logger.info(f'Mean rank tail: {torch.mean(ranks_tail)}')
+    logger.info(f'Mean rank both: {torch.mean(ranks_both)}')
+    logger.info(f'Mean reciprocal rank head: {torch.mean(1. / ranks_head)}')
+    logger.info(f'Mean reciprocal rank tail: {torch.mean(1. / ranks_tail)}')
+    logger.info(f'Mean reciprocal rank both: {torch.mean(1. / ranks_both)}')
     # TODO add more metrics if required to compare with pykeen models!
     # adjusted mean rank by Berrendorf (2020)
     # adjusted mean rank index by Berrendorf (2020)
     # optimistic vs. pessimistic vs. realistic
 
+    # TODO add meaningful experiment name!
     # each metric is a column
-    result_dict = {'experiment_name': 'bla',
-                   'mean_rank': np.mean(ranks),
-                   'mean_rank_left': np.mean(ranks_left),
-                   'mean_rank_right': np.mean(ranks_left),
-                   'mean_reciprocal_rank': np.mean(1. / np.array(ranks)),
-                   'mean_reciprocal_rank_left': np.mean(1. / np.array(ranks_left)),
-                   'mean_reciprocal_rank_right': np.mean(1. / np.array(ranks_left)),
-                   'hits_at_1': np.mean(hits_left[0]),
-                   'hits_at_3': np.mean(hits_left[2]),
-                   'hits_at_5': np.mean(hits_left[4]),
-                   'hits_at_10': np.mean(hits_left[9])}
+    result_dict = {'experiment_name': EXPERIMENT_NAME,
+                   'mean_rank_both': torch.mean(ranks_both).item(),
+                   'mean_rank_head': torch.mean(ranks_head).item(),
+                   'mean_rank_tail': torch.mean(ranks_head).item(),
+                   'mean_reciprocal_rank_both': torch.mean(1. / ranks_both).item(),
+                   'mean_reciprocal_rank_head': torch.mean(1. / ranks_head).item(),
+                   'mean_reciprocal_rank_tail': torch.mean(1. / ranks_tail).item(),
+                   'hits_at_1': torch.mean(hits_both[0]).item(),
+                   'hits_at_3': torch.mean(hits_both[2]).item(),
+                   'hits_at_5': torch.mean(hits_both[4]).item(),
+                   'hits_at_10': torch.mean(hits_both[9]).item()}
 
-    # dict keys = dataframe columns
-    metric_results_df = pd.DataFrame.from_dict(result_dict)
-
-    # Save all metrics to a file
-    file_name_metrics = 'link_prediction_results_test.csv'
-    metric_results_df.to_csv(file_name_metrics)
+    return result_dict
 
 
 def calculate_rank_given_corrupt_list(corrupt_list: list, model, tokenizer):
@@ -1137,8 +1141,7 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, model, tokenizer):
 
     prediction_logits = torch.Tensor().float().to(device)
 
-    for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader,
-                                                              desc = "Calculating metrics for current test triple"):
+    for input_ids, input_mask, segment_ids, label_ids in eval_dataloader:
         input_ids = input_ids.to(device)
         input_mask = input_mask.to(device)
         segment_ids = segment_ids.to(device)
@@ -1149,24 +1152,20 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, model, tokenizer):
 
         prediction_logits = torch.cat((prediction_logits, logits))
 
-    # IMPORTANT: Why did the original code use the logits here?
-    prediction_probs = F.softmax(prediction_logits, dim = 1)
     # get the dimension corresponding to the label that indicates a true triple
     # label 1 = true triple
     position_of_correct_label = all_label_ids[0]
-    rel_values = prediction_probs[:, position_of_correct_label]
+    rel_values = prediction_logits[:, position_of_correct_label]
     logger.debug(
         f'Shape of probability vector prediction for "triple is correct: {rel_values.size()}')
     # retrieve sorted descending order of plausibility predictions
     _, argsort = torch.sort(rel_values, descending = True)
     # TODO print the 10 highest probabilities, the true triple and the predicted entities
     # logger.debug()
-    argsort_numpy = argsort.cpu().numpy()
-    # Retrieve the rank of the correct triple that has
+    # Retrieve the rank of the correct triple (first position in the list)
     # remember: within the data, the first item was the only correct triple, the rest
     # were corrupted ones, i.e. created by replacing the head entity
-    # TODO also do this with pytorch!
-    rank = np.where(argsort_numpy == 0)[0][0]
+    rank = torch.where(argsort == 0)[0]  # result is a tuple, take first item
 
     return rank
 
@@ -1279,8 +1278,8 @@ if args.do_train:
 
     # configure the logging to stdout and file
     logger = initialize_my_logger(
-        file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_train.log',
-        level = logging.INFO)
+        file_name = f'log_{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.txt',
+        level = logging.DEBUG)
 
     logger.info(f'Saving everything in folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
 
@@ -1302,14 +1301,14 @@ else:
     # configure the logging
     # if args.do_eval:
     #     logger = initialize_my_logger(
-    #         file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_eval.log', level = logging.INFO)
+    #         file_name = f'log_{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.txt', level = logging.INFO)
     if args.do_predict:
         logger = initialize_my_logger(
-            file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.log',
+            file_name = f'log_{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.txt',
             level = logging.DEBUG)
     # else:
     #     logger = initialize_my_logger(
-    #         file_name = f'{socket.gethostname()}_' + EXPERIMENT_NAME + '_eval_predict.log',
+    #         file_name = f'log_{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.txt',
     #         level = logging.INFO)
 
     logger.info(f'Loading model from folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
@@ -1331,7 +1330,7 @@ else:
 logger.info('################# DEVICE INFORMATION #################')
 logger.info(f'Device used: {device}')
 logger.info(f"CUDA is used: {torch.cuda.is_available()}")
-logger.info(f'Using {n_gpu} devices.')
+logger.info(f'Using {n_gpu} device(s).')
 logger.info(f'Using distributed training: {bool(args.local_rank != -1)}')
 logger.info(f'Using half-precision float16 datatype: {args.fp16}')
 
@@ -1354,8 +1353,6 @@ NUM_LABELS = len(label_list)
 entity_list = processor.get_entities(args.data_dir)
 
 global_step = 0  # counts steps across all functions: train, validate, test
-nb_tr_steps = 0
-tr_loss = 0  # accumulate training loss?
 
 # IMPORTANT: Training starts here
 if args.do_train:
@@ -1365,10 +1362,17 @@ if args.do_train:
 if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
 
     if args.do_train:
-        loss_on_test_set, test_link_prediction_metrics = evaluate_on_test_set(trained_model,
-                                                                              loaded_tokenizer)
+        test_results_dict = evaluate_on_test_set(trained_model, loaded_tokenizer)
     else:
         # if running test without training, load model + tokenizer from working directory
-        loss_on_test_set, test_link_prediction_metrics = evaluate_on_test_set()
+        test_results_dict = evaluate_on_test_set()
+
+    # dict keys = dataframe columns
+    test_results_df = pd.DataFrame([test_results_dict])
+
+    # Save all metrics to a file
+    file_name_test_results = 'link_prediction_results_test.csv'
+    test_results_df.to_csv(file_name_test_results)
+    logger.info('Saved test results as CSV file to working directory')
 
 logger.info(f'Finished running the script at: {datetime.now().strftime("%d.%m.%Y %H:%M")}')

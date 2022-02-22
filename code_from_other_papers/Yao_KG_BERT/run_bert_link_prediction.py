@@ -45,19 +45,14 @@ from sklearn import metrics
 # AdamW, get_linear_schedule_with_warmup, GPT2ForSequenceClassification)
 
 # my imports using up-to-date transformers module and BERT
-# missing: WEIGHTS_NAME, CONFIG_NAME
 # imports that are not used in the original code: BertConfig
 from transformers import BertForSequenceClassification, BertTokenizer
-from transformers.file_utils import TRANSFORMERS_CACHE
+from transformers.file_utils import TRANSFORMERS_CACHE, WEIGHTS_NAME, CONFIG_NAME
 from transformers import AdamW, \
     get_linear_schedule_with_warmup  # instead of BertAdam, WarmupLinearSchedule
 
 START_TIME = datetime.now().strftime("%d.%m.%Y_%H:%M")
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-# torch.backends.cudnn.deterministic = True
-
-# create a logger from the module
 logger = logging.getLogger(__name__)
 
 
@@ -120,7 +115,8 @@ class DataProcessor(object):
             for line in reader:
                 if sys.version_info[0] == 2:
                     # original code: line = list(unicode(cell, 'utf-8') for cell in line)
-                    raise SystemError('sys.version_info[0] == 2, I do not know what that means! Check code')
+                    raise SystemError(
+                        'sys.version_info[0] == 2, I do not know what that means! Check code')
                 lines.append(line)
             return lines
 
@@ -133,18 +129,18 @@ class KGProcessor(DataProcessor):
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(# set type "train" here for the _create_examples function
+        return self._create_examples(  # set type "train" here for the _create_examples function
             self._read_tsv(os.path.join(data_dir, "train.tsv")), "train", data_dir)
 
     def get_dev_examples(self, data_dir):
         """See base class."""
         return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev",
-            data_dir)
+                                     data_dir)
 
     def get_test_examples(self, data_dir):
         """See base class."""
         return self._create_examples(self._read_tsv(os.path.join(data_dir, "test.tsv")), "test",
-            data_dir)
+                                     data_dir)
 
     def get_relations(self, data_dir):
         """Gets all labels (relations) in the knowledge graph."""
@@ -201,15 +197,17 @@ class KGProcessor(DataProcessor):
                     end = temp[1]  # .find(',')
                     ent2text[temp[0]] = temp[1]  # [:end]
 
-        # only execute this code for FB15K and FB15K-237 datasets
-        if data_dir.find("FB15") != -1:
-            logger.debug('Using longer entity descriptions (entity2textlong.txt) for Freebase datasets.')
-            with open(os.path.join(data_dir, "entity2textlong.txt"), 'r') as f:
-                ent_lines = f.readlines()
-            for line in ent_lines:
-                    temp = line.strip().split('\t')
-                    # first_sent_end_position = temp[1].find(".")
-                    ent2text[temp[0]] = temp[1]  # [:first_sent_end_position + 1]
+        # IMPORTANT: I disabled the use of entity2textlong.txt
+        #  only execute this code for FB15K and FB15K-237 datasets
+        # if data_dir.find("FB15") != -1:
+        #     logger.debug(
+        #         'Using longer entity descriptions (entity2textlong.txt) for Freebase datasets.')
+        #     with open(os.path.join(data_dir, "entity2textlong.txt"), 'r') as f:
+        #         ent_lines = f.readlines()
+        #     for line in ent_lines:
+        #         temp = line.strip().split('\t')
+        #         # first_sent_end_position = temp[1].find(".")
+        #         ent2text[temp[0]] = temp[1]  # [:first_sent_end_position + 1]
 
         # access list of entities from ent2text
         entities = list(ent2text.keys())
@@ -309,7 +307,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                                  print_info = True):
     """Loads a data file into a list of `InputBatch`s."""
 
-    logger.debug('Creating features, i.e. vectors from the previously created examples (which are text instead of entity/relation IDs).')
+    logger.debug(
+        'Creating features, i.e. vectors from the previously created examples (which are text instead of entity/relation IDs).')
     label_map = {label: i for i, label in enumerate(label_list)}
 
     features = []
@@ -317,7 +316,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         if ex_index % 10000 == 0 and print_info:
             logger.info("Writing example %d of %d" % (ex_index, len(examples)))
         # TODO remove this when no longer needed, this is a lot!
-        logger.debug()
+        #logger.debug(f'Current example: {example.guid}')
 
         # tokenize the head entity, outputs a list of strings
         tokens_a = tokenizer.tokenize(example.text_a)
@@ -403,7 +402,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         # print information about the first 5 examples of the dataset
         if ex_index < 5 and print_info:
-            logger.info("*** Example ***")
+            logger.info(f"*** Example {ex_index + 1}***")
             logger.info("guid: %s" % (example.guid))
             logger.info("tokens: %s" % " ".join([str(x) for x in tokens]))
             logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
@@ -495,6 +494,7 @@ def main():
 
     ## Required parameters (set default to None)
     # TODO change back to None, provided manual defaults for debugging
+
     # debugging example: FB15k237
     parser.add_argument("--data_dir",
                         default = '/home/lena/git/master_thesis_bias_in_NLP/code_from_other_papers/Yao_KG_BERT/data/FB15k-237',
@@ -512,6 +512,8 @@ def main():
                         help = "The output directory where the model predictions and checkpoints will be written.")
 
     ## Other parameters
+    parser.add_argument("--debug", action = 'store_true',
+                        help = "Add this flag when debugging. Will adapt parameters such that the model runs way faster.")
     parser.add_argument("--cache_dir", default = "", type = str,
                         help = "Where do you want to store the pre-trained models downloaded from s3")
     parser.add_argument("--max_seq_length", default = 128, type = int,
@@ -539,7 +541,7 @@ def main():
     parser.add_argument("--no_cuda", action = 'store_true',
                         help = "Whether not to use CUDA when available")
     parser.add_argument("--local_rank", type = int, default = -1,
-                        help = "local_rank for distributed training on gpus")
+                        help = "Specify local_rank for distributed training on gpus. If -1, distributed training is disabled.")
     parser.add_argument('--seed', type = int, default = 42, help = "random seed for initialization")
     parser.add_argument('--gradient_accumulation_steps', type = int, default = 1,
                         help = "Number of updates steps to accumulate before performing a backward/update pass.")
@@ -555,24 +557,15 @@ def main():
                         help = "Can be used for distant debugging.")
     args = parser.parse_args()
 
+    # TODO create a meaningful file name
+
+
     if args.server_ip and args.server_port:
         # Distant debugging - see https://code.visualstudio.com/docs/python/debugging#_attach-to-a-local-script
         import ptvsd
         print("Waiting for debugger attach")
         ptvsd.enable_attach(address = (args.server_ip, args.server_port), redirect_output = True)
         ptvsd.wait_for_attach()
-
-    # set the correct CUDA device, check for number of devices
-    if args.local_rank == -1 or args.no_cuda:
-        # important: if no_cuda is enabled, use CPU even though GPU is available
-        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-        n_gpu = torch.cuda.device_count()
-    else:
-        torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
-        n_gpu = 1
-        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
-        torch.distributed.init_process_group(backend = 'nccl')
 
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
         raise ValueError(
@@ -584,14 +577,36 @@ def main():
     # important: custom logging by Lena to stdout and file
     format = '%(asctime)s - %(levelname)s - %(filename)s/%(funcName)s: %(message)s'
     logging.basicConfig(format = format,
-                        level = logging.DEBUG if args.local_rank in [-1, 0] else logging.WARN,
+                        level = logging.INFO if args.local_rank in [-1, 0] else logging.WARN,
                         datefmt = "%d.%m.%Y %H:%M:%S", handlers = [
-            logging.FileHandler(f'log_{os.path.split(args.data_dir)[1]}_{START_TIME}', mode = 'a'),
+            logging.FileHandler(f'log_{os.path.split(args.data_dir)[1]}_{START_TIME}.txt', mode = 'a'),
             logging.StreamHandler(sys.stdout)])
 
+    # set the correct CUDA device, check for number of devices
+    if args.local_rank == -1 or args.no_cuda:
+        # important: if no_cuda is enabled, use CPU even though GPU is available
+        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+        n_gpu = torch.cuda.device_count()
+        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    else:
+        logger.info('Distributed training.')
+        torch.cuda.set_device(args.local_rank)
+        device = torch.device("cuda", args.local_rank)
+        n_gpu = 1
+        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+        torch.distributed.init_process_group(backend = 'nccl')
+
+    logger.info('******* CUDA INFO *********')
     logger.info(
-        "device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(device, n_gpu,
-            bool(args.local_rank != -1), args.fp16))
+        f"device: {device} n_gpu: {n_gpu}, distributed training: {bool(args.local_rank != -1)},"
+        f" 16-bits training: {args.fp16}")
+
+    if args.debug:
+        # important: if debugging, use small version of FB15K237!
+        # test + dev have 100 examples, training has 500
+        logger.info('DEBUGGING MODE: Using a very small subset of FB15k237.')
+        args.data_dir = os.path.join(args.data_dir, 'for_debugging')
+        logger.info(f'File path: {args.data_dir}')
 
     if args.gradient_accumulation_steps < 1:
         raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
@@ -606,12 +621,14 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
+    # TODO decide whether to use this: torch.backends.cudnn.deterministic = True
 
     if n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
-    if not args.do_train and not args.do_eval:
-        raise ValueError("At least one of `do_train` or `do_eval` must be True.")
+    # TODO uncomment this
+    # if not args.do_train and not args.do_eval:
+    #     raise ValueError("At least one of `do_train` or `do_eval` must be True.")
 
     # create a KGProcessor + task name
     processors = {"kg": KGProcessor, }
@@ -729,7 +746,7 @@ def main():
     if args.do_train:
 
         train_features = convert_examples_to_features(train_examples, label_list,
-            args.max_seq_length, tokenizer)
+                                                      args.max_seq_length, tokenizer)
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_examples))
         logger.info("  Batch size = %d", args.train_batch_size)
@@ -740,7 +757,6 @@ def main():
         all_input_ids = torch.tensor([f.input_ids for f in train_features], dtype = torch.long)
         all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype = torch.long)
         all_segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype = torch.long)
-
         all_label_ids = torch.tensor([f.label_id for f in train_features], dtype = torch.long)
 
         # wrap all tensors into a torch.TensorDataset
@@ -757,7 +773,7 @@ def main():
 
         model.train()  # set model to train mode
 
-        for _ in trange(tqdm(int(args.num_train_epochs)), desc = "Epoch"):
+        for _ in trange(int(args.num_train_epochs), desc = "Epoch"):
             # note that global_step is not set to zero
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
@@ -765,13 +781,14 @@ def main():
                 batch = tuple(t.to(device) for t in batch)  # unpack and send each tensor to device
                 input_ids, input_mask, segment_ids, label_ids = batch  # unpack the batch
 
-                # define a new function to compute loss values for both output_modes
-                logits = model(input_ids, segment_ids, input_mask, labels = None)
-                # print(logits, logits.shape)
+                # calculate predictions for current batch
+                # do not automatically calculate the loss! (do not provide labels)
+                logits = model(input_ids, segment_ids, input_mask, labels = None).logits
 
                 # TODO Why is it initialized here inside the batch loop? - bottleneck?
                 loss_fct = CrossEntropyLoss()
                 # calculate loss, make sure that the tensors have correct dimensionality
+                # view(-1) makes the tensor shape flexible
                 loss = loss_fct(logits.view(-1, model.num_labels), label_ids.view(-1))
 
                 if n_gpu > 1:
@@ -783,9 +800,7 @@ def main():
                 if args.fp16:
                     optimizer.backward(loss)
                 else:
-                    loss.backward()
-                    # TODO decide whether to add gradient clipping (part of pytorch_pretrained migration)
-                    #torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+                    loss.backward()  # TODO decide whether to add gradient clipping (part of pytorch_pretrained migration)  # torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
 
                 # add the loss value to the logging variables
                 tr_loss += loss.item()
@@ -804,39 +819,43 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
-            print("Training loss: ", tr_loss, nb_tr_examples)
+            logger.info("Training loss: ", tr_loss, nb_tr_examples)
+            # TODO log + save training loss after each epoch!
+
+        logger.info('********** Finished training **********')
 
     if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
         # Save a trained model, configuration and tokenizer
-        model_to_save = model.module if hasattr(model,
-                                                'module') else model  # Only save the model it-self
+        # model_to_save = model.module if hasattr(model,
+        #                                         'module') else model  # Only save the model it-self
 
-        # If we save using the predefined names, we can load using `from_pretrained`
-        # TODO output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
-        # TODOoutput_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+        # # If we save using the predefined names, we can load using `from_pretrained`
+        # output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+        # output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
 
         # save model.bin, config.json and vocab.txt to disk
-        torch.save(model_to_save.state_dict(), output_model_file)
-        model_to_save.config.to_json_file(output_config_file)
+        model.save_pretrained(args.output_dir, save_config = True)
         tokenizer.save_vocabulary(args.output_dir)
+
 
         # TODO Why is a model loaded here?
         # Load a trained model and vocabulary that you have fine-tuned
-        model = BertForSequenceClassification.from_pretrained(args.output_dir,
-                                                              num_labels = num_labels)
-        tokenizer = BertTokenizer.from_pretrained(args.output_dir,
-                                                  do_lower_case = args.do_lower_case)
-    else:
-        model = BertForSequenceClassification.from_pretrained(args.bert_model,
-                                                              num_labels = num_labels)
+    #     model = BertForSequenceClassification.from_pretrained(args.output_dir,
+    #                                                           num_labels = num_labels)
+    #     tokenizer = BertTokenizer.from_pretrained(args.output_dir,
+    #                                               do_lower_case = args.do_lower_case)
+    # else:
+    #     model = BertForSequenceClassification.from_pretrained(args.bert_model,
+    #                                                           num_labels = num_labels)
 
-    model.to(device)
+   # model.to(device)
 
+# IMPORTANT: EVALUATION starts here
     if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
 
         eval_examples = processor.get_dev_examples(args.data_dir)
         eval_features = convert_examples_to_features(eval_examples, label_list, args.max_seq_length,
-            tokenizer)
+                                                     tokenizer)
         logger.info("***** Running evaluation *****")
         logger.info("  Num examples = %d", len(eval_examples))
         logger.info("  Batch size = %d", args.eval_batch_size)
@@ -855,6 +874,8 @@ def main():
         # Load a trained model and vocabulary that you have fine-tuned
         model = BertForSequenceClassification.from_pretrained(args.output_dir,
                                                               num_labels = num_labels)
+
+        # folder needs to contain a config.json and a vocab.txt file
         tokenizer = BertTokenizer.from_pretrained(args.output_dir,
                                                   do_lower_case = args.do_lower_case)
         model.to(device)
@@ -872,12 +893,12 @@ def main():
             label_ids = label_ids.to(device)
 
             with torch.no_grad():
-                logits = model(input_ids, segment_ids, input_mask, labels = None)
+                logits = model(input_ids, segment_ids, input_mask, labels = None).logits
 
             # create eval loss and other metric required by the task
             loss_fct = CrossEntropyLoss()
             tmp_eval_loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
-            print(label_ids.view(-1))
+            #print(label_ids.view(-1))
 
             eval_loss += tmp_eval_loss.mean().item()
             nb_eval_steps += 1
@@ -897,7 +918,9 @@ def main():
         result['global_step'] = global_step
         result['loss'] = loss
 
-        output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
+        # IMPORTANT write evaluation results to a file
+        # loop through result dict and write each pair to a line
+        output_eval_file = os.path.join(args.output_dir, "eval_results.csv")
         with open(output_eval_file, "w") as writer:
             logger.info("***** Eval results *****")
             for key in sorted(result.keys()):
@@ -918,8 +941,8 @@ def main():
 
         eval_examples = processor.get_test_examples(args.data_dir)
         eval_features = convert_examples_to_features(eval_examples, label_list, args.max_seq_length,
-            tokenizer)
-        logger.info("***** Running Prediction *****")
+                                                     tokenizer)
+        logger.info("***** Running Prediction on Test Set *****")
         logger.info("  Num examples = %d", len(eval_examples))
         logger.info("  Batch size = %d", args.eval_batch_size)
         all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype = torch.long)
@@ -952,7 +975,7 @@ def main():
             label_ids = label_ids.to(device)
 
             with torch.no_grad():
-                logits = model(input_ids, segment_ids, input_mask, labels = None)
+                logits = model(input_ids, segment_ids, input_mask, labels = None).logits
 
             loss_fct = CrossEntropyLoss()
             tmp_eval_loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
@@ -966,7 +989,7 @@ def main():
 
         eval_loss = eval_loss / nb_eval_steps
         preds = preds[0]
-        print(preds, preds.shape)
+        #print(preds, preds.shape)
 
         all_label_ids = all_label_ids.numpy()
 
@@ -985,8 +1008,8 @@ def main():
             for key in sorted(result.keys()):
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
-        print("Triple classification acc is : ")
-        print(metrics.accuracy_score(all_label_ids, preds))
+        logger.info("Triple classification acc is : ")
+        logger.info(metrics.accuracy_score(all_label_ids, preds))
 
         # run link prediction
         ranks = []
@@ -1043,7 +1066,7 @@ def main():
             head = test_triple[0]
             relation = test_triple[1]
             tail = test_triple[2]
-            # print(test_triple, head, relation, tail)
+            # logger.info(test_triple, head, relation, tail)
 
             head_corrupt_list = [test_triple]
             for corrupt_ent in entity_list:
@@ -1055,7 +1078,7 @@ def main():
                         head_corrupt_list.append(tmp_triple)
 
             tmp_examples = processor._create_examples(head_corrupt_list, "test", args.data_dir)
-            print(len(tmp_examples))
+            logger.info(len(tmp_examples))
             tmp_features = convert_examples_to_features(tmp_examples, label_list,
                                                         args.max_seq_length, tokenizer,
                                                         print_info = False)
@@ -1083,7 +1106,7 @@ def main():
                 label_ids = label_ids.to(device)
 
                 with torch.no_grad():
-                    logits = model(input_ids, segment_ids, input_mask, labels = None)
+                    logits = model(input_ids, segment_ids, input_mask, labels = None).logits
                 if len(preds) == 0:
                     batch_logits = logits.detach().cpu().numpy()
                     preds.append(batch_logits)
@@ -1103,7 +1126,7 @@ def main():
             # print(argsort1)
             argsort1 = argsort1.cpu().numpy()
             rank1 = np.where(argsort1 == 0)[0][0]
-            print('left: ', rank1)
+            logger.info('left: ', rank1)
             ranks.append(rank1 + 1)
             ranks_left.append(rank1 + 1)
             if rank1 < 10:
@@ -1146,7 +1169,7 @@ def main():
                 label_ids = label_ids.to(device)
 
                 with torch.no_grad():
-                    logits = model(input_ids, segment_ids, input_mask, labels = None)
+                    logits = model(input_ids, segment_ids, input_mask, labels = None).logits
                 if len(preds) == 0:
                     batch_logits = logits.detach().cpu().numpy()
                     preds.append(batch_logits)
@@ -1164,17 +1187,17 @@ def main():
             rank2 = np.where(argsort1 == 0)[0][0]
             ranks.append(rank2 + 1)
             ranks_right.append(rank2 + 1)
-            print('right: ', rank2)
-            print('mean rank until now: ', np.mean(ranks))
+            logger.info('right: ', rank2)
+            logger.info('mean rank until now: ', np.mean(ranks))
             if rank2 < 10:
                 top_ten_hit_count += 1
-            print("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))
+            logger.info("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))
 
-            file_prefix = str(args.data_dir[7:]) + "_" + str(args.train_batch_size) + "_" + str(
-                args.learning_rate) + "_" + str(args.max_seq_length) + "_" + str(
-                args.num_train_epochs)
-            # file_prefix = str(args.data_dir[7:])
-            f = open(file_prefix + '_ranks.txt', 'a')
+            file_name = 'ranks_testset_bs' + str(args.train_batch_size) + "_lr" + str(
+                args.learning_rate) + "_maxseq" + str(args.max_seq_length) + "_ep" + str(
+                args.num_train_epochs) + '.txt'
+
+            f = open(file_name , 'a')
             f.write(str(rank1) + '\t' + str(rank2) + '\n')
             f.close()
             # this could be done more elegantly, but here you go
@@ -1207,3 +1230,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    logger.info(f'Finished running the script at: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
+
