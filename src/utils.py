@@ -1,10 +1,12 @@
 # %% Imports
 # IN-built functions
+import json
 import logging
 import os
 import socket
 import sys
 from datetime import datetime
+import argparse
 
 import numpy as np
 # 3rd part modules
@@ -21,7 +23,7 @@ def set_base_path_based_on_host():
     :return: string that is the base path of the synced git folder
     """
     if socket.gethostname() == 'Schlepptop':
-        base_dir = '//'
+        base_dir = '/home/lena/git/master_thesis_bias_in_NLP/'
     # covers all CPU + GPU nodes of the HPI
     elif 'node' in socket.gethostname() or socket.gethostname() in ['a6k5-01', 'dgxa100-01', 'ac922-01', 'ac922-02']:
         base_dir = '/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis'
@@ -32,7 +34,7 @@ def set_base_path_based_on_host():
     return base_dir
 
 
-def initialize_my_logger(file_name, file_mode: str = 'a'):
+def initialize_my_logger(file_name, level = logging.DEBUG, file_mode: str = 'a'):
     """
     This function creates a customized logger based on Pythons built-in logging module.
     5 possible levels are: debug, info, warning, error, critical
@@ -51,10 +53,10 @@ def initialize_my_logger(file_name, file_mode: str = 'a'):
     - add more information in the strin: %(funcNames), %(process)d, %(thread)d
 
     """
-    # additional options for format:
-    format_a = '%(asctime)s - %(levelname)s - %(filename)s/%(funcName)s: %(message)s'
-    format_b = '%(asctime)s - %(levelname)s: %(message)s'
-    logging.basicConfig(format = format_a, level = logging.DEBUG,
+    # list of options for format:
+    format_long = '%(asctime)s - %(levelname)s - %(filename)s/%(funcName)s: %(message)s'
+    format_short = '%(asctime)s - %(levelname)s: %(message)s'
+    logging.basicConfig(format = format_long, level = level,
                         datefmt = "%d.%m.%Y %H:%M:%S",
                         handlers = [
                             logging.FileHandler(file_name, mode = file_mode),
@@ -106,6 +108,26 @@ def end_time():
 def time_passed(START_TIME, END_TIME):
     result = END_TIME-START_TIME
     return
+
+
+def save_argparse_obj_to_disk(argparse_namespace, path = None, file_name = None):
+    '''
+
+    Parameters
+    ----------
+    argparse_namespace: argparse.Namespace object created with in-built module.
+    path: If None, save to working directory
+    '''
+    assert type(argparse_namespace) == argparse.Namespace, 'Object provided is not an argparse namespace!'
+    if path is not None:
+        file_name = os.path.join(path, 'argparse_arguments.json')
+    else:
+        file_name = 'argparse_arguments.json'
+
+    with open(file_name, 'w') as f:
+        json.dump(argparse_namespace.__dict__, f, indent = 2)
+    f.close()
+    print(f'Saved argparse object as JSON. File name: {file_name}')
 
 
 # %%  Project-specific utilities
@@ -272,4 +294,20 @@ def filter_pykeen_results_file(path, filter_str: list, save: bool = True,
         filtered_results.to_csv(os.path.join(os.getcwd(), 'filtered_pykeen_results.csv'))
 
     return filtered_results
+
+
+def find_top_k_tail_entities(relation_P_ID):
+    '''
+    Given a Wikidata PID, this function
+
+    It uses the dataframe created from the human facts subset of Wikidata5M.
+
+    Parameters
+    ----------
+    relation_P_ID
+
+    Returns
+    -------
+
+    '''
 

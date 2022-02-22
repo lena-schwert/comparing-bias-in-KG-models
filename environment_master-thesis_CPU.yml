@@ -15,7 +15,8 @@ dependencies:
   - requests
   - sparqlwrapper
   - ipython
-  - tqdm
+  #- tqdm
+  - enlighten  # 21.2. for adding progress to logging file
   - ignite  # 20.1.22: necessary for running Keidar code, conda install ignite -c pytorch
   - pip
   - pip:

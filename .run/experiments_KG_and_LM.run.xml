@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="run_bert_link_prediction" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+  <configuration default="false" name="experiments_KG_and_LM" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
     <module name="master_thesis_bias_in_NLP" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -7,13 +7,13 @@
       <env name="PYTHONUNBUFFERED" value="1" />
     </envs>
     <option name="SDK_HOME" value="" />
-    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/code_from_other_papers/Yao_KG_BERT" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/CLI_scripts" />
     <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/code_from_other_papers/Yao_KG_BERT/run_bert_link_prediction.py" />
-    <option name="PARAMETERS" value="--task_name kg --do_predict --data_dir $PROJECT_DIR$/code_from_other_papers/Yao_KG_BERT/data/FB15k-237 --bert_model bert-base-cased --max_seq_length 150 --train_batch_size 32 --learning_rate 5e-5 --num_train_epochs 5.0 --output_dir $PROJECT_DIR$/code_from_other_papers/Yao_KG_BERT/output_FB15k237_mini --gradient_accumulation_steps 1 --eval_batch_size 1500 --debug" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/CLI_scripts/experiments_KG_and_LM.py" />
+    <option name="PARAMETERS" value="--name DEBUGGING --do_train --do_predict --data_dir $PROJECT_DIR$/code_from_other_papers/Yao_KG_BERT/data/FB15k-237 --bert_model bert-base-cased --max_seq_length 50 --train_batch_size 32 --learning_rate 5e-5 --num_train_epochs 3 --gradient_accumulation_steps 1 --eval_batch_size 1500 --debug" />
     <option name="SHOW_COMMAND_LINE" value="true" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
