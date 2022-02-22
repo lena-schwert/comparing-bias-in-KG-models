@@ -1,4 +1,6 @@
 
+## *** Work in Progress - Project is still on-going ***
+
 ## Structure of this project
 
 The logic of the project structure is mostly based on: https://drivendata.github.io/cookiecutter-data-science/#directory-structure
