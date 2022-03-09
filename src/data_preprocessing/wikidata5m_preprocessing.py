@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 pd.set_option('display.max_columns', 1000)
 pd.set_option('display.width', 1000)
-pd.set_option('display.min_rows', 10)
+pd.set_option('display.min_rows', 100)
 pd.set_option('display.max_rows', 100)
 
 BASE_PATH_HOST = set_base_path_based_on_host()
@@ -83,9 +83,66 @@ relation_counts[relation_counts >= 10000].plot.bar(
 
 plt.show()
 
+# %% create file for entity to ID mapping
+
+# IMPORTANT: the two input files are the original Wikidata5M files!
+
+# for the labels, only access the first two coumns
+# the columns beyond these are the aliases, not the label
+
+entity_labels_raw = pd.read_csv('./data/interim/wikidata5m_entity_aliases.txt', sep = '\t',
+                                usecols = [0, 1], names = ['wikidata_ID', 'label'])
+# correct import: provide names, only use first two columns
+relation_labels_raw = pd.read_csv('./data/interim/wikidata5m_relation_aliases.txt', sep = '\t',
+                                  usecols = [0, 1], names = ['wikidata_ID', 'label'])
+
+# sort the dataframe according to the Wikidata IDs in ascending order
+# (this makes it more reproducible)
+entity_labels_sorted = entity_labels_raw.sort_values(by = 'wikidata_ID', ascending = True,
+                                                         ignore_index = True)
+relation_labels_sorted = relation_labels_raw.sort_values(by = 'wikidata_ID', ascending = True,
+                                                         ignore_index = True)
+
+# add index as numeric column
+# (numeric ID mapping will later be used by pykeen
+entity_labels_sorted['numeric_relation_ID'] = entity_labels_sorted.index
+relation_labels_sorted['numeric_relation_ID'] = relation_labels_sorted.index
+
+# save this dataframe to disk, always use it!
+
+
+# save first column as entities.txt and relations.txt
+# don't write index and column name
+entity_labels_sorted['wikidata_ID'].to_csv('./data/interim/KG_and_LM/entities.txt', index = False,
+                                           header = False)
+relation_labels_sorted['wikidata_ID'].to_csv('./data/interim/KG_and_LM/relations.txt', index = False,
+                                             header = False)
+
+# save 1st and 2nd column as entity2text.txt
+
+
+my_human_entities = pd.read_csv('data/interim/wikidata5m_human_entities_040122.tsv', sep = '\t')
+my_human_facts = pd.read_csv('data/interim/wikidata5m_human_facts_subset_complete_050122.tsv',
+                             sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
+
+test = pd.read_csv('exploration/relationship_counts/tail_value_counts_all_11.11.2021.csv')
+
+len(set(my_human_facts.iloc[:, 1]))
+
+human_relations = set(my_human_facts.iloc[:, 1])  # 298
+
+# save dataframes as CSV: entities_NumID_WikidataID_label.csv, relations_NumID_WikidataID_label.csv
+
 # %% TODO retrieve gender relations for all human entities
 
 # %% TODO create train, validation, test split
+
+# Keidar: did an 0.8 0.1 0.1 split
+# with about 9 million human facts, this results in 900,000 valid + test triples
+
+# KEPLER paper: in transductive split, the validation + test set is "tiny"
+# valid: only 5163 triples of 20624575 triples (0.025%)
+# test: only 5133 triples of 20624575 triples (0.02489%)
 
 # %% TODO alternative: keep existing splits and use only human facts
 

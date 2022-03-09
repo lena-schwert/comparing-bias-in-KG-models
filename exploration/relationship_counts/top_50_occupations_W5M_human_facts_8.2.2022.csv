@@ -1,0 +1,51 @@
+,dataset_name,relation_P_ID,relation_label,tail_entity_Q_ID,tail_entity_label,count
+0,Wikidata5M,P106,occupation,Q82955,politician,164420
+1,Wikidata5M,P106,occupation,Q937857,association football player,150171
+2,Wikidata5M,P106,occupation,Q33999,actor,79938
+3,Wikidata5M,P106,occupation,Q36180,writer,54360
+4,Wikidata5M,P106,occupation,Q1930187,journalist,40321
+5,Wikidata5M,P106,occupation,Q177220,singer,38953
+6,Wikidata5M,P106,occupation,Q40348,lawyer,34718
+7,Wikidata5M,P106,occupation,Q36834,composer,34256
+8,Wikidata5M,P106,occupation,Q28389,screenwriter,21212
+9,Wikidata5M,P106,occupation,Q628099,association football manager,20425
+10,Wikidata5M,P106,occupation,Q49757,poet,20032
+11,Wikidata5M,P106,occupation,Q2526255,film director,19509
+12,Wikidata5M,P106,occupation,Q16533,judge,18364
+13,Wikidata5M,P106,occupation,Q193391,diplomat,17452
+14,Wikidata5M,P106,occupation,Q81096,engineer,16152
+15,Wikidata5M,P106,occupation,Q201788,historian,15867
+16,Wikidata5M,P106,occupation,Q753110,songwriter,14626
+17,Wikidata5M,P106,occupation,Q6625963,novelist,14624
+18,Wikidata5M,P106,occupation,Q639669,musician,14300
+19,Wikidata5M,P106,occupation,Q42603,priest,12835
+20,Wikidata5M,P106,occupation,Q189290,military officer,11043
+21,Wikidata5M,P106,occupation,Q42973,architect,10918
+22,Wikidata5M,P106,occupation,Q4610556,model,10723
+23,Wikidata5M,P106,occupation,Q47064,military personnel,10563
+24,Wikidata5M,P106,occupation,Q43845,businessperson,10337
+25,Wikidata5M,P106,occupation,Q482980,author,9035
+26,Wikidata5M,P106,occupation,Q170790,mathematician,9035
+27,Wikidata5M,P106,occupation,Q188094,economist,8909
+28,Wikidata5M,P106,occupation,Q486748,pianist,8741
+29,Wikidata5M,P106,occupation,Q33231,photographer,8427
+30,Wikidata5M,P106,occupation,Q39631,physician,8425
+31,Wikidata5M,P106,occupation,Q4964182,philosopher,7943
+32,Wikidata5M,P106,occupation,Q183945,record producer,7910
+33,Wikidata5M,P106,occupation,Q3282637,film producer,7602
+34,Wikidata5M,P106,occupation,Q488205,singer-songwriter,7414
+35,Wikidata5M,P106,occupation,Q158852,conductor,6870
+36,Wikidata5M,P106,occupation,Q483501,artist,6449
+37,Wikidata5M,P106,occupation,Q169470,physicist,6186
+38,Wikidata5M,P106,occupation,Q214917,playwright,5906
+39,Wikidata5M,P106,occupation,Q333634,translator,5888
+40,Wikidata5M,P106,occupation,Q855091,guitarist,5233
+41,Wikidata5M,P106,occupation,Q947873,television presenter,5179
+42,Wikidata5M,P106,occupation,Q1234713,theologian,5054
+43,Wikidata5M,P106,occupation,Q593644,chemist,4869
+44,Wikidata5M,P106,occupation,Q4773904,anthropologist,4663
+45,Wikidata5M,P106,occupation,Q5137571,basketball coach,4325
+46,Wikidata5M,P106,occupation,Q82594,computer scientist,4055
+47,Wikidata5M,P106,occupation,Q37226,teacher,3707
+48,Wikidata5M,P106,occupation,Q212980,psychologist,3668
+49,Wikidata5M,P106,occupation,Q11063,astronomer,3562

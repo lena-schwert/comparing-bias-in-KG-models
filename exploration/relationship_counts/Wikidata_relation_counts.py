@@ -65,7 +65,7 @@ def get_triples_df(name_of_dataset_processed):
         # each line is a triple: Q29387131	P31	Q5 (tab-separated)
         dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/SOTA_datasets_raw_downloads/Wikidata5M/'
         file_name = 'wikidata5m_all_triplets.txt'
-        triples_df = pd.read_csv(os.path.join(dataset_folder, file_name), sep = '\t',
+        triples_df = pd.read_csv(os.path.join('/home/lena/git/master_thesis_bias_in_NLP/data/interim/wikidata5m_human_facts_subset_complete_050122.tsv'), sep = '\t',
                                  names = ['head_entity', 'relation', 'tail_entity'])
         property_encoding_ID = 'P_ID'
 
@@ -236,6 +236,7 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
 
 list_of_all_datasets = ['Wikidata5M', 'OpenKE', 'Wikidatasets-Humans', 'Codex-L', 'Codex-M',
                         'Codex-S']
+list_of_all_datasets ='Wikidata5M'
 
 # create dataframe for storing the results
 results_tail_value_counts = pd.DataFrame(
@@ -359,14 +360,14 @@ print('Collected all counts!')
 print('yay')
 
 # write dataframe to csv/pickle
-#results_tail_value_counts.to_csv('tail_value_counts_all_11.11.2021.csv')
+results_tail_value_counts.to_csv('tail_value_counts_human_facts_W5M_8.2.2022.csv')
 #results_tail_value_counts.to_pickle('tail_value_counts_all_11.11.2021.pkl')
 
 
 # %% after retrieving all counts for the datasets:
 # map from Q-IDs to English Wikidata labels for human readability
 # USE Wikidatasets-Humans entities.tsv
-dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
+dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/raw/Wikidatasets_humans'
 Q_IDs_to_labels = pd.read_csv(os.path.join(dataset_folder, 'entities.tsv'), sep = '\t',
                               skiprows = 1,
                               names = ['Wikidatasets_ID', 'tail_entity_Q_ID', 'tail_entity_label'])
@@ -396,7 +397,7 @@ column_ordering = ['dataset_name', 'relation_P_ID', 'relation_label', 'tail_enti
 results_tail_value_counts = results_tail_value_counts.reindex(columns = column_ordering)
 
 # save to disk
-#results_tail_value_counts.to_csv('tail_value_counts_all_11.11.2021.csv')
+results_tail_value_counts.to_csv('tail_value_counts_all_11.11.2021.csv')
 #results_tail_value_counts.to_pickle('tail_value_counts_all_11.11.2021.pkl')
 
 # %% Extract sensitive relation counts from current Wikidata via SPARQL
