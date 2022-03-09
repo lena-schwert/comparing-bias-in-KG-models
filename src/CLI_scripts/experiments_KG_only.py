@@ -11,7 +11,7 @@ from datetime import datetime
 import sys
 
 if socket.gethostname() == 'Schlepptop':
-    path_to_append = '//'
+    path_to_append = '/home/lena/git/master_thesis_bias_in_NLP/'
 # covers all CPU + GPU nodes of the HPI
 elif 'node' in socket.gethostname() or socket.gethostname() in ['a6k5-01', 'dgxa100-01', 'ac922-01',
                                                                 'ac922-02']:
@@ -27,12 +27,12 @@ import pykeen
 from pykeen.datasets.base import PathDataset
 from pykeen.triples import TriplesFactory
 from pykeen.pipeline import pipeline
-from pykeen.trackers import CSVResultTracker
+from pykeen.trackers import CSVResultTracker, TensorBoardResultTracker
 from pykeen.evaluation import RankBasedEvaluator
 from pykeen.utils import set_random_seed
 
 # imports from my own code
-from src.utils import set_base_path_based_on_host, initialize_my_logger
+from src.utils import set_base_path_based_on_host, initialize_my_logger, save_argparse_obj_to_disk
 
 BASE_PATH_HOST = set_base_path_based_on_host()
 
@@ -164,12 +164,14 @@ def run_pykeen_hpo_pipeline(KGE_MODEL_NAME_S: list = args.kge, EXPERIMENT_NAME: 
 
     # save the currently running script file for later reference
     file_name = 'script_' + EXPERIMENT_NAME + '.py'
-    shutil.copy(src = __file__, dst = os.path.join(os.getcwd(), file_name))
+    source_path = os.path.join(BASE_PATH_HOST, 'src/CLI_scripts', __file__)
+    shutil.copy(src = source_path, dst = os.path.join(os.getcwd(), file_name))
 
-    # save the
+    # save the argparse arguments to disk
+    save_argparse_obj_to_disk(argparse_namespace = args)
 
     # create a logger
-    logger = initialize_my_logger(file_name = EXPERIMENT_NAME + '.log')
+    logger = initialize_my_logger(file_name = f'{socket.gethostname()}' + EXPERIMENT_NAME + '.log')
 
     logger.info('The experiment has started!')
     logger.info(f'Running experiment on host: {socket.gethostname()}')
@@ -188,11 +190,6 @@ def run_pykeen_hpo_pipeline(KGE_MODEL_NAME_S: list = args.kge, EXPERIMENT_NAME: 
     metadata_saved_on_end = args.__dict__
     # merge all dictionary objects I want to save
     dict_bla = dict() | dict()
-
-    # try and save args namespace in json format
-    with open('commandline_args.txt', 'w') as f:
-        json.dump(args.__dict__, f, indent = 2)
-    f.close()
 
     # create a dataset instance
     if DEBUG_WITH_NATIONS:
@@ -238,7 +235,7 @@ def run_pykeen_hpo_pipeline(KGE_MODEL_NAME_S: list = args.kge, EXPERIMENT_NAME: 
             # optimizer_kwargs = dict(lr = 0.001),
             random_seed = RANDOM_SEED,  # regularizer = None,  # PLACEHOLDER ######################
             # regularizer_kwargs = None,  # PLACEHOLDER ######################
-            result_tracker = CSVResultTracker,  # supply either pykeen.trackers class or string
+            result_tracker = TensorBoardResultTracker,  # supply either pykeen.trackers class or string
             result_tracker_kwargs = dict(
                 # experiment_path = DIRECTORY_FOR_SAVING,  # only applicable to TensorBoardResultTracker
                 path = os.path.join(BASE_PATH_HOST, 'results/KG_only', EXPERIMENT_NAME,
@@ -263,6 +260,11 @@ def run_pykeen_hpo_pipeline(KGE_MODEL_NAME_S: list = args.kge, EXPERIMENT_NAME: 
         # saves trained_model.pickle, results.json, metadata.json
         pipeline_result.save_to_directory(DIRECTORY_FOR_SAVING, save_metadata = True)
 
+        # TODO filter results.json (both, realistic) and save it to disk with keys = columns
+        # metric_results_df = pd.DataFrame.from_dict(result_dict)
+        #     file_name_metrics = 'link_prediction_results_test.csv'
+        #     metric_results_df.to_csv(file_name_metrics)
+
         # save training and evaluation time (int)
         pipeline_result.train_seconds
         pipeline_result.evaluate_seconds
@@ -278,9 +280,6 @@ def run_pykeen_hpo_pipeline(KGE_MODEL_NAME_S: list = args.kge, EXPERIMENT_NAME: 
 
         # save the model manually
         pipeline_result.save_model('trained_model_man.pkl')
-
-
-
 
 
 

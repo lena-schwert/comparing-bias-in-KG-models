@@ -311,3 +311,22 @@ def find_top_k_tail_entities(relation_P_ID):
 
     '''
 
+
+def calculate_LP_metrics_from_ranks(path_to_ranks_file):
+    """
+    This function is intended for use with the two-column ranks files that the KG and LM model
+    (i.e. KG-BERT) outputs. Sometimes it might be necessary to calculate the link prediction metrics
+    independent of running the model, e.g. in cases where the run did not complete, but you want
+    to get a feeling for the model performance anyway.
+
+    Metrics implemented: mean rank
+
+    Returns
+    -------
+
+    """
+    raise NotImplementedError
+
+    result_dict = None
+
+    return result_dict
