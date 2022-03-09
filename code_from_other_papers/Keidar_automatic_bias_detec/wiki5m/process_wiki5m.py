@@ -19,7 +19,7 @@ def get_human_triples(triple_path):
         triples = [t.split() for t in f.readlines()]
         humans = {}
         for t in triples:
-            if t[1]=="P31" and t[2]=="Q5":
+            if t[1] == "P31" and t[2] == "Q5":
                 humans[t[0]] = True
             else:
                 humans[t[0]] = False

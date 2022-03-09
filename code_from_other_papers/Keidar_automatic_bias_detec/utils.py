@@ -2,9 +2,9 @@ from datetime import datetime
 import os
 import pandas as pd
 
+
 def get_classifier(dataset, target_relation, num_classes, batch_size, embedding_model_path,
-                   classifier_type='mlp',
-                   **model_kwargs):
+                   classifier_type = 'mlp', **model_kwargs):
     """
     Return a classifier that will classify the tails for the target relations
     Currently only MLP classifier is implemented, but can look into others
@@ -15,25 +15,25 @@ def get_classifier(dataset, target_relation, num_classes, batch_size, embedding_
     """
     if classifier_type == 'mlp':
         from classifier import TargetRelationClassifier
-        return TargetRelationClassifier(dataset=dataset,
-                                              embedding_model_path=embedding_model_path,
-                                              target_relation=target_relation,
-                                              num_classes=num_classes,
-                                              batch_size=batch_size,
-                                              **model_kwargs
-                                              )
+        return TargetRelationClassifier(dataset = dataset,
+                                        embedding_model_path = embedding_model_path,
+                                        target_relation = target_relation,
+                                        num_classes = num_classes,
+                                        batch_size = batch_size,
+                                        **model_kwargs)
     elif classifier_type == 'rf':
         from classifier import RFRelationClassifier
-        return RFRelationClassifier(dataset=dataset,
-                                          embedding_model_path=embedding_model_path,
-                                          target_relation=target_relation,
-                                          num_classes=num_classes,
-                                          batch_size=batch_size,
-                                          max_depth=3,
-                                          class_weight='balanced',
-                                          max_features='auto',
-                                          **model_kwargs
-                                          )
+        return RFRelationClassifier(dataset = dataset,
+                                    embedding_model_path = embedding_model_path,
+                                    target_relation = target_relation,
+                                    num_classes = num_classes,
+                                    batch_size = batch_size,
+                                    max_depth = 3,
+                                    class_weight = 'balanced',
+                                    max_features = 'auto',
+                                    **model_kwargs)
+
+
 def suggest_relations(dataset):
     """
     Suggest a list of relations to detect bias based on knowledge graph datasets.
@@ -42,22 +42,22 @@ def suggest_relations(dataset):
     """
     if dataset.lower() == "fb15k237":
         target_relation = '/people/person/profession'
-        bias_relations = ['/people/person/gender',
-                        '/people/person/languages',
-                        '/people/person/nationality',
-                        '/people/person/profession',
-                        '/people/person/places_lived./people/place_lived/location',
-                        '/people/person/spouse_s./people/marriage/type_of_union',
-                        '/people/person/religion'
-                        #/people/person/place_of_birth - top have 14, 13, 9, 4, 4, 3,3..
-                        ]
+        bias_relations = ['/people/person/gender', '/people/person/languages',
+                          '/people/person/nationality', '/people/person/profession',
+                          '/people/person/places_lived./people/place_lived/location',
+                          '/people/person/spouse_s./people/marriage/type_of_union',
+                          '/people/person/religion'
+                          # /people/person/place_of_birth - top have 14, 13, 9, 4, 4, 3,3..
+                          ]
     elif dataset.lower() == "wikidata":
         target_relation = 'P21'
         bias_relations = ['P102', 'P106', 'P169']
     elif dataset.lower() == "wiki5m":
         target_relation = 'P106'
-        bias_relations = ['P27', 'P735', 'P19', 'P54', 'P69', 'P641', 'P20', 'P1344', 'P1412', 'P413']
+        bias_relations = ['P27', 'P735', 'P19', 'P54', 'P69', 'P641', 'P20', 'P1344', 'P1412',
+                          'P413']
     return target_relation, bias_relations
+
 
 def save_result(result, dataset, args):
     """
@@ -72,13 +72,11 @@ def save_result(result, dataset, args):
     else:
         embedding = args.embedding
     date = datetime.now().strftime("%Y%m%d%H%M")
-    dir = os.path.join("./results/", args.dataset+"_"+embedding+"_"+date)
+    dir = os.path.join("./results/", args.dataset + "_" + embedding + "_" + date)
     if not os.path.exists(dir):
-        os.makedirs(dir)
-        # Save Dataset Summary
-    with open(os.path.join(dir, args.dataset+".txt"), 'w') as f: # save dataset summary
-        f.writelines(dataset.summary_str())
-        #TODO: save embedding training configuration?
+        os.makedirs(dir)  # Save Dataset Summary
+    with open(os.path.join(dir, args.dataset + ".txt"), 'w') as f:  # save dataset summary
+        f.writelines(dataset.summary_str())  # TODO: save embedding training configuration?
     for k in result.keys():
         measure_dir = os.path.join(dir, k)
         os.mkdir(measure_dir)
@@ -90,14 +88,16 @@ def save_result(result, dataset, args):
             for rel in result[k].keys():
                 df = pd.DataFrame(result[k][rel])
                 rel = rel.split('/')[-1] if args.dataset == 'fb15k237' else rel
-                save_path = os.path.join(measure_dir, "{}_{}.csv".format(k,rel))
+                save_path = os.path.join(measure_dir, "{}_{}.csv".format(k, rel))
                 print("Save to {}".format(save_path))
                 df.to_csv(save_path)
 
-def remove_infreq_attributes(attr_counts, key, threshold=10,nan_val=-1):
+
+def remove_infreq_attributes(attr_counts, key, threshold = 10, nan_val = -1):
     if attr_counts[key] <= threshold:
         return nan_val
     return key
+
 
 def requires_preds_df(bias_measures):
     """

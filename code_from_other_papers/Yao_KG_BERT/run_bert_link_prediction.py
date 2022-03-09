@@ -23,6 +23,7 @@ import logging
 import os
 import random
 import sys
+import time
 from datetime import datetime
 
 import numpy as np
@@ -581,6 +582,7 @@ def main():
                         datefmt = "%d.%m.%Y %H:%M:%S", handlers = [
             logging.FileHandler(f'log_{os.path.split(args.data_dir)[1]}_{START_TIME}.txt', mode = 'a'),
             logging.StreamHandler(sys.stdout)])
+    logger = logging.getLogger()
 
     # set the correct CUDA device, check for number of devices
     if args.local_rank == -1 or args.no_cuda:
@@ -737,6 +739,9 @@ def main():
         #                      t_total=num_train_optimization_steps)
         optimizer = AdamW(optimizer_grouped_parameters, lr = args.learning_rate,
                           correct_bias = False)  # Important: To reproduce BertAdam specific behavior set correct_bias=False
+        linear_warmup_lr = get_linear_schedule_with_warmup(optimizer,
+                                                           num_warmup_steps = args.warmup_proportion * num_train_optimization_steps,
+                                                           num_training_steps = num_train_optimization_steps)
 
     global_step = 0  # ?
     nb_tr_steps = 0
@@ -773,7 +778,8 @@ def main():
 
         model.train()  # set model to train mode
 
-        for _ in trange(int(args.num_train_epochs), desc = "Epoch"):
+        for i in trange(int(args.num_train_epochs), desc = "Epoch"):
+            start_time_epoch = time.perf_counter()
             # note that global_step is not set to zero
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
@@ -811,15 +817,20 @@ def main():
                     if args.fp16:
                         # modify learning rate with special warm up BERT uses
                         # if args.fp16 is False, BertAdam is used that handles this automatically
-                        lr_this_step = args.learning_rate * warmup_linear.get_lr(
+                        lr_this_step = args.learning_rate * linear_warmup_lr.get_lr(
                             global_step / num_train_optimization_steps, args.warmup_proportion)
                         for param_group in optimizer.param_groups:
                             param_group['lr'] = lr_this_step
                     # update the weights and set optimizer to zero
                     optimizer.step()
+                    linear_warmup_lr.step()
                     optimizer.zero_grad()
                     global_step += 1
             logger.info("Training loss: ", tr_loss, nb_tr_examples)
+            end_time_epoch_train = time.perf_counter()
+            logger.info(
+                f'Epoch {i + 1} of {int(args.num_train_epochs)} ran for {round((end_time_epoch_train - start_time_epoch) / 60, 2)} minutes.')
+
             # TODO log + save training loss after each epoch!
 
         logger.info('********** Finished training **********')

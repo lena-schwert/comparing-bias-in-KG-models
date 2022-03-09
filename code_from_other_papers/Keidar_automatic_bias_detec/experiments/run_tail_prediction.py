@@ -26,6 +26,7 @@ def set_argparser():
     parser.add_argument('--predictions_path', type=str,
                         help='path to predictions used in parity distance, specifying \
                                it will override internal inferred path')
+    # TODO change default back to 100
     parser.add_argument('--epochs', type=int,
                         help="Number of training epochs of link prediction classifier (used for DP & PP), default to 100",
                         default=100)
@@ -34,7 +35,7 @@ def set_argparser():
                         default=256)
     parser.add_argument('--clsf_type', type=str,
                         help="Number of training epochs of link prediction classifier (used for DP & PP), default to 100",
-                        default='rf')
+                        default='mlp')
     parser.add_argument('--num_classes', type=int,
                         help="Number of training epochs of link prediction classifier (used for DP & PP), default to 100",
                         default=6)
@@ -42,6 +43,18 @@ def set_argparser():
     return args
 
 args = set_argparser()
+
+import socket
+if socket.gethostname() == 'Schlepptop':
+    base_dir = '/home/lena/git/master_thesis_bias_in_NLP/'
+# covers all CPU + GPU nodes of the HPI
+elif 'node' in socket.gethostname() or socket.gethostname() in ['a6k5-01', 'dgxa100-01', 'ac922-01',
+                                                                'ac922-02']:
+    base_dir = '/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis'
+else:
+    base_dir = None
+    ValueError("Host name is not recognized!")
+assert type(base_dir) == str, "Path has not been set correctly as string, doublecheck!"
 
 # Init dataset and relations of interest
 dataset = FB15k237()   # built-in from pykeen
@@ -60,7 +73,7 @@ LOCAL_PATH_TO_EMBEDDING = '/Users/alacrity/Documents/uni/Fairness/'
 # print("Load embedding model from: {}".format(MODEL_PATH))
 
 #TODO change it back
-MODEL_PATH = '/home/lena/git/master_thesis_bias_in_NLP/results/TransE_fullW5M_80epochs/trained_model.pkl'
+MODEL_PATH = os.path.join(base_dir, 'results/KG_only/TransE_fullW5M_80epochs/trained_model.pkl')
 
 PREDS_DF_PATH = '/home/lena/git/master_thesis_bias_in_NLP/code_from_other_papers/Keidar_automatic_bias_detec/preds_dfs/preds_df_transe.csv'
 
@@ -73,9 +86,9 @@ classifier_args = {'epochs': args.epochs,
                    'num_classes': args.num_classes}
 
 # You can set a path to save the predictions dataframe
-SAVE_PATH = None
+SAVE_PATH = 'preds_df_transe_created_by_lena.csv'
 
-# TODO if you don't want to train a classifier, provide a path to a preds_df
+# IMPORTANT if you don't want to train a classifier, provide a path to a preds_df
 PATH_TO_PREDS_DF = '/home/lena/git/master_thesis_bias_in_NLP/code_from_other_papers/Keidar_automatic_bias_detec/preds_dfs/preds_df_transe.csv'
 
 preds_df = get_preds_df(dataset,
@@ -83,7 +96,7 @@ preds_df = get_preds_df(dataset,
                         model_args,
                         target_relation,
                         bias_relations,
-                        # TODO was None before
+                        # IMPORTANT path should be None if classifier should be trained
                         preds_df_path=None
                         )
 
