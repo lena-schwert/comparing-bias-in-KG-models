@@ -19,37 +19,34 @@
 
 # Imports
 
-# in-built modules
-import socket
 import argparse
 import csv
 import logging
 import os
 import random
+import shutil
+# in-built modules
+import socket
 import sys
 import time
 from datetime import datetime
-import shutil
-
-import pandas as pd
-from tqdm import tqdm, trange
 
 # installed modules
 import numpy as np
+import pandas as pd
 import torch
+from torch.nn import CrossEntropyLoss
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler, TensorDataset)
 from torch.utils.data.distributed import DistributedSampler
-from torch.nn import CrossEntropyLoss, MSELoss
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
-from torchmetrics import MetricCollection, Accuracy, Precision, Recall
-from sklearn import metrics
-
-# imports for BERT
-from transformers import BertForSequenceClassification, BertTokenizer
-from transformers.file_utils import TRANSFORMERS_CACHE, WEIGHTS_NAME, CONFIG_NAME
+from torchmetrics import Accuracy
+from tqdm import tqdm, trange
 from transformers import AdamW, \
     get_linear_schedule_with_warmup  # instead of BertAdam, WarmupLinearSchedule
+# imports for BERT
+from transformers import BertForSequenceClassification, BertTokenizer
+from transformers.file_utils import TRANSFORMERS_CACHE
 
 # imports from my own code
 from src.utils import set_base_path_based_on_host, initialize_my_logger, \
@@ -204,16 +201,16 @@ class KGProcessor(DataProcessor):
                     ent2text[temp[0]] = temp[1]  # [:end]
 
         # IMPORTANT: I disabled the use of entity2textlong.txt
-        #  only execute this code for FB15K and FB15K-237 datasets
-        # if data_dir.find("FB15") != -1:
-        #     logger.debug(
-        #         'Using longer entity descriptions (entity2textlong.txt) for Freebase datasets.')
-        #     with open(os.path.join(data_dir, "entity2textlong.txt"), 'r') as f:
-        #         ent_lines = f.readlines()
-        #     for line in ent_lines:
-        #         temp = line.strip().split('\t')
-        #         # first_sent_end_position = temp[1].find(".")
-        #         ent2text[temp[0]] = temp[1]  # [:first_sent_end_position + 1]
+        # original KG-BERT: only execute this code for FB15K and FB15K-237 datasets
+        if data_dir.find("FB15") != -1:
+            logger.info(
+                'Using longer entity descriptions (entity2textlong.txt) for Freebase datasets.')
+            with open(os.path.join(data_dir, "entity2textlong.txt"), 'r') as f:
+                ent_lines = f.readlines()
+            for line in ent_lines:
+                temp = line.strip().split('\t')
+                # first_sent_end_position = temp[1].find(".")
+                ent2text[temp[0]] = temp[1]  # [:first_sent_end_position + 1]
 
         # access list of entities from ent2text
         entities = list(ent2text.keys())
@@ -233,7 +230,9 @@ class KGProcessor(DataProcessor):
         examples = []
 
         logging.info('Creating InputExamples, i.e. tokens from entity/relation IDs... ')
-        for (i, line) in enumerate(tqdm(lines)):
+        # TODO enable tqdm again!
+        # for (i, line) in enumerate(tqdm(lines)):
+        for (i, line) in enumerate(lines):
 
             head_ent_text = ent2text[line[0]]
             tail_ent_text = ent2text[line[2]]
@@ -318,7 +317,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     label_map = {label: i for i, label in enumerate(label_list)}
 
     features = []
-    for (ex_index, example) in enumerate(tqdm(examples)):
+    # TODO enable tqdm again!
+    # for (ex_index, example) in enumerate(tqdm(examples)):
+    for (ex_index, example) in enumerate(examples):
         if ex_index % 10000 == 0 and print_info:
             logging.info("Writing example %d of %d" % (ex_index, len(examples)))
         # TODO remove this when no longer needed, this is a lot!
@@ -406,8 +407,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # store the label of the example as an int
         label_id = label_map[example.label]
 
-        # print information about the first 5 examples of the dataset
-        if ex_index < 5 and print_info:
+        # print information about the first 3 examples of the dataset
+        if ex_index < 1 and print_info:
             logging.info(f"*** Example {ex_index + 1}***")
             logging.info("guid: %s" % (example.guid))
             logging.info("tokens: %s" % " ".join([str(x) for x in tokens]))
@@ -478,7 +479,8 @@ def train_and_validate():
     #############------------- LOAD MODEL ---------------#################
 
     ### load model and tokenizer
-    tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case = args.do_lower_case)
+    tokenizer = BertTokenizer.from_pretrained(args.bert_model,
+                                              do_lower_case = args.do_lower_case)
 
     # Prepare model, download BERT for sequence classification
     # create cache folder so the model is only downloaded when the script is run for the first time on the machine
@@ -487,6 +489,7 @@ def train_and_validate():
                                                                        args.local_rank))
 
     # parameters will be loaded as float 32
+    # loads pretrained BERT model in model.eval() mode
     model = BertForSequenceClassification.from_pretrained(args.bert_model, cache_dir = cache_dir,
                                                           num_labels = NUM_LABELS)
 
@@ -512,7 +515,7 @@ def train_and_validate():
     #############------------- PREPARE TRAINING DATA ---------------#################
 
     # get training examples + create NEGATIVE/CORRUPT triples for each of it
-    logger.info('Creating examples from the training split of the dataset.')
+    logger.info('Creating examples with negative sampling from the training split of the dataset.')
     train_examples = processor.get_train_examples(args.data_dir)
     train_features = convert_examples_to_features(train_examples, label_list, args.max_seq_length,
                                                   tokenizer)
@@ -617,16 +620,15 @@ def train_and_validate():
     eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
                                  batch_size = args.eval_batch_size)
 
-    ############------------- TRAINING ---------------#################
+    ############------------- TRAINING LOOP ---------------#################
     logger.info('################# Starting TRAINING #################')
     logger.info("  Num examples = %d", len(train_examples))
     logger.info("  Batch size = %d", args.train_batch_size)
     logger.info("  Num steps = %d", num_train_optimization_steps)
 
     # create Tensorboard writer
-    writer_tb = SummaryWriter(log_dir = DIRECTORY_FOR_SAVING_OR_LOADING, flush_secs = 30)
-
-    start_datetime = datetime.now()
+    writer_tb = SummaryWriter(log_dir = DIRECTORY_FOR_SAVING_OR_LOADING, flush_secs = 30,
+                              filename_suffix = f'_training_{START_TIME}')
 
     for i in trange(int(args.num_train_epochs), desc = "Training epoch"):
         start_time_epoch = time.perf_counter()
@@ -682,51 +684,27 @@ def train_and_validate():
     if args.local_rank == -1 or torch.distributed.get_rank() == 0:
         # Save the trained model, configuration and tokenizer
         # save model.bin, config.json and vocab.txt to disk
-        model.save_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING, save_config = True)
-        tokenizer.save_vocabulary(DIRECTORY_FOR_SAVING_OR_LOADING)
+        model.save_pretrained(os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'),
+                              save_config = True)
+        tokenizer.save_vocabulary(os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'))
         logger.info('Trained model saved to disk.')
-
-    # calculate link prediction metrics after last epoch
-    logger.info(
-        'Last epoch reached, calculating the link prediction metrics on the validation set...')
-    start_time_link_prediction_calculation = time.perf_counter()
-    link_prediction_metrics_dict = calculate_link_prediction_metrics(model, tokenizer)
-    end_time_link_prediction_calculation = time.perf_counter()
-    link_prediction_metrics_df = pd.DataFrame([link_prediction_metrics_dict])
-
-    # Save all metrics to a file
-    file_name_valid_results = 'link_prediction_results_valid.csv'
-    link_prediction_metrics_df.to_csv(file_name_valid_results)
-    logger.info('Saved validation results as CSV file to working directory')
-
-    # TODO check whether this works as expected!
-    writer_tb.add_scalar('timings/total_link_prediction_calc_runtime_min', round(
-                           (end_time_link_prediction_calculation - start_time_link_prediction_calculation) / 60, 2),
-                         i)
-
-    # use link prediction metrics for the hparams view in tensorboard
-    # (they are more insightful than loss and timings)
-    hparams_dict = args.__dict__
-    items_to_remove = ['data_dir', 'name', 'debug', 'cache_dir', 'do_train', 'do_predict', 'no_cuda',
-                       'local_rank']
-    for item in items_to_remove:
-        hparams_dict.pop(item)
-
-    writer_tb.add_hparams(hparam_dict = hparams_dict, metric_dict = link_prediction_metrics_dict,
-                          run_name = EXPERIMENT_NAME)
 
     writer_tb.flush()
     writer_tb.close()
 
     END_TRAINING = time.perf_counter()
     logger.info(
-        f'Training and validation took {round((END_TRAINING - START_TRAINING) / 60, 2)} minutes in total.')
+        f'Training and validation (without LP metrics) took {round((END_TRAINING - START_TRAINING) / 60, 2)} minutes in total.')
 
     return model, tokenizer
 
 
 def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmup):
     global global_step
+
+    # important: I added this on 3rd march
+    # model.train()
+    # TODO check whether model is in training mode
 
     training_loss = 0
     nb_tr_examples, nb_tr_steps = 0, 0
@@ -739,7 +717,8 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
 
         # calculate predictions for current batch
         # do not automatically calculate the loss! (do not provide labels)
-        logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+        logits = model(input_ids, segment_ids, input_mask, labels = None,
+                       output_hidden_states = False).logits
 
         # calculate loss, make sure that the tensors have correct dimensionality
         # view(-1) makes the tensor shape flexible
@@ -754,7 +733,7 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
         if args.fp16:
             optimizer.backward(loss)
         else:
-            loss.backward()  # TODO decide whether to add gradient clipping (part of pytorch_pretrained migration)  # torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+            loss.backward()  # TODO decide whether to add gradient clipping here (part of pytorch_pretrained migration)  # torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
 
         # add the loss value to the logging variables
         training_loss += loss.item()
@@ -771,7 +750,7 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
                     param_group['lr'] = lr_this_step
             # update the weights and set optimizer to zero
             optimizer.step()
-            logger.debug(f'Current learning rate is: {optimizer.param_groups[0]["lr"]}')
+            # logger.debug(f'Current learning rate is: {optimizer.param_groups[0]["lr"]}')
             lr_warmup.step()
             optimizer.zero_grad()
             global_step += 1
@@ -785,12 +764,13 @@ def validate(data_loader, model = None, tokenizer = None):
     if model is None and tokenizer is None:
         # in case evaluation is run independent of training
         # --> load a trained model and vocabulary that you have fine-tuned earlie
-        model = BertForSequenceClassification.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
-                                                              num_labels = NUM_LABELS)
+        model = BertForSequenceClassification.from_pretrained(
+            os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'), num_labels = NUM_LABELS)
 
         # folder needs to contain a config.json and a vocab.txt file
-        tokenizer = BertTokenizer.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
-                                                  do_lower_case = args.do_lower_case)
+        tokenizer = BertTokenizer.from_pretrained(
+            os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'),
+            do_lower_case = args.do_lower_case)
 
         model.to(device)
         model.eval()
@@ -834,7 +814,8 @@ def validate(data_loader, model = None, tokenizer = None):
         label_ids = label_ids.to(device)
 
         with torch.no_grad():
-            logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+            logits = model(input_ids, segment_ids, input_mask, labels = None,
+                           output_hidden_states = False).logits
 
         # create eval loss and other metric required by the task
         tmp_eval_loss = loss_fct(logits.view(-1, NUM_LABELS), label_ids.view(-1))
@@ -861,57 +842,87 @@ def validate(data_loader, model = None, tokenizer = None):
     return eval_loss_mean
 
 
-def evaluate_on_test_set(model = None, tokenizer = None):
+def run_evaluation_after_training(model = None, tokenizer = None, data_loader = None):
     # load or access trained model and its tokenizer
     if model is None and tokenizer is None:
-        logger.info(f'Loading trained model and tokenizer from: {DIRECTORY_FOR_SAVING_OR_LOADING}')
+        logger.info(
+            f'Loading trained model and tokenizer from: {os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, "trained_model")}')
         # in case evaluation on test set is run independent of training
         # --> load a trained model and vocabulary that you have fine-tuned earlie
-        model = BertForSequenceClassification.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
-                                                              num_labels = NUM_LABELS)
+        model = BertForSequenceClassification.from_pretrained(
+            os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'), num_labels = NUM_LABELS)
 
         # folder needs to contain a config.json and a vocab.txt file
-        tokenizer = BertTokenizer.from_pretrained(DIRECTORY_FOR_SAVING_OR_LOADING,
-                                                  do_lower_case = args.do_lower_case)
+        tokenizer = BertTokenizer.from_pretrained(
+            os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'),
+            do_lower_case = args.do_lower_case)
 
-    #############------------- CALCULATE TEST LOSS ---------------#################
+    #############------------- CALCULATE LOSS ---------------#################
 
     model.to(device)
     model.eval()
 
-    ### calculate loss on the test set
-    test_examples = processor.get_test_examples(args.data_dir)
-    test_features = convert_examples_to_features(test_examples, label_list, args.max_seq_length,
-                                                 tokenizer)
-    logger.info("***** Calculating loss for test set *****")
-    logger.info("  Num examples = %d", len(test_examples))
-    logger.info("  Batch size = %d", args.eval_batch_size)
+    # load data if this is not run directly after training
+    if data_loader is None:
+        examples = None
+        if args.do_eval:
+            examples = processor.get_dev_examples(args.data_dir)
 
-    all_input_ids = torch.tensor([f.input_ids for f in test_features], dtype = torch.long)
-    all_input_mask = torch.tensor([f.input_mask for f in test_features], dtype = torch.long)
-    all_segment_ids = torch.tensor([f.segment_ids for f in test_features], dtype = torch.long)
-    all_label_ids = torch.tensor([f.label_id for f in test_features], dtype = torch.long)
+        if args.do_eval_on_test:
+            examples = processor.get_test_examples(args.data_dir)
+        assert examples is not None
 
-    test_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+        features = convert_examples_to_features(examples, label_list, args.max_seq_length,
+                                                tokenizer)
 
-    test_sampler = SequentialSampler(test_data)
-    test_dataloader = DataLoader(test_data, sampler = test_sampler,
-                                 batch_size = args.eval_batch_size)
+        all_input_ids = torch.tensor([f.input_ids for f in features], dtype = torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in features], dtype = torch.long)
+        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype = torch.long)
+        all_label_ids = torch.tensor([f.label_id for f in features], dtype = torch.long)
 
-    test_loss = validate(model = model, tokenizer = tokenizer, data_loader = test_dataloader)
+        tensor_dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids,
+                                       all_label_ids)
 
-    link_prediction_metrics_dict = calculate_link_prediction_metrics(model, tokenizer)
+        sampler = SequentialSampler(tensor_dataset)
+        dataloader = DataLoader(tensor_dataset, sampler = sampler,
+                                batch_size = args.eval_batch_size)
 
-    link_prediction_metrics_dict['loss_on_test_set'] = test_loss
+    if args.do_eval:
+        # valid_loss = validate(model = model, tokenizer = tokenizer, data_loader = dataloader)
+        link_prediction_metrics_dict = calculate_link_prediction_metrics(model, tokenizer,
+                                                                         context = 'validation')  # link_prediction_metrics_dict['loss_on_validation_set'] = valid_loss
+
+    if args.do_eval_on_test:
+        test_loss = validate(model = model, tokenizer = tokenizer, data_loader = dataloader)
+        link_prediction_metrics_dict = calculate_link_prediction_metrics(model, tokenizer,
+                                                                         context = 'test')
+        link_prediction_metrics_dict['loss_on_test_set'] = test_loss
 
     return link_prediction_metrics_dict
 
 
-def calculate_link_prediction_metrics(model, tokenizer):
+def calculate_link_prediction_metrics(model, tokenizer, context: str):
+    """
+
+    Parameters
+    ----------
+    model
+    tokenizer
+    context (str): needs to be "validation" or "test", this is used to save two differnt
+        txt files collecting the calculated ranks, one for each context, i.e. dataset
+
+    Returns
+    -------
+    result_dict (dict): Summarizes link prediction metrics results for all test triples.
+    runtimes_test_triples_s (list): Contains the runtime in seconds for calculating the rank for
+        each test triple.
+    """
     ### Calculate link prediction metrics
     logger.info('*********** Start calculating link prediction metrics ***********')
 
     #############------------- PREPARE ALL VARIABLES ---------------#################
+    assert context in ['validation',
+                       'test'], "This function should be only used in contect of validation or test!"
 
     # load all triples of the dataset (train.tsv, dev.tsv, test.tsv)
     train_triples = processor.get_train_triples(args.data_dir)
@@ -937,53 +948,20 @@ def calculate_link_prediction_metrics(model, tokenizer):
 
     top_ten_hit_count = 0
 
-    # create 10 empty  entries in the lists
-    # for i in range(10):
-    #     hits_head.append([])
-    #     hits_tail.append([])
-    #     hits_both.append([])
+    test_triple_count = 0
 
-    # IMPORTANT: uncomment this code if you calculate hits@10 using an existing ranks file
-    '''
-    # execute this code 
-    file_prefix = str(args.data_dir[7:])
-    f = open(file_prefix + '_ranks.txt','r')
-    lines = f.readlines()
-    for line in lines:
-        temp = line.strip().split()
-        rank1 = int(temp[0])
-        ranks_head.append(rank1+1)
-        print('left: ', rank1)
-        ranks_both.append(rank1+1)
-        if rank1 < 10:
-            top_ten_hit_count += 1
-        rank2 = int(temp[1])
-        ranks_both.append(rank2+1)
-        ranks_tail.append(rank2+1)
-        print('right: ', rank2)
-        print('mean rank until now: ', np.mean(ranks_both))
-        if rank2 < 10:
-            top_ten_hit_count += 1
-        print("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks_both))                
-        for hits_level in range(10):
-            if rank1 <= hits_level:
-                hits_both[hits_level].append(1.0)
-                hits_head[hits_level].append(1.0)
-            else:
-                hits_both[hits_level].append(0.0)
-                hits_head[hits_level].append(0.0)
-
-            if rank2 <= hits_level:
-                hits_both[hits_level].append(1.0)
-                hits_tail[hits_level].append(1.0)
-            else:
-                hits_both[hits_level].append(0.0)
-                hits_tail[hits_level].append(0.0)
-
-    '''
+    # IMPORTANT: select triples to go through depending on context
+    if context == 'validation':
+        logger.info('Running evaluation on the dataset split: dev.tsv')
+        triples_to_evaluate = dev_triples
+    if context =='test':
+        logger.info('Running evaluation on the dataset split: test.tsv')
+        triples_to_evaluate = test_triples
 
     # Loop through all test triples
-    for test_triple in tqdm(test_triples, desc = 'Test triple'):
+    for test_triple in tqdm(triples_to_evaluate, desc = 'Evaluating triple'):
+        logger.debug(f'Calculating rank for triple #{test_triple_count + 1} of {len(triples_to_evaluate)}')
+        start_time_test_triple = time.perf_counter()
         head = test_triple[0]
         relation = test_triple[1]
         tail = test_triple[2]
@@ -1004,11 +982,15 @@ def calculate_link_prediction_metrics(model, tokenizer):
                 if tmp_triple_str not in all_triples_str_set:
                     # may be slow
                     head_corrupt_list.append(tmp_triple)
+                if args.debug and len(head_corrupt_list) == 10:
+                    break
 
+        logger.info('######### Calculating rank head of current test triple #########')
         logger.debug(f'Length of head_corrupt list is: {len(head_corrupt_list)}')
 
-        rank_head = calculate_rank_given_corrupt_list(corrupt_list = head_corrupt_list,
-                                                      model = model, tokenizer = tokenizer)
+        rank_head, test_triple_as_text, rank_head_metadata = calculate_rank_given_corrupt_list(
+            corrupt_list = head_corrupt_list, index_of_triple = test_triple_count,
+            type_of_rank = 'head', model = model, tokenizer = tokenizer, context = context)
 
         logger.info(f'Rank head for current triple: {rank_head.item()}')
         # add this rank to the collecting variables
@@ -1032,11 +1014,15 @@ def calculate_link_prediction_metrics(model, tokenizer):
                 if tmp_triple_str not in all_triples_str_set:
                     # may be slow
                     tail_corrupt_list.append(tmp_triple)
+                if args.debug and len(tail_corrupt_list) == 10:
+                    break
 
+        logger.info('######### Calculating rank tail of current test triple #########')
         logger.debug(f'Length of tail_corrupt list is: {len(tail_corrupt_list)}')
 
-        rank_tail = calculate_rank_given_corrupt_list(corrupt_list = tail_corrupt_list,
-                                                      model = model, tokenizer = tokenizer)
+        rank_tail, _, rank_tail_metadata = calculate_rank_given_corrupt_list(
+            corrupt_list = tail_corrupt_list, index_of_triple = test_triple_count,
+            type_of_rank = 'tail', model = model, tokenizer = tokenizer, context = context)
 
         ranks_both = torch.cat((ranks_both, rank_tail + plus_one))
         ranks_tail = torch.cat((ranks_tail, rank_tail + plus_one))
@@ -1046,16 +1032,6 @@ def calculate_link_prediction_metrics(model, tokenizer):
         if rank_tail < 10:
             top_ten_hit_count += 1
         logger.info(f"hit@10 until now:  {top_ten_hit_count * 1.0 / len(ranks_both)}")
-
-        # Save the current head + tail rank to disk
-        # TODO change file name, make it like experiment name
-        file_name_script = 'ranks_testset_bs' + str(args.train_batch_size) + "_lr" + str(
-            args.learning_rate) + "_maxseq" + str(args.max_seq_length) + "_ep" + str(
-            args.num_train_epochs) + '.txt'
-
-        f = open(file_name_script, 'a')
-        f.write(str(rank_head.item()) + '\t' + str(rank_tail.item()) + '\n')
-        f.close()
 
         #############------------- CALCULATE HITS@K ---------------#################
 
@@ -1075,6 +1051,39 @@ def calculate_link_prediction_metrics(model, tokenizer):
                 hits_both[hits_level] = 0.0
                 hits_tail[hits_level] = 0.0
 
+        end_time_test_triple = time.perf_counter()
+
+        #############------------- LOG + SAVE ---------------#################
+
+        # Save the current head + tail rank to disk
+        file_name_for_saving = 'ranks_with_metadata_' + context + '_' + START_TIME + '.tsv'
+        runtime_for_this_triple = round((end_time_test_triple - start_time_test_triple), 2)
+
+        # create list object to add as row
+        triples_and_ranks = [test_triple_count, test_triple, test_triple_as_text, rank_head.item(),
+                             rank_tail.item()]
+
+        row_to_add = triples_and_ranks + rank_head_metadata + rank_tail_metadata + [
+            runtime_for_this_triple]
+        row_to_add_with_tab = ''.join([str(x) + '\t' for x in row_to_add])
+
+        # TODO alternatively, create a dataframe that can be returned and pickled
+        # 'a' append to file, with 'w' each line is overwritten!
+        with open(file_name_for_saving, 'a') as f:
+            if test_triple_count == 0:
+                column_names = ['test_triple_index', 'test_triple_IDs', 'test_triple_labels',
+                                'rank_head', 'rank_tail', 'top_k_scores_head',
+                                'top_k_entities_IDs_head', 'top_k_entities_labels_head',
+                                'top_k_scores_tail', 'top_k_entities_IDs_tail',
+                                'top_k_entities_labels_tail', 'runtime_sec']
+                column_names_with_tab = ''.join([str(x) + '\t' for x in column_names])
+                f.writelines(column_names_with_tab + '\n')
+            f.writelines(row_to_add_with_tab + '\n')
+        f.close()
+
+        logger.info(f'Rank calculation for current triple took {runtime_for_this_triple} seconds.')
+        test_triple_count += 1
+
     ### Calculate all link prediction metrics after having gone through all test triples
     # Log hits @1, @3, @5 and @10
     for i in [0, 2, 4, 9]:
@@ -1092,7 +1101,6 @@ def calculate_link_prediction_metrics(model, tokenizer):
     # adjusted mean rank index by Berrendorf (2020)
     # optimistic vs. pessimistic vs. realistic
 
-    # TODO add meaningful experiment name!
     # each metric is a column
     result_dict = {'experiment_name': EXPERIMENT_NAME,
                    'mean_rank_both': torch.mean(ranks_both).item(),
@@ -1108,11 +1116,28 @@ def calculate_link_prediction_metrics(model, tokenizer):
 
     return result_dict
 
+def doublecheck_object_types(bla):
+    assert type(bla) == list, 'This object is not a list'
+    unique_classes = set(type(x).__name__ for x in bla)
+    if isinstance(bla[0], InputFeatures):
+        logger.info('Object is a list of InputFeatures.')
+        #assert bla[0].
+    elif isinstance(bla[0], InputExample):
+        logger.info('Object is a list of InputFeatures.')
+        pass
+    else:
+        raise ValueError()
 
-def calculate_rank_given_corrupt_list(corrupt_list: list, model, tokenizer):
+
+
+
+def calculate_rank_given_corrupt_list(corrupt_list: list, index_of_triple: int, type_of_rank: str,
+                                      context: str, model, tokenizer):
     """
     Parameters
     ----------
+    type_of_rank: can be head or tail, as this information is relevant for logging
+    index_of_triple:
     corrupt_list: List where the first item is the true triple.
     model:
     tokenizer:
@@ -1121,22 +1146,37 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, model, tokenizer):
     -------
 
     """
+    assert type_of_rank in ['head', 'tail'], 'Type of rank is not recognized!'
+
+    # TODO try to load from disk, except: create them yourself on the fly
     ### convert string triples to BERT input feature vectors
     # this accesses the labels as text for each relation and entity
     tmp_examples = processor._create_examples(corrupt_list, set_type = "test",
                                               data_dir = args.data_dir)
+    test_triple_as_text = f'{tmp_examples[0].text_a} | {tmp_examples[0].text_b} | {tmp_examples[0].text_c}'
+    logger.debug(f'Current test triple as text is: {test_triple_as_text}')
+    # logger.debug(f'Size of tmp_examples: {sys.getsizeof(tmp_examples)}')
+
+    # TODO check whether file exists on disk
+    # if not, throw a warning and create it from scratch (this should be avoided)
+
     tmp_features = convert_examples_to_features(tmp_examples, label_list, args.max_seq_length,
                                                 tokenizer, print_info = False)
+
+    # logger.debug(f'Size of tmp_features: {sys.getsizeof(tmp_features)}'
     all_input_ids = torch.tensor([f.input_ids for f in tmp_features], dtype = torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in tmp_features], dtype = torch.long)
     all_segment_ids = torch.tensor([f.segment_ids for f in tmp_features], dtype = torch.long)
     all_label_ids = torch.tensor([f.label_id for f in tmp_features], dtype = torch.long)
 
     eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+    # logger.debug(f'Size of TensorDataset: {sys.getsizeof(eval_data)}')
+
     # Run prediction for temp data
     eval_sampler = SequentialSampler(eval_data)
     eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
                                  batch_size = args.eval_batch_size)
+    # logger.debug(f'Size of DataLoader: {sys.getsizeof(eval_dataloader)}')
     model.eval()
 
     prediction_logits = torch.Tensor().float().to(device)
@@ -1145,38 +1185,224 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, model, tokenizer):
         input_ids = input_ids.to(device)
         input_mask = input_mask.to(device)
         segment_ids = segment_ids.to(device)
-        label_ids = label_ids.to(device)
+        # label_ids not relevant here as they are always true == 1
+        # label_ids = label_ids.to(device)
 
         with torch.no_grad():
-            logits = model(input_ids, segment_ids, input_mask, labels = None).logits
+            logits = model(input_ids, segment_ids, input_mask, labels = None,
+                           output_hidden_states = False).logits
+
+        logger.debug(f'Logits: {logits}')
 
         prediction_logits = torch.cat((prediction_logits, logits))
 
     # get the dimension corresponding to the label that indicates a true triple
     # label 1 = true triple
     position_of_correct_label = all_label_ids[0]
-    rel_values = prediction_logits[:, position_of_correct_label]
+    plausibility_scores_logits = prediction_logits[:, position_of_correct_label]
+
+    # TODO reduce overhead: make this logging optional or do it every 100 test triples
+    ### IMPORTANT DEBUGGING: look at whether the prediction logits make sense!
+    # This shows whether the model has actually learned the link prediction task!
+    # report difference between mean probability value and
+    plausibility_scores_probs = F.softmax(plausibility_scores_logits, dim = 0)
+    uniform_probability = 1 / len(corrupt_list)
     logger.debug(
-        f'Shape of probability vector prediction for "triple is correct: {rel_values.size()}')
+        f'Absolute difference between mean probability score and uniform probability is: {abs(torch.mean(plausibility_scores_probs).item() - uniform_probability)}')
+
+    # write the predictions as probability values to tensorboard
+    # (probabilities are more intuitive to understand than logits)
+    writer_tb.add_histogram(f'plausibility_scores_{type_of_rank}', plausibility_scores_probs,
+                            index_of_triple)
+
     # retrieve sorted descending order of plausibility predictions
-    _, argsort = torch.sort(rel_values, descending = True)
-    # TODO print the 10 highest probabilities, the true triple and the predicted entities
-    # logger.debug()
+    sorted_values, sorted_indices = torch.sort(plausibility_scores_logits, descending = True)
+
+    # extract the k highest probabilities and the corresponding entity IDs and labels
+    top_k = 10
+    top_k_scores = list(sorted_values[0:top_k].numpy())
+    top_k_entities_indices = list(sorted_indices[0:top_k].numpy())
+
+    # retrieve the dataset-specific IDs + natural language labels for the top_k entities
+    if type_of_rank == 'head':
+        # use first item = head
+        top_k_entities_dataset_IDs = [corrupt_list[index][0] for index in top_k_entities_indices]
+        top_k_entities_labels = [tmp_examples[index].text_a for index in top_k_entities_indices]
+    elif type_of_rank == 'tail':
+        # use third item = tail
+        top_k_entities_dataset_IDs = [corrupt_list[index][2] for index in top_k_entities_indices]
+        top_k_entities_labels = [tmp_examples[index].text_c for index in top_k_entities_indices]
+
     # Retrieve the rank of the correct triple (first position in the list)
     # remember: within the data, the first item was the only correct triple, the rest
     # were corrupted ones, i.e. created by replacing the head entity
-    rank = torch.where(argsort == 0)[0]  # result is a tuple, take first item
+    # is equivalent to: np.where(sorted_indices.numpy() == 0)[0]
+    rank = torch.where(sorted_indices == 0)[0]  # result is a tuple, take first item
 
-    return rank
+    return rank, test_triple_as_text, [top_k_scores, top_k_entities_dataset_IDs,
+                                       top_k_entities_labels]
 
 
-def get_KG_BERT_embeddings():
+def get_KG_BERT_embeddings(context: str ):
     # load the trained model
-
     # when running predictions with the model, set output_hidden_states = True
     raise NotImplementedError()
-    pass
 
+
+def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = None):
+    if tokenizer is None:
+        # folder needs to contain a config.json and a vocab.txt file
+        tokenizer = BertTokenizer.from_pretrained(
+            args.bert_model,
+            do_lower_case = args.do_lower_case,
+            vocab_file = os.path.join(BASE_PATH_HOST, 'data/interim/KG_and_LM/vocab.txt'))
+
+    assert context in ['validation',
+                       'test'], "This function should be only used in context of validation or test!"
+
+    # load all triples of the dataset (train.tsv, dev.tsv, test.tsv)
+    train_triples = processor.get_train_triples(args.data_dir)
+    dev_triples = processor.get_dev_triples(args.data_dir)
+    test_triples = processor.get_test_triples(args.data_dir)
+    all_triples = train_triples + dev_triples + test_triples
+
+    # create a set of strings
+    # each string is the 3 parts of the triple joined by \t
+    all_triples_str_set = set()
+    for triple in all_triples:
+        triple_str = '\t'.join(triple)
+        all_triples_str_set.add(triple_str)
+
+    # IMPORTANT: select triples to go through depending on context
+    if context == 'validation':
+        logger.info('Running evaluation on the dataset split: dev.tsv')
+        triples_to_evaluate = dev_triples
+    if context == 'test':
+        logger.info('Running evaluation on the dataset split: test.tsv')
+        triples_to_evaluate = test_triples
+
+    test_triple_count = 0
+
+    for test_triple in tqdm(triples_to_evaluate, desc = 'Evaluating triple'):
+        start_preprocess_triple = time.perf_counter()
+        logger.debug(f'Calculating rank for triple #{test_triple_count + 1} of {len(triples_to_evaluate)}')
+        head = test_triple[0]
+        relation = test_triple[1]
+        tail = test_triple[2]
+        logger.debug(f'Current test triple: {head, relation, tail}')
+
+        #############------------- SAVE HEAD InputFeatures ---------------#################
+
+        # create head_corrupt_list: the first item is the true triple
+        # all remaining lines are triples that are incorrect, because the head entity is incorrect
+        # filtered setting: exclude any triples that exist in the dataset!
+        head_corrupt_list = [test_triple]
+        for corrupt_ent in entity_list:
+            # do this for all entities except the actual head
+            if corrupt_ent != head:
+                tmp_triple = [corrupt_ent, relation, tail]
+                tmp_triple_str = '\t'.join(tmp_triple)
+                # only append the corrupted triple if it does not exist in the dataset
+                if tmp_triple_str not in all_triples_str_set:
+                    # may be slow
+                    head_corrupt_list.append(tmp_triple)
+                # if args.debug and len(head_corrupt_list) == 10:
+                #     break
+
+        ### convert string triples to BERT input feature vectors
+        # this accesses the labels as text for each relation and entity
+        tmp_examples = processor._create_examples(head_corrupt_list, set_type = "test",
+                                                  data_dir = args.data_dir)
+        test_triple_as_text = f'{tmp_examples[0].text_a} | {tmp_examples[0].text_b} | {tmp_examples[0].text_c}'
+        logger.debug(f'Current test triple as text is: {test_triple_as_text}')
+
+        tmp_features = convert_examples_to_features(tmp_examples, label_list, args.max_seq_length,
+                                                    tokenizer, print_info = False)
+
+        # IMPORTANT: save the preprocessed corrupt list (as InputFeatures) to disk
+        # in first iteration, create an empty dict, then add an item each time this function is called
+        if test_triple_count == 0:
+            dict_for_saving_InputFeatures = {}
+            # determine length of dataset for deciding on checks
+            #max_index depends on dataset, using context
+
+        # key = something to identify the test triple
+        #    option 1: ''.join(corrupt_list[0]) --> safe option: concatenated string of triple IDs
+        #    option 2: index_of_triple + 1 --> integer corresponding to row number in unshuffled dataset
+        # value = tuple of size two for head and tail corruption
+        # value_alt = a list so I can append to it
+        dict_key = ''.join(head_corrupt_list[0])
+        logger.debug(f'Current dict_key: {dict_key}')
+
+        # IMPORTANT save in first position of list
+        dict_for_saving_InputFeatures[dict_key] = [tmp_features]
+
+        #############------------- SAVE TAIL InputFeatures ---------------#################
+
+        # create tail_corrupt_list: the first item is the true triple
+        # all remaining lines are triples that are incorrect, because the tail entity is incorrect
+        # filtered setting: exclude any triples that exist in the dataset!
+        tail_corrupt_list = [test_triple]
+        for corrupt_ent in entity_list:
+            if corrupt_ent != tail:
+                tmp_triple = [head, relation, corrupt_ent]
+                tmp_triple_str = '\t'.join(tmp_triple)
+                # only append the corrupted triple if it does not exist in the dataset
+                if tmp_triple_str not in all_triples_str_set:
+                    # may be slow
+                    tail_corrupt_list.append(tmp_triple)
+                # if args.debug and len(tail_corrupt_list) == 10:
+                #     break
+
+        ### convert string triples to BERT input feature vectors
+        # this accesses the labels as text for each relation and entity
+        tmp_examples = processor._create_examples(head_corrupt_list, set_type = "test",
+                                                  data_dir = args.data_dir)
+        tmp_features = convert_examples_to_features(tmp_examples, label_list, args.max_seq_length,
+                                                    tokenizer, print_info = False)
+
+        # IMPORTANT save in second position of list
+        dict_for_saving_InputFeatures[dict_key] = dict_for_saving_InputFeatures.get(dict_key) + [tmp_features]
+
+        logger.debug(f'Current # of keys of dict: {len(dict_for_saving_InputFeatures.keys())}')
+
+        end_preprocess_triple = time.perf_counter()
+        logger.info(f'Processing of triple {test_triple_count + 1} took {round((end_preprocess_triple - start_preprocess_triple) / 60, 2)} minutes.')
+        test_triple_count += 1
+
+    logger.info('Went through entire dataset!')
+
+    torch.save(dict_for_saving_InputFeatures, f'{dataset_name}_{context}_triples_preprocessed_as_InputFeatures.pt')
+
+    # IMPORTANT after all iterations, check that the object is as expected
+
+    for key, value in tqdm(dict_for_saving_InputFeatures.items(), desc = 'Running assertion checks on all dict entries...'):
+        logger.debug(f'Current key: {key}')
+        # each value should be a list of length 2
+        assert type(value) == list
+        assert len(value) == 2, 'More than two entries in this row!'
+        # check that the two entries are different
+        assert value[0] != value[1], 'Both entries are the same!'
+
+    # assert that all keys are contained in the set of dev/test triples
+    if context == 'validation':
+        dev_triples_set = set()
+        for triple in dev_triples:
+            triple_str = ''.join(triple)
+            dev_triples_set.add(triple_str)
+        assert set(dict_for_saving_InputFeatures.keys()) == dev_triples_set, 'Not all validation triples are in the resulting dict!'
+
+    if context == 'test':
+        test_triples_set = set()
+        for triple in test_triples:
+            triple_str = ''.join(triple)
+            test_triples_set.add(triple_str)
+        assert set(dict_for_saving_InputFeatures.keys()) == test_triples_set, 'Not all test triples are in the resulting dict!'
+
+    # IMPORTANT now try to save this reproducibably to disk
+    torch.save(dict_for_saving_InputFeatures, f'FB15k-237_{context}_triples_preprocessed_as_InputFeatures.pt')
+
+    #torch.load('preprocessed_test_triples_tmp_features.pt')
 
 START_TIME = datetime.now().strftime("%d.%m.%Y_%H:%M")
 
@@ -1197,8 +1423,8 @@ parser.add_argument("--bert_model", default = 'bert-base-cased', type = str, req
                            "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
                            "bert-base-multilingual-cased, bert-base-chinese.")
 parser.add_argument('-n', '--name', type = str,
-                    help = 'Experiment name, a folder with this name will be created  or loaded from'
-                           'in the results/KG_and_LM folder.')
+                    help = 'Experiment name, - if not doing preprocessing- a folder with this name'
+                           ' will be created  or loaded from in the results/KG_and_LM folder.')
 
 ## Other parameters
 parser.add_argument('-d', "--debug", action = 'store_true',
@@ -1211,10 +1437,14 @@ parser.add_argument("--max_seq_length", default = 128, type = int,
                            "than this will be padded.")
 parser.add_argument("--do_train", action = 'store_true',
                     help = "Whether to run training and validation.")
-# parser.add_argument("--do_eval", action = 'store_true',
-#                     help = "Whether to run eval on the dev set.")
-parser.add_argument("--do_predict", action = 'store_true',
+parser.add_argument("--do_eval", action = 'store_true',
+                    help = "Whether to run link prediction metric calculation on the vaidation set. "
+                           "Uses the trained model in the folder")
+parser.add_argument("--do_eval_on_test", action = 'store_true',
                     help = "Whether to run eval on the test set.")
+parser.add_argument("--do_preprocessing_val", action = 'store_true',
+                    help = "Whether to preprocess the validation triples and store them")
+parser.add_argument("--do_preprocessing_test", action = 'store_true')
 parser.add_argument("--do_lower_case", action = 'store_true',
                     help = "Set this flag if you are using an uncased model.")
 parser.add_argument("--train_batch_size", default = 32, type = int,
@@ -1242,6 +1472,51 @@ parser.add_argument('--loss_scale', type = float, default = 0,
                            "0 (default value): dynamic loss scaling.\n"
                            "Positive power of 2: static loss scaling value.\n")
 args = parser.parse_args()
+
+if args.do_preprocessing_val or args.do_preprocessing_test:
+    start_preprocessing = time.perf_counter()
+    # set the context variable
+    if args.do_preprocessing_val:
+        context = 'validation'
+    elif args.do_preprocessing_test:
+        context = 'test'
+
+    # set the working directory for saving logger + result files
+    if args.debug:
+        EXPERIMENT_NAME = 'DEBUGGING_' + START_TIME + f'preprocessing_{context}'
+        # test + dev have 100 examples, training has 500
+        args.data_dir = os.path.join(args.data_dir, 'for_debugging')
+    else:
+        EXPERIMENT_NAME = START_TIME + f'_preprocessing_{context}'
+
+    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'data/interim/KG_and_LM', EXPERIMENT_NAME)
+    if not os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING):
+        os.makedirs(DIRECTORY_FOR_SAVING_OR_LOADING)
+    os.chdir(DIRECTORY_FOR_SAVING_OR_LOADING)
+
+    # save the currently running script file for later reference
+    file_name_script = 'script_' + EXPERIMENT_NAME + '.py'
+    source_path = os.path.join(BASE_PATH_HOST, 'src/CLI_scripts', __file__)
+    shutil.copy(src = source_path, dst = os.path.join(os.getcwd(), file_name_script))
+
+    # initialize logger
+    logger_file_name = f'log_preprocessing_{context}_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
+    logger = initialize_my_logger(file_name = logger_file_name, level = logging.DEBUG)
+    logger.info(f'Saving everything in folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
+
+    # get global variables needed for preprocessing
+    processor = KGProcessor()
+    label_list = processor.get_labels(args.data_dir)
+    entity_list = processor.get_entities(args.data_dir)
+
+    preprocess_and_save_triples(context = context, dataset_name = 'FB15k-237')
+
+    end_preprocessing = time.perf_counter()
+    logger.info(
+        f'Processing of {context} triple set took {round((end_preprocessing - start_preprocessing) / 60, 2)} minutes.')
+    # end the script here, do not run any training or evaluation
+    sys.exit()
+
 
 # only save certain things when actually training a model
 if args.do_train:
@@ -1276,17 +1551,26 @@ if args.do_train:
     # save the argparse arguments to disk
     save_argparse_obj_to_disk(argparse_namespace = args)
 
+    if args.do_train and args.do_eval is False:
+        logger_file_name = f'log_train_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
+
+    if args.do_train and args.do_eval:
+        logger_file_name = f'log_train_eval_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
+
+    if args.do_eval_on_test:
+        raise NotImplementedError('This combination of run train/eval/test is not accounted for!')
+
     # configure the logging to stdout and file
-    logger = initialize_my_logger(
-        file_name = f'log_{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.txt',
-        level = logging.DEBUG)
+    logger = initialize_my_logger(file_name = logger_file_name, level = logging.DEBUG)
 
     logger.info(f'Saving everything in folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
 
     if args.debug:
         logger.info('DEBUGGING MODE: Using a very small subset of FB15k237.')
 
-else:
+### IMPORTANT: NOT TRAINING, ONLY EVALUATION TO CALCULATE LINK PREDICTION METRICS
+elif args.do_train is False:
+
     # if not training, save everything to the folder where the model is loaded from
     EXPERIMENT_NAME = args.name
     DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM',
@@ -1298,29 +1582,34 @@ else:
     # change working directory to respective folder
     os.chdir(DIRECTORY_FOR_SAVING_OR_LOADING)
 
-    # configure the logging
-    # if args.do_eval:
-    #     logger = initialize_my_logger(
-    #         file_name = f'log_{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.txt', level = logging.INFO)
-    if args.do_predict:
-        logger = initialize_my_logger(
-            file_name = f'log_{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.txt',
-            level = logging.DEBUG)
-    # else:
-    #     logger = initialize_my_logger(
-    #         file_name = f'log_{socket.gethostname()}_' + EXPERIMENT_NAME + '_predict.txt',
-    #         level = logging.INFO)
+    # configure the logging file name
+    if args.do_eval and args.do_eval_on_test is False:
+        logger_file_name = f'log_valid_{socket.gethostname()}_' + START_TIME + '.txt'
+    elif args.do_eval_on_test and args.do_eval is False:
+        logger_file_name = f'log_test_{socket.gethostname()}_' + START_TIME + '.txt'
+    else:
+        raise NotImplementedError('This combination of run train/eval/test is not accounted for!')
+
+    logger = initialize_my_logger(file_name = logger_file_name, level = logging.DEBUG,
+                                  file_mode = 'w')
 
     logger.info(f'Loading model from folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
+
+    if args.debug:
+        # test + dev have 100 examples, training has 500
+        args.data_dir = os.path.join(args.data_dir, 'for_debugging')
+        logger.info('DEBUGGING MODE: Using a very small subset of FB15k237.')
 
 # set the correct CUDA device, check for number of devices
 if args.local_rank == -1 or args.no_cuda:
     # important: if no_cuda is enabled, use CPU even though GPU is available
     device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+    # IMPORTANT if n_gpu > 1 this enables  simple distributed training
+    # using model = torch.nn.DataParallel(model)
     n_gpu = torch.cuda.device_count()
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 else:
-    logger.info('Distributed training.')
+    logger.info('Distributed training using torch.distributed backend.')
     torch.cuda.set_device(args.local_rank)
     device = torch.device("cuda", args.local_rank)
     n_gpu = 1
@@ -1331,6 +1620,8 @@ logger.info('################# DEVICE INFORMATION #################')
 logger.info(f'Device used: {device}')
 logger.info(f"CUDA is used: {torch.cuda.is_available()}")
 logger.info(f'Using {n_gpu} device(s).')
+if n_gpu > 1:
+    logger.info('Using torchs DataParallel mode for the model.')
 logger.info(f'Using distributed training: {bool(args.local_rank != -1)}')
 logger.info(f'Using half-precision float16 datatype: {args.fp16}')
 
@@ -1358,14 +1649,65 @@ global_step = 0  # counts steps across all functions: train, validate, test
 if args.do_train:
     trained_model, loaded_tokenizer = train_and_validate()
 
-# IMPORTANT: Running evaluation on test set starting from here
-if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+if args.do_eval:
+    writer_tb = SummaryWriter(log_dir = DIRECTORY_FOR_SAVING_OR_LOADING, flush_secs = 30,
+                              filename_suffix = f'_validation_{START_TIME}')
+    START_VALIDATION = time.perf_counter()
 
     if args.do_train:
-        test_results_dict = evaluate_on_test_set(trained_model, loaded_tokenizer)
+        # TODO figure out how to pass the eval_dataloader form train_and_validate() here
+        valid_results_dict = run_evaluation_after_training(trained_model,
+                                                                           loaded_tokenizer)
+    else:
+        # if running validation without training, load model + tokenizer from working directory
+        valid_results_dict = run_evaluation_after_training()
+
+    # dict keys = dataframe columns
+    valid_only_results_df = pd.DataFrame([valid_results_dict])
+
+    # Save all metrics to a file
+    file_name_valid_only_results = 'link_prediction_results_valid.csv'
+    valid_only_results_df.to_csv(file_name_valid_only_results)
+    logger.info('Saved validation results as CSV file to working directory.')
+
+    ### TODO save metrics dict to hparams in tensorboard for model selection
+    # use link prediction metrics for the hparams view in tensorboard
+    # (they are more insightful than loss and timings)
+    hparams_dict = args.__dict__
+    items_to_remove = ['data_dir', 'name', 'debug', 'cache_dir', 'do_train', 'do_predict',
+                       'no_cuda', 'local_rank']
+    for item in items_to_remove:
+        hparams_dict.pop(item)
+
+    # make metric_dict purely numeric, this is expected by tensorboard!
+    valid_results_dict.pop('experiment_name')
+    for value in valid_results_dict.values():
+        assert type(
+            value) == float, 'Doublecheck, metric values need to be numeric for use with add_hparams!'
+
+    # TODO add ranges/options for all discrete hparams keys
+    # option: hparam_domain_discrete =
+    writer_tb.add_hparams(hparam_dict = hparams_dict, metric_dict = valid_results_dict,
+                          run_name = 'tb_hparams_validation' + EXPERIMENT_NAME)
+    writer_tb.flush()
+    writer_tb.close()
+
+    END_VALIDATION = time.perf_counter()
+    logger.info(
+        f'Calculation of link prediction metrics on validation set took {round((END_VALIDATION - START_VALIDATION) / 60, 2)} minutes in total.')
+
+# IMPORTANT: Running evaluation on test set starting from here
+if args.do_eval_on_test and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+
+    START_TEST = time.perf_counter()
+
+    preprocess_and_save_triples(context = 'test')
+    if args.do_train:
+        test_results_dict = run_evaluation_after_training(trained_model,
+                                                                         loaded_tokenizer)
     else:
         # if running test without training, load model + tokenizer from working directory
-        test_results_dict = evaluate_on_test_set()
+        test_results_dict = run_evaluation_after_training()
 
     # dict keys = dataframe columns
     test_results_df = pd.DataFrame([test_results_dict])
@@ -1373,6 +1715,10 @@ if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() ==
     # Save all metrics to a file
     file_name_test_results = 'link_prediction_results_test.csv'
     test_results_df.to_csv(file_name_test_results)
-    logger.info('Saved test results as CSV file to working directory')
+    logger.info('Saved test results as CSV file to working directory.')
+
+    END_TEST = time.perf_counter()
+    logger.info(
+        f'Calculation of link prediction metrics on test set took {round((END_TEST - START_TEST) / 60, 2)} minutes in total.')
 
 logger.info(f'Finished running the script at: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
