@@ -756,6 +756,9 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
             global_step += 1
     logger.info(f'Training loss: {training_loss}')
 
+    # TODO divide training_loss by number of batches
+    # training_loss/len(train_loader)
+
     return training_loss
 
 
@@ -958,7 +961,7 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
         logger.info('Running evaluation on the dataset split: test.tsv')
         triples_to_evaluate = test_triples
 
-    # Loop through all test triples
+    # Loop through all triples
     for test_triple in tqdm(triples_to_evaluate, desc = 'Evaluating triple'):
         logger.debug(f'Calculating rank for triple #{test_triple_count + 1} of {len(triples_to_evaluate)}')
         start_time_test_triple = time.perf_counter()
@@ -973,7 +976,7 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
         # all remaining lines are triples that are incorrect, because the head entity is incorrect
         # filtered setting: exclude any triples that exist in the dataset!
         head_corrupt_list = [test_triple]
-        for corrupt_ent in entity_list:
+        for corrupt_ent in tqdm(entity_list):
             # do this for all entities except the actual head
             if corrupt_ent != head:
                 tmp_triple = [corrupt_ent, relation, tail]
@@ -1198,6 +1201,7 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, index_of_triple: int, 
 
     # get the dimension corresponding to the label that indicates a true triple
     # label 1 = true triple
+    # TODO doublecheck that this is a number
     position_of_correct_label = all_label_ids[0]
     plausibility_scores_logits = prediction_logits[:, position_of_correct_label]
 
@@ -1237,6 +1241,7 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, index_of_triple: int, 
     # remember: within the data, the first item was the only correct triple, the rest
     # were corrupted ones, i.e. created by replacing the head entity
     # is equivalent to: np.where(sorted_indices.numpy() == 0)[0]
+    # TODO just use np.where ?
     rank = torch.where(sorted_indices == 0)[0]  # result is a tuple, take first item
 
     return rank, test_triple_as_text, [top_k_scores, top_k_entities_dataset_IDs,
