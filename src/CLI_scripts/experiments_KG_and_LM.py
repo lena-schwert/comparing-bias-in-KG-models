@@ -30,6 +30,7 @@ import socket
 import sys
 import time
 from datetime import datetime
+import copy
 
 # installed modules
 import numpy as np
@@ -269,7 +270,9 @@ class KGProcessor(DataProcessor):
                 if rnd <= 0.5:
                     # corrupting head
                     # TODO Might it be better move the random sampling inside the loop?
-                    for j in range(5):
+                    # TODO change this baaack
+                    # TODO should be range(5)
+                    for j in range(1):
                         tmp_head = ''
                         while True:
                             tmp_ent_list = set(entities)
@@ -288,7 +291,7 @@ class KGProcessor(DataProcessor):
                 else:
                     # corrupting tail
                     tmp_tail = ''
-                    for j in range(5):
+                    for j in range(1):
                         # use while loop to make sure that the negative triple does not exist yet
                         while True:
                             tmp_ent_list = set(entities)  # cast list to set
@@ -327,6 +330,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         # tokenize the head entity, outputs a list of strings
         tokens_a = tokenizer.tokenize(example.text_a)
+        #logger.debug(f'And the token IDs: {tokenizer.convert_tokens_to_ids(tokens_a)}')
+        #logger.debug(f'Tokens of the head entity: {tokens_a}')
 
         # set tokens to None because they will be changed?
         tokens_b = None
@@ -336,7 +341,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         if example.text_b and example.text_c:
             # tokenize relation and tail entity with the tokenizer
             tokens_b = tokenizer.tokenize(example.text_b)
+            #logger.debug(f'Tokens of the relation: {tokens_b}')
+            #logger.debug(f'And the token IDs: {tokenizer.convert_tokens_to_ids(tokens_b)}')
             tokens_c = tokenizer.tokenize(example.text_c)
+            #logger.debug(f'Tokens of the tail entity: {tokens_c}')
+            #logger.debug(f'And the token IDs: {tokenizer.convert_tokens_to_ids(tokens_c)}')
             # Modifies `tokens_a`, `tokens_b` and `tokens_c`in place so that the total
             # length is less than the specified length.
             # _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)  # use for relation prediction only
@@ -386,6 +395,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         # look up each token in the vocabulary of the tokenizer (the IDs are fixed)
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
+        #logger.debug(f'Input IDs created by tokenizer: {input_ids}')
 
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
@@ -479,8 +489,7 @@ def train_and_validate():
     #############------------- LOAD MODEL ---------------#################
 
     ### load model and tokenizer
-    tokenizer = BertTokenizer.from_pretrained(args.bert_model,
-                                              do_lower_case = args.do_lower_case)
+    tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case = args.do_lower_case)
 
     # Prepare model, download BERT for sequence classification
     # create cache folder so the model is only downloaded when the script is run for the first time on the machine
@@ -513,6 +522,16 @@ def train_and_validate():
         model = torch.nn.DataParallel(model)  # model = torch.nn.parallel.data_parallel(model)
 
     #############------------- PREPARE TRAINING DATA ---------------#################
+
+    # use gradient accumulation step to set training batch size
+    if args.gradient_accumulation_steps < 1:
+        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
+            args.gradient_accumulation_steps))
+
+    # divide batch size by gradient accumulation steps
+    # this is not relevant for the results, usually = 1!
+    # // ensures that the result is an integer, not a float!
+    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
 
     # get training examples + create NEGATIVE/CORRUPT triples for each of it
     logger.info('Creating examples with negative sampling from the training split of the dataset.')
@@ -589,14 +608,7 @@ def train_and_validate():
                                                            num_warmup_steps = args.warmup_proportion * num_train_optimization_steps,
                                                            num_training_steps = num_train_optimization_steps)
 
-    # use gradient accumulation step to set training batch size
-    if args.gradient_accumulation_steps < 1:
-        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
-            args.gradient_accumulation_steps))
 
-    # divide batch size by gradient accumulation steps
-    # this is not relevant for the results, usually = 1!
-    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
 
     #############------------- PREPARE VALIDATION DATA ---------------#################
 
@@ -634,15 +646,29 @@ def train_and_validate():
         start_time_epoch = time.perf_counter()
         logger.info(f'Epoch {i + 1} has started.')
         ############------------- TRAINING ---------------#################
-        model.train()
+        # copy the parameters of the model
+        logger.debug('Saving all named parameters before training the model...')
+        frozen_parameters = {}
+        for name, parameters in model.named_parameters():
+            frozen_parameters[name] = copy.deepcopy(parameters.data)
+
         start_time_epoch_train = time.perf_counter()
         epoch_train_loss = train(train_loader = train_dataloader, model = model,
                                  optimizer = optimizer, lr_warmup = linear_warmup_lr,
                                  num_train_optimization_steps = num_train_optimization_steps)
         end_time_epoch_train = time.perf_counter()
+
+        # check whether the parameters have been changed at all
+        for name, p in model.named_parameters():
+            # return updated = True, if any value for this layer is == True
+            updated = (frozen_parameters[name] != p.data).any().cpu().detach().numpy()
+
+            logger.debug(f"Layer '{name}' has been updated in epoch {i +1}? - {'yes' if updated else 'no'}")
+
+
+
         ############------------- VALIDATION ---------------#################
         # validate the trained model for loss + accuracy
-        model.eval()
         start_time_epoch_validate = time.perf_counter()
         epoch_validate_loss = validate(data_loader = eval_dataloader, model = model,
                                        tokenizer = tokenizer)
@@ -702,14 +728,16 @@ def train_and_validate():
 def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmup):
     global global_step
 
-    # important: I added this on 3rd march
-    # model.train()
-    # TODO check whether model is in training mode
+    model.train()
 
-    training_loss = 0
+    training_loss = torch.zeros(1, dtype = torch.float64)
     nb_tr_examples, nb_tr_steps = 0, 0
 
     loss_fct = CrossEntropyLoss()
+
+    # IMPORTANT doublecheck that all layers are actually not frozen!
+    for name, param in model.named_parameters():
+        logger.debug(f'Layer {name} has requires_grad = {param.requires_grad}')
 
     for step, batch in enumerate(tqdm(train_loader, desc = "Iteration")):
         batch = tuple(t.to(device) for t in batch)  # unpack and send each tensor to device
@@ -717,12 +745,24 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
 
         # calculate predictions for current batch
         # do not automatically calculate the loss! (do not provide labels)
-        logits = model(input_ids, segment_ids, input_mask, labels = None,
+        logits = model(input_ids = input_ids, attention_mask = input_mask,
+                       token_type_ids = segment_ids, labels = None,
                        output_hidden_states = False).logits
+
+        model_output = model(input_ids = input_ids, attention_mask = input_mask,
+                       token_type_ids = segment_ids, labels = None,
+                       output_hidden_states = False)
+
+        model_output_with_loss = model(input_ids = input_ids, attention_mask = input_mask,
+                       token_type_ids = segment_ids, labels = None,
+                       output_hidden_states = False)
 
         # calculate loss, make sure that the tensors have correct dimensionality
         # view(-1) makes the tensor shape flexible
-        loss = loss_fct(logits.view(-1, model.num_labels), label_ids.view(-1))
+        loss = loss_fct(logits.view(-1, NUM_LABELS), label_ids.view(-1))
+        #logger.debug(f'dtype of loss tensor: {loss.dtype}')
+
+        # TODO calculate loss manually
 
         if n_gpu > 1:
             loss = loss.mean()  # mean() to average on multi-gpu.
@@ -734,6 +774,9 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
             optimizer.backward(loss)
         else:
             loss.backward()  # TODO decide whether to add gradient clipping here (part of pytorch_pretrained migration)  # torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+
+        if loss > 1000:
+            loss = loss.round()
 
         # add the loss value to the logging variables
         training_loss += loss.item()
@@ -754,21 +797,24 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
             lr_warmup.step()
             optimizer.zero_grad()
             global_step += 1
-    logger.info(f'Training loss: {training_loss}')
 
-    # TODO divide training_loss by number of batches
-    # training_loss/len(train_loader)
+        logger.debug(f'Accumulated training loss: {training_loss.item()}')
 
-    return training_loss
+    # calculate mean training loss by dividing through number of batches
+    training_loss_mean = training_loss / nb_tr_steps
+    logger.info(f'Training loss (mean across all batches): {training_loss_mean}')
+
+    return training_loss_mean
 
 
 def validate(data_loader, model = None, tokenizer = None):
-    # TODO make an indented code block like e.g. "only validation"
+
     if model is None and tokenizer is None:
         # in case evaluation is run independent of training
         # --> load a trained model and vocabulary that you have fine-tuned earlie
         model = BertForSequenceClassification.from_pretrained(
-            os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'), num_labels = NUM_LABELS)
+            os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'), num_labels = NUM_LABELS
+        )
 
         # folder needs to contain a config.json and a vocab.txt file
         tokenizer = BertTokenizer.from_pretrained(
@@ -796,8 +842,8 @@ def validate(data_loader, model = None, tokenizer = None):
                                  batch_size = args.eval_batch_size)
 
     # do typechecking to see that this was loaded correctly
-    assert type(model) == BertForSequenceClassification, 'Model was not loaded correctly.'
-    assert type(tokenizer) == BertTokenizer, 'Tokenizer was not loaded correctly.'
+    #assert type(model) == BertForSequenceClassification, 'Model was not loaded correctly.'
+    #assert type(tokenizer) == BertTokenizer, 'Tokenizer was not loaded correctly.'
 
     eval_loss_accum = 0
     nb_eval_steps = 0
@@ -810,6 +856,8 @@ def validate(data_loader, model = None, tokenizer = None):
 
     loss_fct = CrossEntropyLoss()
 
+    model.eval()
+
     for input_ids, input_mask, segment_ids, label_ids in tqdm(data_loader, desc = "Evaluating"):
         input_ids = input_ids.to(device)
         input_mask = input_mask.to(device)
@@ -817,7 +865,10 @@ def validate(data_loader, model = None, tokenizer = None):
         label_ids = label_ids.to(device)
 
         with torch.no_grad():
-            logits = model(input_ids, segment_ids, input_mask, labels = None,
+            logits = model(input_ids = input_ids,
+                           attention_mask = input_mask,
+                           token_type_ids = segment_ids,
+                           labels = None,
                            output_hidden_states = False).logits
 
         # create eval loss and other metric required by the task
@@ -833,7 +884,7 @@ def validate(data_loader, model = None, tokenizer = None):
 
     # calculate mean evaluation loss by dividing through number of batches
     eval_loss_mean = eval_loss_accum / nb_eval_steps
-    logger.info(f'Evaluation loss: {eval_loss_mean}')
+    logger.info(f'Evaluation loss (mean across all batches): {eval_loss_mean}')
 
     # make sure that dimensions are as expected
     # TODO decide whether probabilities are needed at all
@@ -957,13 +1008,14 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
     if context == 'validation':
         logger.info('Running evaluation on the dataset split: dev.tsv')
         triples_to_evaluate = dev_triples
-    if context =='test':
+    if context == 'test':
         logger.info('Running evaluation on the dataset split: test.tsv')
         triples_to_evaluate = test_triples
 
     # Loop through all triples
     for test_triple in tqdm(triples_to_evaluate, desc = 'Evaluating triple'):
-        logger.debug(f'Calculating rank for triple #{test_triple_count + 1} of {len(triples_to_evaluate)}')
+        logger.debug(
+            f'Calculating rank for triple #{test_triple_count + 1} of {len(triples_to_evaluate)}')
         start_time_test_triple = time.perf_counter()
         head = test_triple[0]
         relation = test_triple[1]
@@ -985,7 +1037,7 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
                 if tmp_triple_str not in all_triples_str_set:
                     # may be slow
                     head_corrupt_list.append(tmp_triple)
-                if args.debug and len(head_corrupt_list) == 10:
+                if args.debug and len(head_corrupt_list) == 50:
                     break
 
         logger.info('######### Calculating rank head of current test triple #########')
@@ -995,7 +1047,8 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
             corrupt_list = head_corrupt_list, index_of_triple = test_triple_count,
             type_of_rank = 'head', model = model, tokenizer = tokenizer, context = context)
 
-        logger.info(f'Rank head for current triple: {rank_head.item()}')
+        logger.info(f'Rank head for current triple: {rank_head.item() + 1}')
+
         # add this rank to the collecting variables
         plus_one = torch.ones(1).to(device)
         ranks_both = torch.cat((ranks_both, rank_head + plus_one))
@@ -1029,12 +1082,12 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
 
         ranks_both = torch.cat((ranks_both, rank_tail + plus_one))
         ranks_tail = torch.cat((ranks_tail, rank_tail + plus_one))
-        logger.info(f'Rank tail for current triple: {rank_tail.item()}')
-        logger.info(f'mean rank until now:  {torch.mean(ranks_both)}')
+        logger.info(f'Rank tail for current triple: {rank_tail.item() + 1}')
+        logger.info(f'Mean rank until now:  {torch.mean(ranks_both)}')
 
         if rank_tail < 10:
             top_ten_hit_count += 1
-        logger.info(f"hit@10 until now:  {top_ten_hit_count * 1.0 / len(ranks_both)}")
+        logger.info(f"Hits@10 until now:  {top_ten_hit_count * 1.0 / len(ranks_both)}")
 
         #############------------- CALCULATE HITS@K ---------------#################
 
@@ -1063,8 +1116,8 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
         runtime_for_this_triple = round((end_time_test_triple - start_time_test_triple), 2)
 
         # create list object to add as row
-        triples_and_ranks = [test_triple_count, test_triple, test_triple_as_text, rank_head.item(),
-                             rank_tail.item()]
+        triples_and_ranks = [test_triple_count, test_triple, test_triple_as_text,
+                             rank_head.item() + 1, rank_tail.item() + 1]
 
         row_to_add = triples_and_ranks + rank_head_metadata + rank_tail_metadata + [
             runtime_for_this_triple]
@@ -1119,19 +1172,17 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
 
     return result_dict
 
+
 def doublecheck_object_types(bla):
     assert type(bla) == list, 'This object is not a list'
     unique_classes = set(type(x).__name__ for x in bla)
     if isinstance(bla[0], InputFeatures):
-        logger.info('Object is a list of InputFeatures.')
-        #assert bla[0].
+        logger.info('Object is a list of InputFeatures.')  # assert bla[0].
     elif isinstance(bla[0], InputExample):
         logger.info('Object is a list of InputFeatures.')
         pass
     else:
         raise ValueError()
-
-
 
 
 def calculate_rank_given_corrupt_list(corrupt_list: list, index_of_triple: int, type_of_rank: str,
@@ -1192,7 +1243,8 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, index_of_triple: int, 
         # label_ids = label_ids.to(device)
 
         with torch.no_grad():
-            logits = model(input_ids, segment_ids, input_mask, labels = None,
+            logits = model(input_ids = input_ids, attention_mask = input_mask,
+                           token_type_ids = segment_ids, labels = None,
                            output_hidden_states = False).logits
 
         logger.debug(f'Logits: {logits}')
@@ -1224,8 +1276,8 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, index_of_triple: int, 
 
     # extract the k highest probabilities and the corresponding entity IDs and labels
     top_k = 10
-    top_k_scores = list(sorted_values[0:top_k].numpy())
-    top_k_entities_indices = list(sorted_indices[0:top_k].numpy())
+    top_k_scores = list(sorted_values[0:top_k].cpu().numpy())
+    top_k_entities_indices = list(sorted_indices[0:top_k].cpu().numpy())
 
     # retrieve the dataset-specific IDs + natural language labels for the top_k entities
     if type_of_rank == 'head':
@@ -1248,7 +1300,7 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, index_of_triple: int, 
                                        top_k_entities_labels]
 
 
-def get_KG_BERT_embeddings(context: str ):
+def get_KG_BERT_embeddings(context: str):
     # load the trained model
     # when running predictions with the model, set output_hidden_states = True
     raise NotImplementedError()
@@ -1257,8 +1309,7 @@ def get_KG_BERT_embeddings(context: str ):
 def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = None):
     if tokenizer is None:
         # folder needs to contain a config.json and a vocab.txt file
-        tokenizer = BertTokenizer.from_pretrained(
-            args.bert_model,
+        tokenizer = BertTokenizer.from_pretrained(args.bert_model,
             do_lower_case = args.do_lower_case,
             vocab_file = os.path.join(BASE_PATH_HOST, 'data/interim/KG_and_LM/vocab.txt'))
 
@@ -1290,7 +1341,8 @@ def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = Non
 
     for test_triple in tqdm(triples_to_evaluate, desc = 'Evaluating triple'):
         start_preprocess_triple = time.perf_counter()
-        logger.debug(f'Calculating rank for triple #{test_triple_count + 1} of {len(triples_to_evaluate)}')
+        logger.debug(
+            f'Calculating rank for triple #{test_triple_count + 1} of {len(triples_to_evaluate)}')
         head = test_triple[0]
         relation = test_triple[1]
         tail = test_triple[2]
@@ -1310,9 +1362,8 @@ def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = Non
                 # only append the corrupted triple if it does not exist in the dataset
                 if tmp_triple_str not in all_triples_str_set:
                     # may be slow
-                    head_corrupt_list.append(tmp_triple)
-                # if args.debug and len(head_corrupt_list) == 10:
-                #     break
+                    head_corrupt_list.append(
+                        tmp_triple)  # if args.debug and len(head_corrupt_list) == 10:  #     break
 
         ### convert string triples to BERT input feature vectors
         # this accesses the labels as text for each relation and entity
@@ -1327,9 +1378,7 @@ def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = Non
         # IMPORTANT: save the preprocessed corrupt list (as InputFeatures) to disk
         # in first iteration, create an empty dict, then add an item each time this function is called
         if test_triple_count == 0:
-            dict_for_saving_InputFeatures = {}
-            # determine length of dataset for deciding on checks
-            #max_index depends on dataset, using context
+            dict_for_saving_InputFeatures = {}  # determine length of dataset for deciding on checks  # max_index depends on dataset, using context
 
         # key = something to identify the test triple
         #    option 1: ''.join(corrupt_list[0]) --> safe option: concatenated string of triple IDs
@@ -1355,9 +1404,8 @@ def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = Non
                 # only append the corrupted triple if it does not exist in the dataset
                 if tmp_triple_str not in all_triples_str_set:
                     # may be slow
-                    tail_corrupt_list.append(tmp_triple)
-                # if args.debug and len(tail_corrupt_list) == 10:
-                #     break
+                    tail_corrupt_list.append(
+                        tmp_triple)  # if args.debug and len(tail_corrupt_list) == 10:  #     break
 
         ### convert string triples to BERT input feature vectors
         # this accesses the labels as text for each relation and entity
@@ -1367,21 +1415,25 @@ def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = Non
                                                     tokenizer, print_info = False)
 
         # IMPORTANT save in second position of list
-        dict_for_saving_InputFeatures[dict_key] = dict_for_saving_InputFeatures.get(dict_key) + [tmp_features]
+        dict_for_saving_InputFeatures[dict_key] = dict_for_saving_InputFeatures.get(dict_key) + [
+            tmp_features]
 
         logger.debug(f'Current # of keys of dict: {len(dict_for_saving_InputFeatures.keys())}')
 
         end_preprocess_triple = time.perf_counter()
-        logger.info(f'Processing of triple {test_triple_count + 1} took {round((end_preprocess_triple - start_preprocess_triple) / 60, 2)} minutes.')
+        logger.info(
+            f'Processing of triple {test_triple_count + 1} took {round((end_preprocess_triple - start_preprocess_triple) / 60, 2)} minutes.')
         test_triple_count += 1
 
     logger.info('Went through entire dataset!')
 
-    torch.save(dict_for_saving_InputFeatures, f'{dataset_name}_{context}_triples_preprocessed_as_InputFeatures.pt')
+    torch.save(dict_for_saving_InputFeatures,
+               f'{dataset_name}_{context}_triples_preprocessed_as_InputFeatures.pt')
 
     # IMPORTANT after all iterations, check that the object is as expected
 
-    for key, value in tqdm(dict_for_saving_InputFeatures.items(), desc = 'Running assertion checks on all dict entries...'):
+    for key, value in tqdm(dict_for_saving_InputFeatures.items(),
+                           desc = 'Running assertion checks on all dict entries...'):
         logger.debug(f'Current key: {key}')
         # each value should be a list of length 2
         assert type(value) == list
@@ -1395,19 +1447,23 @@ def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = Non
         for triple in dev_triples:
             triple_str = ''.join(triple)
             dev_triples_set.add(triple_str)
-        assert set(dict_for_saving_InputFeatures.keys()) == dev_triples_set, 'Not all validation triples are in the resulting dict!'
+        assert set(
+            dict_for_saving_InputFeatures.keys()) == dev_triples_set, 'Not all validation triples are in the resulting dict!'
 
     if context == 'test':
         test_triples_set = set()
         for triple in test_triples:
             triple_str = ''.join(triple)
             test_triples_set.add(triple_str)
-        assert set(dict_for_saving_InputFeatures.keys()) == test_triples_set, 'Not all test triples are in the resulting dict!'
+        assert set(
+            dict_for_saving_InputFeatures.keys()) == test_triples_set, 'Not all test triples are in the resulting dict!'
 
     # IMPORTANT now try to save this reproducibably to disk
-    torch.save(dict_for_saving_InputFeatures, f'FB15k-237_{context}_triples_preprocessed_as_InputFeatures.pt')
+    torch.save(dict_for_saving_InputFeatures,
+               f'FB15k-237_{context}_triples_preprocessed_as_InputFeatures.pt')
 
-    #torch.load('preprocessed_test_triples_tmp_features.pt')
+    # torch.load('preprocessed_test_triples_tmp_features.pt')
+
 
 START_TIME = datetime.now().strftime("%d.%m.%Y_%H:%M")
 
@@ -1494,7 +1550,8 @@ if args.do_preprocessing_val or args.do_preprocessing_test:
     else:
         EXPERIMENT_NAME = START_TIME + f'_preprocessing_{context}'
 
-    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'data/interim/KG_and_LM', EXPERIMENT_NAME)
+    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'data/interim/KG_and_LM',
+                                                   EXPERIMENT_NAME)
     if not os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING):
         os.makedirs(DIRECTORY_FOR_SAVING_OR_LOADING)
     os.chdir(DIRECTORY_FOR_SAVING_OR_LOADING)
@@ -1521,7 +1578,6 @@ if args.do_preprocessing_val or args.do_preprocessing_test:
         f'Processing of {context} triple set took {round((end_preprocessing - start_preprocessing) / 60, 2)} minutes.')
     # end the script here, do not run any training or evaluation
     sys.exit()
-
 
 # only save certain things when actually training a model
 if args.do_train:
@@ -1556,14 +1612,14 @@ if args.do_train:
     # save the argparse arguments to disk
     save_argparse_obj_to_disk(argparse_namespace = args)
 
-    if args.do_train and args.do_eval is False:
+    if args.do_eval is False:
         logger_file_name = f'log_train_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
 
-    if args.do_train and args.do_eval:
+    if args.do_eval:
         logger_file_name = f'log_train_eval_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
 
-    if args.do_eval_on_test:
-        raise NotImplementedError('This combination of run train/eval/test is not accounted for!')
+    if args.do_eval is False and args.do_eval_on_test:
+        logger_file_name = f'log_train_test_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
 
     # configure the logging to stdout and file
     logger = initialize_my_logger(file_name = logger_file_name, level = logging.DEBUG)
@@ -1627,7 +1683,8 @@ logger.info(f"CUDA is used: {torch.cuda.is_available()}")
 logger.info(f'Using {n_gpu} device(s).')
 if n_gpu > 1:
     logger.info('Using torchs DataParallel mode for the model.')
-logger.info(f'Using distributed training: {bool(args.local_rank != -1)}')
+    logger
+logger.info(f'Using torch.distributed: {bool(args.local_rank != -1)}')
 logger.info(f'Using half-precision float16 datatype: {args.fp16}')
 
 # set the random seeds
@@ -1661,8 +1718,7 @@ if args.do_eval:
 
     if args.do_train:
         # TODO figure out how to pass the eval_dataloader form train_and_validate() here
-        valid_results_dict = run_evaluation_after_training(trained_model,
-                                                                           loaded_tokenizer)
+        valid_results_dict = run_evaluation_after_training(trained_model, loaded_tokenizer)
     else:
         # if running validation without training, load model + tokenizer from working directory
         valid_results_dict = run_evaluation_after_training()
@@ -1675,11 +1731,13 @@ if args.do_eval:
     valid_only_results_df.to_csv(file_name_valid_only_results)
     logger.info('Saved validation results as CSV file to working directory.')
 
-    ### TODO save metrics dict to hparams in tensorboard for model selection
+    ### IMPORTANT save metrics dict to hparams in tensorboard for model selection
     # use link prediction metrics for the hparams view in tensorboard
     # (they are more insightful than loss and timings)
     hparams_dict = args.__dict__
-    items_to_remove = ['data_dir', 'name', 'debug', 'cache_dir', 'do_train', 'do_predict',
+    # TODO careful, these items always need to match the current argparse options!!!
+    items_to_remove = ['data_dir', 'name', 'debug', 'cache_dir', 'do_train', 'do_eval',
+                       'do_eval_on_test', 'do_preprocessing_val', 'do_preprocessing_test',
                        'no_cuda', 'local_rank']
     for item in items_to_remove:
         hparams_dict.pop(item)
@@ -1703,13 +1761,13 @@ if args.do_eval:
 
 # IMPORTANT: Running evaluation on test set starting from here
 if args.do_eval_on_test and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
-
+    writer_tb = SummaryWriter(log_dir = DIRECTORY_FOR_SAVING_OR_LOADING, flush_secs = 30,
+                              filename_suffix = f'_test_{START_TIME}')
     START_TEST = time.perf_counter()
 
-    preprocess_and_save_triples(context = 'test')
+    #preprocess_and_save_triples(context = 'test')
     if args.do_train:
-        test_results_dict = run_evaluation_after_training(trained_model,
-                                                                         loaded_tokenizer)
+        test_results_dict = run_evaluation_after_training(trained_model, loaded_tokenizer)
     else:
         # if running test without training, load model + tokenizer from working directory
         test_results_dict = run_evaluation_after_training()
@@ -1721,6 +1779,9 @@ if args.do_eval_on_test and (args.local_rank == -1 or torch.distributed.get_rank
     file_name_test_results = 'link_prediction_results_test.csv'
     test_results_df.to_csv(file_name_test_results)
     logger.info('Saved test results as CSV file to working directory.')
+
+    writer_tb.flush()
+    writer_tb.close()
 
     END_TEST = time.perf_counter()
     logger.info(
