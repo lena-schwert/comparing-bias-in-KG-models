@@ -749,18 +749,17 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
                        token_type_ids = segment_ids, labels = None,
                        output_hidden_states = False).logits
 
-        model_output = model(input_ids = input_ids, attention_mask = input_mask,
-                       token_type_ids = segment_ids, labels = None,
-                       output_hidden_states = False)
-
-        model_output_with_loss = model(input_ids = input_ids, attention_mask = input_mask,
-                       token_type_ids = segment_ids, labels = None,
-                       output_hidden_states = False)
-
         # calculate loss, make sure that the tensors have correct dimensionality
         # view(-1) makes the tensor shape flexible
         loss = loss_fct(logits.view(-1, NUM_LABELS), label_ids.view(-1))
-        #logger.debug(f'dtype of loss tensor: {loss.dtype}')
+
+        model_output = model(input_ids = input_ids, attention_mask = input_mask,
+                       token_type_ids = segment_ids, labels = input_ids,
+                       output_hidden_states = False)
+        #
+        # model_output_with_loss = model(input_ids = input_ids, attention_mask = input_mask,
+        #                token_type_ids = segment_ids, labels = None,
+        #                output_hidden_states = False)
 
         # TODO calculate loss manually
 
@@ -795,6 +794,12 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
             optimizer.step()
             # logger.debug(f'Current learning rate is: {optimizer.param_groups[0]["lr"]}')
             lr_warmup.step()
+
+            # IMPORTANT: debugging, look at gradients
+            for parameter_name, values in model.named_parameters():
+                if values.requires_grad is True:
+                    logger.debug(f'{parameter_name}.grad: {values.grad}')
+
             optimizer.zero_grad()
             global_step += 1
 
@@ -871,16 +876,16 @@ def validate(data_loader, model = None, tokenizer = None):
                            labels = None,
                            output_hidden_states = False).logits
 
-        # create eval loss and other metric required by the task
-        tmp_eval_loss = loss_fct(logits.view(-1, NUM_LABELS), label_ids.view(-1))
+            # create eval loss and other metric required by the task
+            tmp_eval_loss = loss_fct(logits.view(-1, NUM_LABELS), label_ids.view(-1))
 
-        # accumulate the loss over all batches (use mean() for multi-gpu case)
-        eval_loss_accum += tmp_eval_loss.mean().item()
-        logger.debug(f'accumulated eval_loss: {eval_loss_accum}')
-        nb_eval_steps += 1
-        # append the current predictions + true labels to the running tensor
-        prediction_logits = torch.cat((prediction_logits, logits))
-        all_true_labels = torch.cat((all_true_labels, label_ids.detach()))
+            # accumulate the loss over all batches (use mean() for multi-gpu case)
+            eval_loss_accum += tmp_eval_loss.mean().item()
+            logger.debug(f'accumulated eval_loss: {eval_loss_accum}')
+            nb_eval_steps += 1
+            # append the current predictions + true labels to the running tensor
+            prediction_logits = torch.cat((prediction_logits, logits))
+            all_true_labels = torch.cat((all_true_labels, label_ids.detach()))
 
     # calculate mean evaluation loss by dividing through number of batches
     eval_loss_mean = eval_loss_accum / nb_eval_steps

@@ -479,7 +479,7 @@ def main():
                                "bert-base-multilingual-cased, bert-base-chinese.")
     parser.add_argument("--task_name", default = None, type = str, required = True,
                         help = "The name of the task to train.")
-    parser.add_argument("--output_dir", default = 'bla', type = str,
+    parser.add_argument("--output_dir", type = str, required = True,
                         help = "The output directory where the model predictions and checkpoints will be written.")
 
     ## Other parameters
@@ -535,52 +535,68 @@ def main():
         ptvsd.enable_attach(address = (args.server_ip, args.server_port), redirect_output = True)
         ptvsd.wait_for_attach()
 
-    if args.do_train is False:
+    if args.do_eval is True:
         raise ValueError("doublecheck logging setting for this!")
 
     # set working directory
-    if args.debug:
-        EXPERIMENT_NAME = 'DEBUGGING_' + START_TIME + '_minimal_change_script'
-        # test + dev have 100 examples, training has 500
-        args.data_dir = os.path.join(args.data_dir, 'for_debugging')
-    else:
-        EXPERIMENT_NAME = START_TIME + '_minimal_change_script'
+    if args.do_train:
+        if args.debug:
+                EXPERIMENT_NAME = 'DEBUGGING_' + START_TIME + '_minimal_change_script'
+                # test + dev have 100 examples, training has 500
+                args.data_dir = os.path.join(args.data_dir, 'for_debugging')
+        else:
+            EXPERIMENT_NAME = START_TIME + '_minimal_change_script'
 
-    # create path for saving all the result files
-    DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM',
-                                                   EXPERIMENT_NAME)
+        # create path for saving all the result files
+        DIRECTORY_FOR_SAVING_OR_LOADING = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM',
+                                                       EXPERIMENT_NAME)
 
-    # create directory and then use it as working directory
-    if os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING) and os.listdir(
-            DIRECTORY_FOR_SAVING_OR_LOADING) and args.do_train:
-        raise ValueError("Output directory ({}) already exists and is not empty.".format(
-            DIRECTORY_FOR_SAVING_OR_LOADING))
-    if not os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING):
-        os.makedirs(DIRECTORY_FOR_SAVING_OR_LOADING)
+        # create directory and then use it as working directory
+        if os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING) and os.listdir(
+                DIRECTORY_FOR_SAVING_OR_LOADING) and args.do_train:
+            raise ValueError("Output directory ({}) already exists and is not empty.".format(
+                DIRECTORY_FOR_SAVING_OR_LOADING))
+        if not os.path.exists(DIRECTORY_FOR_SAVING_OR_LOADING):
+            os.makedirs(DIRECTORY_FOR_SAVING_OR_LOADING)
 
-    # change working directory to respective folder
-    os.chdir(DIRECTORY_FOR_SAVING_OR_LOADING)
+        # change working directory to respective folder
+        os.chdir(DIRECTORY_FOR_SAVING_OR_LOADING)
 
-    # save the currently running script file for later reference
-    file_name_script = 'script_' + EXPERIMENT_NAME + '.py'
-    source_path = os.path.join(BASE_PATH_HOST, 'src/CLI_scripts', __file__)
-    shutil.copy(src = source_path, dst = os.path.join(os.getcwd(), file_name_script))
+        # save the currently running script file for later reference
+        file_name_script = 'script_' + EXPERIMENT_NAME + '.py'
+        source_path = os.path.join(BASE_PATH_HOST, 'src/CLI_scripts', __file__)
+        shutil.copy(src = source_path, dst = os.path.join(os.getcwd(), file_name_script))
 
-    if args.do_train and args.do_eval is False:
-        logger_file_name = f'log_train_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
+        if args.do_train and args.do_eval is False:
+            logger_file_name = f'log_train_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
 
-    if args.do_train and args.do_eval:
-        logger_file_name = f'log_train_eval_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
+        if args.do_train and args.do_eval:
+            logger_file_name = f'log_train_eval_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
 
-    # configure the logging
-    format_long = '%(asctime)s - %(levelname)s - %(filename)s/%(funcName)s: %(message)s'
-    format_short = '%(asctime)s - %(levelname)s: %(message)s'
-    logging.basicConfig(format = format_long, level = logging.DEBUG, datefmt = "%d.%m.%Y %H:%M:%S",
-                        handlers = [logging.FileHandler(logger_file_name, mode = 'a'),
-                            logging.StreamHandler(sys.stdout)])
-    logger = logging.getLogger()
+        # configure the logging
+        format_long = '%(asctime)s - %(levelname)s - %(filename)s/%(funcName)s: %(message)s'
+        format_short = '%(asctime)s - %(levelname)s: %(message)s'
+        logging.basicConfig(format = format_long, level = logging.DEBUG, datefmt = "%d.%m.%Y %H:%M:%S",
+                            handlers = [logging.FileHandler(logger_file_name, mode = 'a'),
+                                logging.StreamHandler(sys.stdout)])
+        logger = logging.getLogger()
 
-    logger.info(f'Saving everything in folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
+        logger.info(f'Saving everything in folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
+
+    if args.do_predict:
+        os.chdir(args.output_dir)
+
+        logger_file_name = f'log_evaluation_test_set_{START_TIME}_{socket.gethostname()}.txt'
+
+        # configure the logging
+        format_long = '%(asctime)s - %(levelname)s - %(filename)s/%(funcName)s: %(message)s'
+        format_short = '%(asctime)s - %(levelname)s: %(message)s'
+        logging.basicConfig(format = format_long, level = logging.DEBUG, datefmt = "%d.%m.%Y %H:%M:%S",
+                            handlers = [logging.FileHandler(logger_file_name, mode = 'a'),
+                                logging.StreamHandler(sys.stdout)])
+        logger = logging.getLogger()
+
+        logger.info(f'Saving everything in folder: {args.output_dir}')
 
     if args.debug:
         logger.info('DEBUGGING MODE: Using a very small subset of FB15k237.')
@@ -622,8 +638,8 @@ def main():
     if n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
-    if not args.do_train and not args.do_eval:
-        raise ValueError("At least one of `do_train` or `do_eval` must be True.")
+    # if not args.do_train and not args.do_eval:
+    #     raise ValueError("At least one of `do_train` or `do_eval` must be True.")
 
     # create a KGProcessor + task name
     processors = {"kg": KGProcessor, }
@@ -643,103 +659,104 @@ def main():
     entity_list = processor.get_entities(args.data_dir)
 
     #############------------- LOAD MODEL ---------------#################
-
-    tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case = args.do_lower_case)
-
-    # get training examples + create NEGATIVE/CORRUPT triples for each of it
-
-    train_examples = None
-    num_train_optimization_steps = 0
-    if args.do_train:
-        #############------------- START TRAINING ---------------#################
-
-        START_TRAINING = time.perf_counter()
-        logger.info(
-            'Creating examples with negative sampling from the training split of the dataset.')
-        train_examples = processor.get_train_examples(args.data_dir)
-        num_train_optimization_steps = int(
-            len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
-        if args.local_rank != -1:
-            num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
-
-    # Prepare model, download BERT for sequence classification
-    # create cache folder so the model is only downloaded when the script is run for the first time on the machine
-    cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(TRANSFORMERS_CACHE),
-                                                                   'distributed_{}'.format(
-                                                                       args.local_rank))
-
-    # parameters will be loaded as float 32
-    model = BertForSequenceClassification.from_pretrained(args.bert_model, cache_dir = cache_dir,
-                                                          num_labels = num_labels)
-
-    # if specified, cast the model to float 16 datatype
-    if args.fp16:
-        model.half()
-
-    model.to(device)
-
-    # if specified, enable distributed training on GPUs using torch.nn.DataParallel(model)
-    if args.local_rank != -1:
-        try:
-            from apex.parallel import DistributedDataParallel as DDP
-        except ImportError:
-            raise ImportError(
-                "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
-
-        model = DDP(model)
-    elif n_gpu > 1:
-        model = torch.nn.DataParallel(model)  # model = torch.nn.parallel.data_parallel(model)
-
-    # Prepare optimizer
-    param_optimizer = list(model.named_parameters())
-
-    # add all parameters except decay?
-    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-    # TODO unclear: set weight decay to zero?
-    optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-         'weight_decay': 0.01},
-        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)],
-         'weight_decay': 0.0}]
-
-    # use other optimizers if using float16 data type
-    if args.fp16:
-        raise NotImplementedError('Using fp16, doublecheck all settings!')
-        # try:
-        #     from apex.optimizers import FP16_Optimizer
-        #     from apex.optimizers import FusedAdam
-        # except ImportError:
-        #     raise ImportError(
-        #         "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
-        #
-        # optimizer = FusedAdam(optimizer_grouped_parameters, lr = args.learning_rate,
-        #                       bias_correction = False, max_grad_norm = 1.0)
-        # if args.loss_scale == 0:
-        #     optimizer = FP16_Optimizer(optimizer, dynamic_loss_scale = True)
-        # else:
-        #     optimizer = FP16_Optimizer(optimizer, static_loss_scale = args.loss_scale)
-        # warmup_linear = WarmupLinearSchedule(warmup = args.warmup_proportion,
-        #                                      t_total = num_train_optimization_steps)
-
-    else:
-        # IMPORTANT: This is the original BERT Adam optimizer
-        # optimizer = BertAdam(optimizer_grouped_parameters,
-        #                      lr=args.learning_rate,
-        #                      warmup=args.warmup_proportion,
-        #                      t_total=num_train_optimization_steps)
-        # IMPORTANT: To reproduce the old BertAdam specific behavior set correct_bias=False
-        # Using the more recent AdamW, you need to add some things manually:
-        # linear warmup scheduler for learning rate + gradient clipping
-        optimizer = AdamW(optimizer_grouped_parameters, lr = args.learning_rate,
-                          correct_bias = False)
-        linear_warmup_lr = get_linear_schedule_with_warmup(optimizer,
-                                                           num_warmup_steps = args.warmup_proportion * num_train_optimization_steps,
-                                                           num_training_steps = num_train_optimization_steps)
-
-
+    #
+    # tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case = args.do_lower_case)
+    #
+    # # get training examples + create NEGATIVE/CORRUPT triples for each of it
+    #
+    # train_examples = None
+    # num_train_optimization_steps = 0
+    # if args.do_train:
+    #     #############------------- START TRAINING ---------------#################
+    #
+    #     START_TRAINING = time.perf_counter()
+    #     logger.info(
+    #         'Creating examples with negative sampling from the training split of the dataset.')
+    #     train_examples = processor.get_train_examples(args.data_dir)
+    #     num_train_optimization_steps = int(
+    #         len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
+    #     if args.local_rank != -1:
+    #         num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
+    #
+    #
+    #  # parameters will be loaded as float 32
+    #     # Prepare model, download BERT for sequence classification
+    #     # create cache folder so the model is only downloaded when the script is run for the first time on the machine
+    #     cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(TRANSFORMERS_CACHE),
+    #                                                                    'distributed_{}'.format(
+    #                                                                        args.local_rank))
+    #
+    #     model = BertForSequenceClassification.from_pretrained(args.bert_model, cache_dir = cache_dir,
+    #                                                       num_labels = num_labels)
+    #
+    #     # if specified, cast the model to float 16 datatype
+    #     if args.fp16:
+    #         model.half()
+    #
+    #     model.to(device)
+    #
+    # # if specified, enable distributed training on GPUs using torch.nn.DataParallel(model)
+    # if args.local_rank != -1:
+    #     try:
+    #         from apex.parallel import DistributedDataParallel as DDP
+    #     except ImportError:
+    #         raise ImportError(
+    #             "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
+    #
+    #     model = DDP(model)
+    # elif n_gpu > 1:
+    #     model = torch.nn.DataParallel(model)  # model = torch.nn.parallel.data_parallel(model)
+    #
+    # # Prepare optimizer
+    # param_optimizer = list(model.named_parameters())
+    #
+    # # add all parameters except decay?
+    # no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+    # # TODO unclear: set weight decay to zero?
+    # optimizer_grouped_parameters = [
+    #     {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+    #      'weight_decay': 0.01},
+    #     {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)],
+    #      'weight_decay': 0.0}]
+    #
+    # # use other optimizers if using float16 data type
+    # if args.fp16:
+    #     raise NotImplementedError('Using fp16, doublecheck all settings!')
+    #     # try:
+    #     #     from apex.optimizers import FP16_Optimizer
+    #     #     from apex.optimizers import FusedAdam
+    #     # except ImportError:
+    #     #     raise ImportError(
+    #     #         "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
+    #     #
+    #     # optimizer = FusedAdam(optimizer_grouped_parameters, lr = args.learning_rate,
+    #     #                       bias_correction = False, max_grad_norm = 1.0)
+    #     # if args.loss_scale == 0:
+    #     #     optimizer = FP16_Optimizer(optimizer, dynamic_loss_scale = True)
+    #     # else:
+    #     #     optimizer = FP16_Optimizer(optimizer, static_loss_scale = args.loss_scale)
+    #     # warmup_linear = WarmupLinearSchedule(warmup = args.warmup_proportion,
+    #     #                                      t_total = num_train_optimization_steps)
+    #
+    # else:
+    #     # IMPORTANT: This is the original BERT Adam optimizer
+    #     # optimizer = BertAdam(optimizer_grouped_parameters,
+    #     #                      lr=args.learning_rate,
+    #     #                      warmup=args.warmup_proportion,
+    #     #                      t_total=num_train_optimization_steps)
+    #     # IMPORTANT: To reproduce the old BertAdam specific behavior set correct_bias=False
+    #     # Using the more recent AdamW, you need to add some things manually:
+    #     # linear warmup scheduler for learning rate + gradient clipping
+    #     optimizer = AdamW(optimizer_grouped_parameters, lr = args.learning_rate,
+    #                       correct_bias = False)
+    #     linear_warmup_lr = get_linear_schedule_with_warmup(optimizer,
+    #                                                        num_warmup_steps = args.warmup_proportion * num_train_optimization_steps,
+    #                                                        num_training_steps = num_train_optimization_steps)
+    #
+    #
     global_step = 0  # ?
-    nb_tr_steps = 0
-    tr_loss = 0  # accumulate training loss?
+    # nb_tr_steps = 0
+    # tr_loss = 0  # accumulate training loss?
 
     # DO THE TRAINING!!!
     if args.do_train:
@@ -965,7 +982,7 @@ def main():
     #     model = BertForSequenceClassification.from_pretrained(args.bert_model,
     #                                                           num_labels = num_labels)
 
-    model.to(device)
+        model.to(device)
 
     if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
 
@@ -1039,7 +1056,17 @@ def main():
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
 
+
+    # IMPORTANT: calculation of link prediction metrics hapens here!
     if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+
+
+        # Load a trained model and vocabulary that you have fine-tuned
+        model = BertForSequenceClassification.from_pretrained(os.path.join(args.output_dir, 'trained_model'),
+                                                              num_labels = num_labels)
+        tokenizer = BertTokenizer.from_pretrained(os.path.join(args.output_dir, 'trained_model'),
+                                                  do_lower_case = args.do_lower_case)
+        model.to(device)
 
         train_triples = processor.get_train_triples(args.data_dir)
         dev_triples = processor.get_dev_triples(args.data_dir)
@@ -1068,12 +1095,7 @@ def main():
         eval_sampler = SequentialSampler(eval_data)
         eval_dataloader = DataLoader(eval_data, sampler = eval_sampler,
                                      batch_size = args.eval_batch_size)
-        # Load a trained model and vocabulary that you have fine-tuned
-        model = BertForSequenceClassification.from_pretrained(args.output_dir,
-                                                              num_labels = num_labels)
-        tokenizer = BertTokenizer.from_pretrained(args.output_dir,
-                                                  do_lower_case = args.do_lower_case)
-        model.to(device)
+
         model.eval()
         eval_loss = 0
         nb_eval_steps = 0
@@ -1101,7 +1123,7 @@ def main():
 
         eval_loss = eval_loss / nb_eval_steps
         preds = preds[0]
-        print(preds, preds.shape)
+        #print(preds, preds.shape)
 
         all_label_ids = all_label_ids.numpy()
 
@@ -1120,8 +1142,8 @@ def main():
             for key in sorted(result.keys()):
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
-        print("Triple classification acc is : ")
-        print(metrics.accuracy_score(all_label_ids, preds))
+        #print("Triple classification acc is : ")
+        #print(metrics.accuracy_score(all_label_ids, preds))
 
         # run link prediction
         ranks = []
@@ -1174,11 +1196,16 @@ def main():
                     hits_right[hits_level].append(0.0)
     
         '''
+        test_triple_count = 0
+
         for test_triple in test_triples:
+            logger.debug(
+                f'Calculating rank for triple #{test_triple_count + 1} of {len(test_triples)}')
+            start_time_test_triple = time.perf_counter()
             head = test_triple[0]
             relation = test_triple[1]
             tail = test_triple[2]
-            # print(test_triple, head, relation, tail)
+            logger.debug(f'Current test triple: {head, relation, tail}')
 
             head_corrupt_list = [test_triple]
             for corrupt_ent in entity_list:
@@ -1189,8 +1216,12 @@ def main():
                         # may be slow
                         head_corrupt_list.append(tmp_triple)
 
+            logger.info('######### Calculating rank head of current test triple #########')
+            logger.debug(f'Length of head_corrupt list is: {len(head_corrupt_list)}')
+
             tmp_examples = processor._create_examples(head_corrupt_list, "test", args.data_dir)
-            print(len(tmp_examples))
+            test_triple_as_text = f'{tmp_examples[0].text_a} | {tmp_examples[0].text_b} | {tmp_examples[0].text_c}'
+            logger.debug(f'Current test triple as text is: {test_triple_as_text}')
             tmp_features = convert_examples_to_features(tmp_examples, label_list,
                                                         args.max_seq_length, tokenizer,
                                                         print_info = False)
@@ -1238,7 +1269,7 @@ def main():
             # print(argsort1)
             argsort1 = argsort1.cpu().numpy()
             rank1 = np.where(argsort1 == 0)[0][0]
-            print('left: ', rank1)
+            logger.info(f'Rank head for current triple: {rank1}')
             ranks.append(rank1 + 1)
             ranks_left.append(rank1 + 1)
             if rank1 < 10:
@@ -1252,6 +1283,9 @@ def main():
                     if tmp_triple_str not in all_triples_str_set:
                         # may be slow
                         tail_corrupt_list.append(tmp_triple)
+
+            logger.info('######### Calculating rank tail of current test triple #########')
+            logger.debug(f'Length of tail_corrupt list is: {len(tail_corrupt_list)}')
 
             tmp_examples = processor._create_examples(tail_corrupt_list, "test", args.data_dir)
             # print(len(tmp_examples))
@@ -1297,15 +1331,17 @@ def main():
             _, argsort1 = torch.sort(rel_values, descending = True)
             argsort1 = argsort1.cpu().numpy()
             rank2 = np.where(argsort1 == 0)[0][0]
+            logger.info(f'Rank tail for current triple: {rank2}')
+
             ranks.append(rank2 + 1)
             ranks_right.append(rank2 + 1)
-            print('right: ', rank2)
-            print('mean rank until now: ', np.mean(ranks))
+            logger.info(f'mean rank until now:  {np.mean(ranks)}')
+
             if rank2 < 10:
                 top_ten_hit_count += 1
-            print("hit@10 until now: ", top_ten_hit_count * 1.0 / len(ranks))
+            logger.info(f"hit@10 until now:  {top_ten_hit_count * 1.0 / len(ranks)}")
 
-            file_prefix = str(args.data_dir[7:]) + "_" + str(args.train_batch_size) + "_" + str(
+            file_prefix = "FB15k-237_test_" + str(args.train_batch_size) + "_" + str(
                 args.learning_rate) + "_" + str(args.max_seq_length) + "_" + str(
                 args.num_train_epochs)
             # file_prefix = str(args.data_dir[7:])
@@ -1328,16 +1364,24 @@ def main():
                     hits[hits_level].append(0.0)
                     hits_right[hits_level].append(0.0)
 
-        for i in [0, 2, 9]:
-            logger.info('Hits left @{0}: {1}'.format(i + 1, np.mean(hits_left[i])))
-            logger.info('Hits right @{0}: {1}'.format(i + 1, np.mean(hits_right[i])))
-            logger.info('Hits @{0}: {1}'.format(i + 1, np.mean(hits[i])))
-        logger.info('Mean rank left: {0}'.format(np.mean(ranks_left)))
-        logger.info('Mean rank right: {0}'.format(np.mean(ranks_right)))
-        logger.info('Mean rank: {0}'.format(np.mean(ranks)))
-        logger.info('Mean reciprocal rank left: {0}'.format(np.mean(1. / np.array(ranks_left))))
-        logger.info('Mean reciprocal rank right: {0}'.format(np.mean(1. / np.array(ranks_right))))
-        logger.info('Mean reciprocal rank: {0}'.format(np.mean(1. / np.array(ranks))))
+            end_time_test_triple = time.perf_counter()
+            runtime_for_this_triple = round((end_time_test_triple - start_time_test_triple), 2)
+            logger.info(
+                f'Rank calculation for current triple took {runtime_for_this_triple} seconds.')
+            test_triple_count += 1
+
+        ### Calculate all link prediction metrics after having gone through all test triples
+        # Log hits @1, @3, @5 and @10
+        for i in [0, 2, 4, 9]:
+            logger.info(f'Hits head @{i + 1}: {np.mean(hits_left[i])}')
+            logger.info(f'Hits tail @{i + 1}: {np.mean(hits_right[i])}')
+            logger.info(f'Hits both @{i + 1}: {np.mean(hits[i])}')
+        logger.info(f'Mean rank head: {np.mean(ranks_left)}')
+        logger.info(f'Mean rank tail: {np.mean(ranks_right)}')
+        logger.info(f'Mean rank both: {np.mean(ranks)}')
+        logger.info(f'Mean reciprocal rank head: {np.mean(1. / np.array(ranks_left))}')
+        logger.info(f'Mean reciprocal rank tail: {np.mean(1. / np.array(ranks_right))}')
+        logger.info(f'Mean reciprocal rank both: {np.mean(1. / np.array(ranks))}')
 
 
 if __name__ == "__main__":
