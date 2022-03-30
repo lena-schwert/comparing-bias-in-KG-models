@@ -19,6 +19,7 @@ dependencies:
 #  - tqdm
   - enlighten  # 21.2. for adding progress to logging file
   - ignite  # 20.1.22: necessary for running Keidar code
+  - graphvite # 24.3.22: conda install -c milagraph -c conda-forge graphvite
   - pip
   - pip:
     - pykeen==1.6.0

@@ -34,3 +34,27 @@ def actualsize(input_obj):
         output = f'{memory_size} MB'
     output = f'{memory_size} Bytes'
     return output
+
+
+# source: https://github.com/huggingface/transformers/issues/95
+
+# for a given pytorch model, check whether parameters have been changed at all by training
+
+import copy
+from transformers import BertModel
+
+bert = BertModel.from_pretrained('bert-base-uncased')
+layer = bert.embeddings
+frozen_parameters = {}
+
+# Copy tensors
+for name, p in layer.named_parameters():
+    frozen_parameters[name] = copy.deepcopy(p.data) # Freeze in order to be able to compare later
+
+# Do stuff ...
+
+# Check if the value of the tensors have been updated
+for name, p in layer.named_parameters():
+    updated = (frozen_parameters[name] != p.data).any().cpu().detach().numpy()
+
+    print(f"Layer '{name}' has been updated? {'yes' if updated else 'no'}")
