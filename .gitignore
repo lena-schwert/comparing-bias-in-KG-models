@@ -9,3 +9,4 @@
 /.owncloudsync.log
 *.sync_*
 *.pyc
+/trained_models/KG_only/graphvite_pretrained_W5M/transe_wikidata5m.pkl
