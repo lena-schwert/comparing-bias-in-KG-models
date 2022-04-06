@@ -11,7 +11,9 @@ import argparse
 import numpy as np
 # 3rd part modules
 import pandas as pd
+import pykeen
 from pykeen.triples import TriplesFactory
+from pykeen.datasets.base import PathDataset
 
 
 # %% My custom helper functions across projects
@@ -148,7 +150,7 @@ def get_triples_df(name_of_dataset_processed):
     if name_of_dataset_processed.lower() == 'wikidata5m':
         # file names: e.g. wikidata5m_all_triplets.txt
         # each line is a triple: Q29387131	P31	Q5 (tab-separated)
-        dataset_folder = os.path.join(base_path, '../data/SOTA_datasets_raw_downloads/Wikidata5M/')
+        dataset_folder = os.path.join(base_path, '../data/raw/SOTA_datasets_raw_downloads/Wikidata5M/')
         file_name = 'wikidata5m_all_triplets.txt'
         triples_df = pd.read_csv(os.path.join(dataset_folder, file_name), sep = '\t',
                                  names = ['head_entity', 'relation', 'tail_entity'])
@@ -221,12 +223,113 @@ def add_QID_labels_as_dfcolumn():
     raise NotImplementedError()
 
 
+class HumanWikidata5M_pykeen(PathDataset):
+    """
+    This class is based on the file wiki5m/Wiki5m.py from https://github.com/mianzg/kgbiasdetec
+
+    This class inherits from pykeen's PathDataset that does lazy loading.
+    I provide paths to 3 existing train-validation-test split tsv files on disk
+    instead of doing the split here in this class to make sure the same data is always used.
+    --> Reproducibility!
+
+    Internally, PathDataset then uses TriplesFactory.from_path() + triples.utils.load_triples()
+    to create the data objects pykeen needs internally.
+
+    This expects TSV files with three ordered columns: head, relation, tail!!!
+    """
+
+    def __init__(self, base_path_host: str, rel_training_set_path: str,
+                 rel_validation_set_path: str, rel_test_set_path: str, **kwargs):
+        self.name = "HumanWikidata5M"
+        self.base_path_host = base_path_host
+        # TODO change this to the final location in processed folder
+        self.location_of_mapping_files = os.path.join(self.base_path_host, 'data/interim/')
+
+        # these are default, required attributes implemented by PathDataset
+        self.training_path = os.path.join(base_path_host, rel_training_set_path)
+        self.validation_path = os.path.join(base_path_host, rel_validation_set_path)
+        self.testing_path = os.path.join(base_path_host, rel_test_set_path)
+        self.create_inverse_triples = False
+        self.load_triples_kwargs = None
+        # after this line, pykeen actually creates the dataset!
+        # TripelesFactory are created: self.training, self.validation self.testing
+        logging.debug('Dataset has been created.')
+
+        # TODO unclear why this is really necessary or whether it could be omitted...
+        # this makes all attributes from the PathDataset class accessible
+        # to my HumanWikidata5M_pykeen class (adopted from Keidar repo
+        # necessary to pass PathDataset's mandatory parameters here like this
+        # needs to be down here, because self.bla arguments need to be created first
+        super().__init__(training_path = self.training_path, testing_path = self.validation_path,
+                         validation_path = self.testing_path, **kwargs)
+
+        # simple check whether the TriplesFactories were actually created
+        assert type(
+            self.training) == pykeen.triples.TriplesFactory, "Training dataset has not been correctly loaded as TriplesFactory!"
+        assert type(
+            self.validation) == pykeen.triples.TriplesFactory, "Validation dataset has not been correctly loaded as TriplesFactory!"
+        assert type(
+            self.testing) == pykeen.triples.TriplesFactory, "Testing dataset has not been correctly loaded as TriplesFactory!"
+        logging.debug('Wikidata5M passed all assertions.')
+
+    def _load(self) -> None:
+        """
+        Override this pykeen method, such that the entity_to_ID label is not
+        automatically created but imported from a file on disk.
+
+        This is useful for increased reproducibility, so the mapping is not automatically created!
+
+        Informed by options for function TriplesFactory.from_path()
+        """
+        # extract the first 'ID' and the second 'num ID' column from the mapping files
+        # final format: {'Q100': 0},  {'P21': 0}
+        with open(os.path.join(self.location_of_mapping_files, 'entity_ID_to_numID_to_label_06042022_v1.tsv'), 'r') as f1:
+            entity_to_id_from_disk = {key: int(value) for key, value in (line.split()[0:2] for line in f1)}
+            f1.seek(0)
+            entity_numID_to_label_from_disk = {int(key): value for key, value in (line.split()[1:3] for line in f1)}
+        f1.close()
+        with open(os.path.join(self.location_of_mapping_files, 'relation_ID_to_numID_to_label_06042022_v1.tsv'), 'r') as f2:
+            relation_to_id_from_disk = {key: int(value) for key, value in (line.split()[0:2] for line in f2)}
+            f2.seek(0)
+            relation_numID_to_label_from_disk = {int(key): value for key, value in
+                                                 (line.split()[1:3] for line in f2)}
+        f2.close()
+
+        # all keys should start with P or Q
+        assert len(entity_to_id_from_disk) == sum([True if k.startswith('Q') else False for k, v in entity_to_id_from_disk.items()])
+        assert len(relation_to_id_from_disk) == sum([True if k.startswith('P') else False for k, v in relation_to_id_from_disk.items()])
+
+        self._training = TriplesFactory.from_path(
+            path=self.training_path,
+            create_inverse_triples=self.create_inverse_triples,
+            load_triples_kwargs=self.load_triples_kwargs,
+            entity_to_id = entity_to_id_from_disk,
+            relation_to_id = relation_to_id_from_disk
+        )
+        self._testing = TriplesFactory.from_path(
+            path=self.testing_path,
+            entity_to_id=self._training.entity_to_id,  # share entity index with training
+            relation_to_id=self._training.relation_to_id,  # share relation index with training
+            # do not explicitly create inverse triples for testing; this is handled by the evaluation code
+            create_inverse_triples=False,
+            load_triples_kwargs=self.load_triples_kwargs,
+        )
+
+        # both mapping files should have the same numeric IDs
+        assert list(entity_numID_to_label_from_disk.keys()) == list(self.entity_to_id.values())
+        assert list(relation_numID_to_label_from_disk.keys()) == list(self.relation_to_id.values())
+
+        self.entity_numID_to_label = entity_numID_to_label_from_disk
+        self.relation_numID_to_label = relation_numID_to_label_from_disk
+
+
+
 def create_train_val_test_split_from_single_TSV(train_val_test_split: tuple = (0.8, 0.1, 0.1),
                                                 random_state: int = 42,
                                                 rel_path_to_human_facts_file: str = 'data_preprocessing/wikidata5m_human_facts_subset_complete_040122.tsv'):
     """
     Use this to create train,validation, test files that are read
-    by the Wikidata5M_pykeen class.
+    by the HumanWikidata5M_pykeen class.
 
     This happens completely outside of training for reproducibility purposes!
     Put this in a meaningful folder that is part of the final repo
@@ -245,9 +348,9 @@ def create_train_val_test_split_from_single_TSV(train_val_test_split: tuple = (0
     train, validation, test = tf.split(list(train_val_test_split), random_state = random_state,
                                        method = 'coverage')  # coverage is default, other: cleanup
 
-    file_name_train = 'data_preprocessing/' + f'training_data_{train_val_test_split[0]}_rs{random_state}_{datetime.now().strftime("%d_%m_%Y_%H:%M")}.tsv'
-    file_name_validation = 'data_preprocessing/' + f'validation_data_{train_val_test_split[1]}_rs{random_state}_{datetime.now().strftime("%d_%m_%Y_%H:%M")}.tsv'
-    file_name_test = 'data_preprocessing/' + f'test_data_{train_val_test_split[2]}_rs{random_state}_{datetime.now().strftime("%d_%m_%Y_%H:%M")}.tsv'
+    file_name_train = f'data/interim/training_data_{train_val_test_split[0]}_rs{random_state}_{datetime.now().strftime("%d_%m_%Y_%H:%M")}.tsv'
+    file_name_validation = f'data/interim/validation_data_{train_val_test_split[1]}_rs{random_state}_{datetime.now().strftime("%d_%m_%Y_%H:%M")}.tsv'
+    file_name_test = f'data/interim/test_data_{train_val_test_split[2]}_rs{random_state}_{datetime.now().strftime("%d_%m_%Y_%H:%M")}.tsv'
 
     # save the numpy arrays (bla.triples) as TSV to disk
     np.savetxt(fname = file_name_train, X = train.triples, fmt = '%s', delimiter = '\t')
