@@ -14,7 +14,7 @@ def get_classifier(dataset, target_relation, num_classes, batch_size, embedding_
     embedding_model_path: str, path to trained embedding model using pykeen library
     """
     if classifier_type == 'mlp':
-        from classifier import TargetRelationClassifier
+        from src.bias_measurement.link_prediction_bias.classifier import TargetRelationClassifier
         return TargetRelationClassifier(dataset = dataset,
                                         embedding_model_path = embedding_model_path,
                                         target_relation = target_relation,

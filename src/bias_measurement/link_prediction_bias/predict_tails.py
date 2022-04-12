@@ -9,47 +9,75 @@ import os
 import torch
 from collections import Counter
 from datetime import datetime
+import logging
 
 #### Internal Imports
-from code_from_other_papers.Keidar_automatic_bias_detec.utils import get_classifier, \
-    suggest_relations, remove_infreq_attributes
-from code_from_other_papers.Keidar_automatic_bias_detec.BiasEvaluator import BiasEvaluator
+from src.bias_measurement.link_prediction_bias.utils import get_classifier, remove_infreq_attributes
+from src.bias_measurement.link_prediction_bias.BiasEvaluator import BiasEvaluator
+
+# makes it compatible with logging coming from other sources
+logger = logging.getLogger(__name__)
 
 
 def add_relation_values(dataset, preds_df, bias_relations):
     """
-    Given a dataframe with predictions for the target relation,
-    add the true tail values of the entities and the relations
-    that are being examined for bias evaluation
+    Given a dataframe with predictions for the target relation, add the tail values
+    for each sensitive relation for each human head entity in the preds_df.
+    Adds one column per sensitive relation.
+    Value is either the numeric ID of the tail entity or -1 if the human does not have
+    a fact about this specific sensitive relation.
 
-    dataset: pykeen.Dataset, knowledge graph dataset e.g fb15k-237
-    preds_df: pd.DataFrame, .
-    bias_relations: list of str,
+    dataset: subclass of pykeen.Dataset, knowledge graph dataset e.g HumanWikidata5M_pykeen, FB15k237
+    preds_df: pd.DataFrame,
+    bias_relations: list of str
     """
 
     def get_tail(rel, x):
+        """
+
+        Parameters
+        ----------
+        rel
+        x
+
+        Returns
+        -------
+        The num ID of the corresponding tail entity, or -1 if this
+        """
         try:
             return entity_to_tail[rel][x]
         except KeyError:
             return -1
 
-    # triplets = dataset.testing.get_triples_for_relations(bias_relations)
-    # TODO get_triples_for_relations does not exist for later versions of pykeen
-    triplets_mask = dataset.testing.get_mask_for_relations([bias_relations])
-    triplets = dataset.testing.triples[triplets_mask]
-    triplets = [tr for tr in triplets if dataset.entity_to_id[tr[0]] in preds_df.entity.values]
+    # access the test triples of the dataset which have the bias relations (as string ID triples)
+    bias_relations_triplets_mask = dataset.testing.get_mask_for_relations([bias_relations])
+    bias_relations_triplets = dataset.testing.triples[bias_relations_triplets_mask]
+    # only select the bias_relation facts for which the human head entity is part of preds_df['entity']
+    #bias_relations_triplets = [tr for tr in bias_relations_triplets if dataset.entity_to_id[tr[0]] in preds_df['head_entity'].values]
     entity_to_tail = {}
-    for rel in bias_relations:
-        entity_to_tail[rel] = {}
-    for head, rel, tail in triplets:
-        head_id = dataset.entity_to_id[head]
-        tail_id = dataset.entity_to_id[tail]
+    # for each bias relation, create a dict entry, where:
+    # key = bias relation string, value = empty dict
+    # e.g. {'P21': {}}
+    for bias_rel in [bias_relations]:
+        entity_to_tail[bias_rel] = {}
+    # for each bias relation triple, add the numeric head and tail ID to entity_to_tail
+    # e.g. {'P21': {379209: 1370033, 763948: 1370033}}
+    for head, rel, tail in bias_relations_triplets:
+        # retrieve numeric ID for head and tail entity
+        head_id = dataset.entity_to_id.get(head)
+        tail_id = dataset.entity_to_id.get(tail)
+        # create a dict entry, where key = num ID head, value = num ID tail
         entity_to_tail[rel][head_id] = tail_id
-    for rel in bias_relations:
-        preds_df[rel] = [get_tail(rel, e_id) for e_id in preds_df.entity.values]
-        # count
-        attr_counts = Counter(preds_df[rel])
-        preds_df[rel] = preds_df[rel].apply(lambda x: remove_infreq_attributes(attr_counts, x))
+    # for each bias relation, create a column of numeric ID tail values for the corresponding human head entity
+    for bias_rel in [bias_relations]:
+        # for each human head_entity in preds_df, retrieve the numeric ID for the corresponding tail
+        # value will be -1 if this fact does not exist in the test set
+        # TODO maybe retrieve the sensitive relation facts from the entire dataset instead?
+        preds_df[bias_rel] = [get_tail(bias_rel, head_entity) for head_entity in preds_df['head_entity'].values]
+        # count the occurrence
+        attr_counts = Counter(preds_df[bias_rel])
+        # IMPORTANT: set a threshold for removing facts that are considered too rare
+        #preds_df[rel] = preds_df[rel].apply(lambda x: remove_infreq_attributes(attr_counts, x))
     return preds_df
 
 
@@ -66,13 +94,16 @@ def predict_relation_tails(dataset, trained_classifier, target_test_triplets):
     """
     # create a dataframe from the test triples using the dataset IDs as strings
     preds_df = pd.DataFrame(
-        {'entity': target_test_triplets[:, 0], 'relation': target_test_triplets[:, 1],
+        {'head_entity': target_test_triplets[:, 0], 'relation': target_test_triplets[:, 1],
          'true_tail': target_test_triplets[:, 2], })
     # map the string IDs to pykeens numeric IDs
-    preds_df['entity'] = preds_df['entity'].apply(lambda head: dataset.entity_to_id[head])
+    preds_df['head_entity'] = preds_df['head_entity'].apply(lambda head: dataset.entity_to_id.get(head))
+
+    # doublecheck whether created preds_df does contain any bias facts at all
+    assert preds_df.empty is False
 
     # prepare everything for tail prediction using trained classifier
-    heads = torch.Tensor(preds_df['entity'].values)
+    heads = torch.Tensor(preds_df['head_entity'].values)
     heads = heads.long()
     target_relation = preds_df.relation.loc[0]
     preds_df['pred'] = trained_classifier.predict_tails(heads = heads, relation = target_relation)
@@ -80,6 +111,7 @@ def predict_relation_tails(dataset, trained_classifier, target_test_triplets):
     # map true tails from strings to pykeen IDs
     preds_df['true_tail'] = preds_df['true_tail'].apply(
         lambda tail_entity: dataset.entity_to_id[tail_entity])
+    # map pykeen IDs to classification targets
     preds_df['true_tail'] = preds_df['true_tail'].apply(
         lambda tail_entity: trained_classifier.target2label(tail_entity))
 
@@ -102,26 +134,23 @@ def get_preds_df(dataset, classifier_args, model_args, target_relation, bias_rel
         # If a dataframe already exists, read it instead of creating it
         preds_df = pd.read_csv(preds_df_path)
         del preds_df['Unnamed: 0']
-        print(f"Load predictions dataframe from: {preds_df_path}")
+        logger.info(f"Load predictions dataframe from: {preds_df_path}")
         return preds_df
 
     classifier = get_classifier(dataset = dataset, target_relation = target_relation,
                                 num_classes = classifier_args["num_classes"],
                                 batch_size = classifier_args["batch_size"],
                                 embedding_model_path = model_args['embedding_model_path'],
-                                classifier_type = classifier_args["type"], )
-    # train classifier
+                                classifier_type = classifier_args["type"])
+
+    # train classifier + save it
     if classifier_args["type"] == "mlp":
-        classifier.train(classifier_args['epochs'])
+        classifier.train(classifier_args[
+                             'epochs'])  # model is saved internally by pytorch ignite after last epoch
     elif classifier_args["type"] == "rf":
-        classifier.train()
-
-    # TODO save the trained classifier
-
-
+        classifier.train()  # TODO save the trained classifier
 
     # from all test triples, only select those where the relation is the target relation, here: occupation
-    # TODO get_triples_for_relations does not exist for later versions of pykeen
     target_test_triplets_mask = dataset.testing.get_mask_for_relations([target_relation])
     target_test_triplets = dataset.testing.triples[target_test_triplets_mask]
 
@@ -131,7 +160,7 @@ def get_preds_df(dataset, classifier_args, model_args, target_relation, bias_rel
 
     # save predictions if a path is specified
     if preds_df_path is not None:
-        #preds_df.to_csv(preds_df_path)
+        # preds_df.to_csv(preds_df_path)
         preds_df.to_csv('preds_df_transe_created_by_lena.csv')
     return preds_df
 
@@ -155,7 +184,7 @@ def eval_bias(evaluator, classifier_args, model_args, bias_relations = None, bia
         preds_df = get_preds_df(dataset = dataset, classifier_args = classifier_args,
                                 model_args = model_args, target_relation = target_relation,
                                 bias_relations = bias_relations, preds_df_path = preds_df_path, )
-        print("Got predictions dataframe")
+        logger.info("Got predictions dataframe")
         evaluator.set_predictions_df(preds_df)
     eval_bias = evaluator.evaluate_bias(bias_relations, bias_measures)
     return eval_bias
@@ -196,14 +225,14 @@ if __name__ == '__main__':
     # MODEL_PATH = os.path.join(LOCAL_PATH_TO_EMBEDDING, args.dataset, args.embedding, embedding_model_path_suffix)
     # if args.embedding_path:
     #     MODEL_PATH = args.embedding_path  # override default if specifying a full path
-    print("Load embedding model from: {}".format(MODEL_PATH))
+    logger.info("Load embedding model from: {}".format(MODEL_PATH))
 
     measures = [DemographicParity(), PredictiveParity()]
 
     # Init dataset and relations of interest
     # if args.data
     dataset = FB15k237()
-    target_relation, bias_relations = suggest_relations(args.dataset)
+    target_relation, bias_relations = ('P106', 'P21')
 
     # Init embed model and classifier parameter
     model_args = {'embedding_model_path': MODEL_PATH}
@@ -243,14 +272,14 @@ if __name__ == '__main__':
 
         acc = accuracy_score(preds_df.pred, preds_df.true_tail)
         bacc = balanced_accuracy_score(y_pred = preds_df.pred, y_true = preds_df.true_tail)
-        print(acc)
-        print(bacc)
+        logger.info(acc)
+        logger.info(bacc)
 
     END_TIME = datetime.now()
-    print('Finished calculating bias scores for all models.')
-    print(f'Start time: {START_TIME.strftime("%d.%m.%Y %H:%M")}')
-    print(f'End time: {END_TIME.strftime("%d.%m.%Y %H:%M")}')
-    print(f'Calculation took {END_TIME - START_TIME}')
+    logger.info('Finished calculating bias scores for all models.')
+    logger.info(f'Start time: {START_TIME.strftime("%d.%m.%Y %H:%M")}')
+    logger.info(f'End time: {END_TIME.strftime("%d.%m.%Y %H:%M")}')
+    logger.info(f'Calculation took {END_TIME - START_TIME}')
 
 # %% This code part manually calculates bias for FB15k237
 

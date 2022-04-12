@@ -243,7 +243,7 @@ class HumanWikidata5M_pykeen(PathDataset):
         self.name = "HumanWikidata5M"
         self.base_path_host = base_path_host
         # TODO change this to the final location in processed folder
-        self.location_of_mapping_files = os.path.join(self.base_path_host, 'data/interim/')
+        self.location_of_mapping_files = os.path.join(self.base_path_host, 'data/interim/KG_only_files')
 
         # these are default, required attributes implemented by PathDataset
         self.training_path = os.path.join(base_path_host, rel_training_set_path)
@@ -253,15 +253,15 @@ class HumanWikidata5M_pykeen(PathDataset):
         self.load_triples_kwargs = None
         # after this line, pykeen actually creates the dataset!
         # TripelesFactory are created: self.training, self.validation self.testing
-        logging.debug('Dataset has been created.')
+        logging.debug('Dataset is being created.')
 
         # TODO unclear why this is really necessary or whether it could be omitted...
         # this makes all attributes from the PathDataset class accessible
         # to my HumanWikidata5M_pykeen class (adopted from Keidar repo
         # necessary to pass PathDataset's mandatory parameters here like this
         # needs to be down here, because self.bla arguments need to be created first
-        super().__init__(training_path = self.training_path, testing_path = self.validation_path,
-                         validation_path = self.testing_path, **kwargs)
+        super().__init__(training_path = self.training_path, testing_path = self.testing_path,
+                         validation_path = self.validation_path, **kwargs)
 
         # simple check whether the TriplesFactories were actually created
         assert type(
@@ -283,16 +283,16 @@ class HumanWikidata5M_pykeen(PathDataset):
         """
         # extract the first 'ID' and the second 'num ID' column from the mapping files
         # final format: {'Q100': 0},  {'P21': 0}
-        with open(os.path.join(self.location_of_mapping_files, 'entity_ID_to_numID_to_label_06042022_v1.tsv'), 'r') as f1:
-            entity_to_id_from_disk = {key: int(value) for key, value in (line.split()[0:2] for line in f1)}
+        with open(os.path.join(self.location_of_mapping_files, 'entity_ID_to_numID_to_label_08042022_v1.tsv'), 'r') as f1:
+            entity_to_id_from_disk = {key: int(value) for key, value in (line.strip().split('\t')[0:2] for line in f1)}
             f1.seek(0)
-            entity_numID_to_label_from_disk = {int(key): value for key, value in (line.split()[1:3] for line in f1)}
+            entity_numID_to_label_from_disk = {int(key): value for key, value in (line.strip().split('\t')[1:3] for line in f1)}
         f1.close()
-        with open(os.path.join(self.location_of_mapping_files, 'relation_ID_to_numID_to_label_06042022_v1.tsv'), 'r') as f2:
-            relation_to_id_from_disk = {key: int(value) for key, value in (line.split()[0:2] for line in f2)}
+        with open(os.path.join(self.location_of_mapping_files, 'relation_ID_to_numID_to_label_08042022_v1.tsv'), 'r') as f2:
+            relation_to_id_from_disk = {key: int(value) for key, value in (line.strip().split('\t')[0:2] for line in f2)}
             f2.seek(0)
             relation_numID_to_label_from_disk = {int(key): value for key, value in
-                                                 (line.split()[1:3] for line in f2)}
+                                                 (line.strip().split('\t')[1:3] for line in f2)}
         f2.close()
 
         # all keys should start with P or Q
@@ -323,10 +323,9 @@ class HumanWikidata5M_pykeen(PathDataset):
         self.relation_numID_to_label = relation_numID_to_label_from_disk
 
 
-
-def create_train_val_test_split_from_single_TSV(train_val_test_split: tuple = (0.8, 0.1, 0.1),
-                                                random_state: int = 42,
-                                                rel_path_to_human_facts_file: str = 'data_preprocessing/wikidata5m_human_facts_subset_complete_040122.tsv'):
+def create_train_val_test_split_from_single_TSV(rel_path_to_human_facts_file: str,
+                                                train_val_test_split: tuple = (0.8, 0.1, 0.1),
+                                                random_state: int = 42):
     """
     Use this to create train,validation, test files that are read
     by the HumanWikidata5M_pykeen class.

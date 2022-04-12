@@ -2,9 +2,12 @@
 Wrappers for MLP and random forest classifier, on the task of profession prediction
 """
 # Built-in modules
+import os
 import pprint
 import operator
 from datetime import datetime
+import logging
+import pickle
 
 # Installed modules
 import numpy as np
@@ -16,14 +19,17 @@ from ignite.contrib.handlers import ProgressBar
 # from ignite.contrib.metrics import ROC_AUC
 from ignite.engine import Engine, Events
 from ignite.metrics import Accuracy, Precision, Recall, RunningAverage
+from ignite.handlers import Checkpoint, ModelCheckpoint
 # Torch
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
 
 #### Internal Imports
-from classifier_models import MLP
+from src.bias_measurement.link_prediction_bias.classifier_models import MLP
 
+# makes it compatible with logging coming from other sources
+logger = logging.getLogger(__name__)
 
 class TargetRelationClassifier:
 
@@ -58,9 +64,32 @@ class TargetRelationClassifier:
         self.binary = (num_classes == 2)
         self.set_loss(binary = self.binary)
 
-        # load trained (pykeen) model from path
+        # load trained (pykeen) model from path/pre-trained Graphvite embeddings
         # will be used by: train(), predict_tails()
-        self._link_prediction_model = torch.load(embedding_model_path, map_location = self._device)
+        # IMPORTANT If using graphvite pretrained embeddings, do additional pre-processing
+        # First iteration: use an EasyDict
+        # needed properties: model.embedding_dim, model.entity_embeddings(numeric IDs)+
+
+        # convert QIDs to dataset-specific numeric IDs
+        with open(embedding_model_path, 'rb') as f:
+            graphvite_human_entity_embeddings = pickle.load(f)
+        # convert original numpy arrays to torch tensors
+        HumanWikidata5M_ID_to_embedding = {dataset.entity_to_id.get(key): torch.from_numpy(value) for key, value in
+                                           graphvite_human_entity_embeddings.items()}
+
+        model = {'embedding_dim': list(graphvite_human_entity_embeddings.values())[0].shape[0],
+            # dim = 512
+            'entity_embeddings_dict': HumanWikidata5M_ID_to_embedding}
+
+        # How to get embeddings from it?
+        list_of_IDs = [1372282, 502531]
+
+        selected_embeddings = model.get('entity_embeddings_dict')
+
+        # for pretrained pykeen model:
+        #self._link_prediction_model = torch.load(embedding_model_path, map_location = self._device)
+
+        self._link_prediction_model = model
         # accesses the specific classifier object
         # creates: self._target_relation_classifier
         self.set_target_relation_classifier(model_type, **model_kwargs)
@@ -87,7 +116,9 @@ class TargetRelationClassifier:
             else:
                 hidden_layer_sizes = [256, 16]
             # create list of relevant dimensions
-            all_layer_dims = [self._link_prediction_model.embedding_dim] + hidden_layer_sizes + [output_layer_size]
+            # original code: all_layer_dims = [self._link_prediction_model.embedding_dim] + hidden_layer_sizes + [output_layer_size]
+            all_layer_dims = [self._link_prediction_model.get('embedding_dim')] + hidden_layer_sizes + [
+                output_layer_size]
             # actually instantiate the classifier
             self._target_relation_classifier = MLP(all_layer_dims, device = self._device)
         elif type == 'rf':
@@ -141,22 +172,26 @@ class TargetRelationClassifier:
 
         """
         if relation != self._target:
-            print("predicting tails for wrong relation, prediction is for", self._target)
+            logger.info("predicting tails for wrong relation, prediction is for", self._target)
         heads = heads.to(self._device)
-        head_embeddings = self._link_prediction_model.entity_embeddings(heads)
-        yhat = self._target_relation_classifier(head_embeddings).detach()
+        # original code: head_embeddings = self._link_prediction_model.entity_embeddings(heads)
+        head_embeddings = torch.stack([self._link_prediction_model.get('entity_embeddings_dict')[x.item()] for x in heads])
+        yhat = self._target_relation_classifier(head_embeddings).detach().cpu()
         if self.binary:
-            return torch.round(torch.sigmoid(yhat)).cpu()  # need to put in cpu if trained on gpu...
+            return torch.round(torch.sigmoid(yhat))  # need to put in cpu if trained on gpu...
         else:
-            return torch.argmax(yhat, 1).cpu()
+            return torch.argmax(yhat, 1)
 
     def set_data_loaders(self, target_relation):
         # IMPORTANT possible to extend this to multiple target relations!
         only_keep_relations = [target_relation]
 
-        # new_with_restriction(): only keep facts that have relation = target relation (usually occupation
+        logger.debug(f'Target relation(s) in use: {target_relation}')
+
+        # new_with_restriction(): only keep facts that have relation = target relation (usually occupation)
         self.train_triples_factory = train_triples_factory = self._dataset.training.new_with_restriction(
             relations = only_keep_relations)
+
 
         # create a SHUFFLED pytorch Dataloader using the train triples
         # create_lcwa_instances(): store triples in sparse format
@@ -164,6 +199,7 @@ class TargetRelationClassifier:
         # Out: (array([ 13, 191]), array([0., 0., 0., ..., 0., 0., 0.], dtype=float32))
         self._train_loader = DataLoader(dataset = train_triples_factory.create_lcwa_instances(),
             batch_size = self._batch_size, shuffle = True)
+
         self.test_triples_factory = test_triples_factory = self._dataset.testing.new_with_restriction(
             relations = only_keep_relations)
 
@@ -171,7 +207,16 @@ class TargetRelationClassifier:
         self._test_loader = DataLoader(dataset = test_triples_factory.create_lcwa_instances(),
             batch_size = self._batch_size, shuffle = False)
 
-        # TODO current version 1.6 of pykeen: LCWAInstances does not have attribute labels  # TODO Why are the labels reshaped here?  # self._train_loader.dataset.labels = self._train_loader.dataset.labels.reshape(  #     self._train_loader.dataset.labels.shape[0])  # self._test_loader.dataset.labels = self._test_loader.dataset.labels.reshape(  #     self._test_loader.dataset.labels.shape[0])
+        logger.debug(f'Training triples factory has {self.train_triples_factory.num_triples} triples.')
+        logger.debug(f'Test triples factory has {self.test_triples_factory.num_triples} triples.')
+
+
+        # TODO current version 1.6 of pykeen: LCWAInstances does not have attribute labels
+        # TODO Why are the labels reshaped here?
+        # self._train_loader.dataset.labels = self._train_loader.dataset.labels.reshape(
+        #   self._train_loader.dataset.labels.shape[0])
+        # self._test_loader.dataset.labels = self._test_loader.dataset.labels.reshape(
+        #    self._test_loader.dataset.labels.shape[0])
 
     def set_target_labels(self):
         """
@@ -215,17 +260,35 @@ class TargetRelationClassifier:
         self._pbar = ProgressBar(persist = True, bar_format = '')
         self._pbar.attach(self._trainer, ['loss'])
 
+        # Define what should happen w.r.t. logging + saving before running training!
         @self._trainer.on(Events.EPOCH_COMPLETED)
         def log_test_results(engine):
+            # log to stdout
             self._evaluator.run(self._test_loader)
             metrics = self._evaluator.state.metrics
             self._pbar.log_message(
                 f'Current Time: {datetime.now().strftime("%d.%m.%Y %H:%M")}\nEpoch: {engine.state.epoch} \nMetrics:\n {pprint.pformat(metrics)}')
+            # TODO add logging to Tensorboard here
 
+        # save the model after all epochs are completed
+        model_save_handler = ModelCheckpoint(dirname = os.getcwd(),  # save to existing logging directory
+                                             filename_prefix = 'trained',
+                                             include_self = True,  # save state_dict
+                                             n_saved = None  # keep all saved checkpoints
+                                             )
+        assert issubclass(type(self._target_relation_classifier), nn.Module)
+        self._trainer.add_event_handler(Events.EPOCH_COMPLETED(every = 1), model_save_handler,
+                                        {'model': self._target_relation_classifier,
+                                         'trainer': self._trainer})
+
+        # Run training
         self._trainer.run(self._train_loader, max_epochs = epochs)
+
 
     def process_function(self, engine, batch):
         """
+        This is passed to Engine and stored as self._trainer within  train().
+        This function specifies what should happen to each batch of the dataset.
 
         Parameters
         ----------
@@ -239,14 +302,22 @@ class TargetRelationClassifier:
         self._target_relation_classifier.to(self._device)
         self._target_relation_classifier.train()
 
+        # heads,tails are both torch.Tensor, dtype = int64
         heads, tails = self.get_heads_tails(engine, batch)
         labels = torch.Tensor([self.target2label(tl) for tl in tails])  #
         if self.binary:
             labels = torch.tensor(labels, dtype = torch.float, device = self._device)
         else:
             labels = torch.tensor(labels, dtype = torch.long, device = self._device)
-        embeddings = self._link_prediction_model.entity_embeddings(heads.to(self._device))
-        logits = self._target_relation_classifier(embeddings)
+        # original code: embeddings = self._link_prediction_model.entity_embeddings(heads.to(self._device))
+        # TODO remove hacky code: extract embeddings as list of tensors from the graphvite dict....
+        embeddings = torch.stack([self._link_prediction_model.get('entity_embeddings_dict')[x.item()] for x in heads])
+        # doublecheck the input
+        # TODO why is the below assert statement not true?
+        #assert embeddings.size()[0] == self._batch_size
+        assert embeddings.size()[1] == self._link_prediction_model.get('embedding_dim')
+        assert type(embeddings) == torch.Tensor
+        logits = self._target_relation_classifier(embeddings.to(self._device))
 
         ce_loss = self._loss(logits, labels)
 
@@ -256,6 +327,19 @@ class TargetRelationClassifier:
         return ce_loss.item()
 
     def eval_function(self, engine, batch):
+        """
+        This is passed to Engine and stored as self._evaluator within train().
+        This function specifies what should happen to each batch of the dataset.
+
+        Parameters
+        ----------
+        engine
+        batch
+
+        Returns
+        -------
+
+        """
         self._target_relation_classifier.eval()
         heads, tails = self.get_heads_tails(engine, batch)
 
@@ -263,9 +347,12 @@ class TargetRelationClassifier:
         labels = labels.type(dtype = torch.int64).to(self._device)
 
         with torch.no_grad():
-            embeddings = self._link_prediction_model.entity_embeddings(heads.to(self._device))
+            # original code: embeddings = self._link_prediction_model.entity_embeddings(heads.to(self._device))
+            embeddings = torch.stack(
+                [self._link_prediction_model.get('entity_embeddings_dict')[x.item()] for x in
+                 heads])
 
-            return self._target_relation_classifier.predict(embeddings), labels
+            return self._target_relation_classifier.predict(embeddings.to(self._device)), labels
 
     def get_heads_tails(self, engine, batch):
         """
@@ -408,7 +495,7 @@ class RFRelationClassifier:
 
     def predict_tails(self, heads, relation):
         if relation != self._target:
-            print("predicting tails for wrong relation, prediction is for", self._target)
+            logger.info("predicting tails for wrong relation, prediction is for", self._target)
         heads = heads.to(self._device)
         head_embeddings = self._link_prediction_model.entity_embeddings(heads).detach().numpy()
         yhat = self._target_relation_classifier.predict(head_embeddings)
