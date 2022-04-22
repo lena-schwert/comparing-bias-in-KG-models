@@ -1,0 +1,14 @@
+name: master-thesis-PPC
+dependencies: # With channels after it
+  - python=3.9
+  - pytorch-base  # open-ce
+  - torchvision  #  open-ce
+  - cudatoolkit  # open-ce
+  - tensorboard  # open-ce
+  - torchmetrics  # open-ce
+  - transformers # huggingface
+  - ignite  # pytorch
+  - pandas
+  - scikit-learn  # conda-forge
+  - seaborn
+  # installing pykeen is not possible!

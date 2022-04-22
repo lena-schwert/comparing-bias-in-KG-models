@@ -1,4 +1,4 @@
-name: master-thesis_cuda113
+name: master-thesis
 channels:
   - pytorch
   - conda-forge
@@ -16,10 +16,11 @@ dependencies:
   - requests
   - sparqlwrapper
   - ipython
-#  - tqdm
+  - tqdm
   - enlighten  # 21.2. for adding progress to logging file
-  - ignite  # 20.1.22: necessary for running Keidar code
-  - graphvite # 24.3.22: conda install -c milagraph -c conda-forge graphvite
+  - ignite=0.4.8  # 20.1.22: necessary for running Keidar code
+ # - graphvite # 24.3.22: conda install -c milagraph -c conda-forge graphvite
+  - easydict  # 8.4.2022 necessary for unpickling the pre-trained Graphvite embeddings
   - pip
   - pip:
     - pykeen==1.6.0

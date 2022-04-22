@@ -1,0 +1,27 @@
+name: master-thesis-PPC
+channels:
+  - https://ftp.osuosl.org/pub/open-ce/current/
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - https://ftp.osuosl.org/pub/open-ce/current::pytorch
+  - https://ftp.osuosl.org/pub/open-ce/current::torchvision  #  11.1. to run MNIST as GPU test
+  - https://ftp.osuosl.org/pub/open-ce/current::cudatoolkit=11.2 # 9.4.22 newest version available on open-ce
+  - huggingface::transformers=4.15  # depends on pytorch, pure Python
+  - pandas  # depends on numpy, scipy
+  - scikit-learn=1.0
+  - https://ftp.osuosl.org/pub/open-ce/current::tensorboard
+  - https://ftp.osuosl.org/pub/open-ce/current::torchmetrics  # depends on pytorch
+  - seaborn
+  - ipython
+  - tqdm
+  - enlighten  # 21.2. for adding progress to logging file
+  - ignite=0.4.8  # depends on pytorch, 20.1.22: necessary for running Keidar code, conda install ignite -c pytorch
+  - easydict  # 8.4.2022 necessary for unpickling the pre-trained Graphvite embeddings
+  - pip
+  - pip:
+    - pykeen==1.6.0  # depends on pytorch
+
+ 

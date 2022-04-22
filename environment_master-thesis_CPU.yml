@@ -15,9 +15,10 @@ dependencies:
   - requests
   - sparqlwrapper
   - ipython
-  #- tqdm
+  - tqdm
   - enlighten  # 21.2. for adding progress to logging file
-  - ignite  # 20.1.22: necessary for running Keidar code, conda install ignite -c pytorch
+  - ignite=0.4.8  # 20.1.22: necessary for running Keidar code, conda install ignite -c pytorch
+  - easydict  # 8.4.2022 necessary for unpickling the pre-trained Graphvite embeddings
   - pip
   - pip:
     - pykeen==1.6.0

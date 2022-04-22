@@ -9,6 +9,21 @@ import matplotlib.pyplot as plt
 BASE_PATH_HOST = set_base_path_based_on_host()
 improve_pandas_viewing_options()
 
+
+# %% What are the most frequently occurring relations in the human subgraph?
+
+pd.read_csv('wikidata5m_human_facts_subset_complete_050122.tsv')
+
+relation_counts = human_triples_subset['relation'].value_counts()
+
+# not much too see, too many small counts
+relation_counts.plot.bar()
+relation_counts[relation_counts >= 10000].plot.bar(
+    title = 'Relations of human entities that have \n at least 10,000 occurrences in Wikidata5M')
+
+plt.show()
+
+
 # %% What are the most common occupations?
 
 # option A: take the tail value counts based on wikidata5m_all_triplets.txt
@@ -32,3 +47,5 @@ k = 50
 top_k_occupations = W5M_occupations.head(k)
 
 top_k_occupations.to_csv('top_50_occupations_W5M_human_facts_8.2.2022.csv')
+
+
