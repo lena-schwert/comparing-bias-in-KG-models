@@ -10,27 +10,31 @@ import seaborn as sns
 
 from SPARQLWrapper import SPARQLWrapper, JSON
 
+from src.utils import set_base_path_based_on_host
+
 pd.set_option('display.max_columns', 1000)
 pd.set_option('display.width', 1000)
 pd.set_option('display.min_rows', 10)
 pd.set_option('display.max_rows', 100)
+
+BASE_PATH_HOST = set_base_path_based_on_host()
 
 # %% import spreadsheet sensitive relation encoding as pandas dataframe
 
 # file from 22.10. includes Wikidata P-IDs and their encoding by Wikidatasets-human
 # file from 25.10. additionally includes OpenKE IDs
 # or use target relations dataset
-sensitive_properties = pd.read_csv(
-    '/home/lena/git/master_thesis_bias_in_NLP/exploration/relationship_counts/sensitive_Wikidata_relations_25.10.2021.csv',
-    na_values = "NA",
-    dtype = {'P_ID': str, 'wikidata_label': str, 'sensitive_attribute': 'category'})
+sensitive_properties = pd.read_csv(os.path.join(BASE_PATH_HOST,
+                                                'exploration/relationship_counts/sensitive_Wikidata_relations_25.10.2021.csv'),
+                                   na_values = "NA", dtype = {'P_ID': str, 'wikidata_label': str,
+                                                              'sensitive_attribute': 'category'})
 # this is necessary to cast "Wikidatasets_ID" to Int64 and labels to pandas string type
 sensitive_properties = sensitive_properties.convert_dtypes()
 
-target_properties = pd.read_csv(
-    '/home/lena/git/master_thesis_bias_in_NLP/exploration/relationship_counts/target_Wikidata_relations_25.10.2021.csv',
-    na_values = "NA",
-    dtype = {'P_ID': str, 'wikidata_label': str, 'sensitive_attribute': 'category'})
+target_properties = pd.read_csv(os.path.join(BASE_PATH_HOST,
+                                             'exploration/relationship_counts/target_Wikidata_relations_25.10.2021.csv'),
+                                na_values = "NA", dtype = {'P_ID': str, 'wikidata_label': str,
+                                                           'sensitive_attribute': 'category'})
 # this is necessary to cast "Wikidatasets_ID" to Int64 and labels to pandas string type
 target_properties = target_properties.convert_dtypes()
 
@@ -55,22 +59,33 @@ for id, row in all_properties_df.iterrows():
 all_properties_df.drop(to_delete, inplace = True)
 all_properties_df.reset_index(inplace = True, drop = True)
 
+
 # %% Utility functions for making relation counts
 
 
 def get_triples_df(name_of_dataset_processed):
     # do specific things for different datasets, if required
+    if name_of_dataset_processed.lower() == 'humanwikidata5m':
+        # each line is a triple: Q29387131	P31	Q5 (tab-separated)
+        dataset_folder = os.path.join(BASE_PATH_HOST, 'data/interim')
+        triples_df = pd.read_csv(os.path.join(dataset_folder,
+                                              'wikidata5m_human_facts_with_binary_gender_added_01042022_v3.tsv'),
+                                 sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
+        property_encoding_ID = 'P_ID'
+
     if name_of_dataset_processed.lower() == 'wikidata5m':
         # file names: e.g. wikidata5m_all_triplets.txt
         # each line is a triple: Q29387131	P31	Q5 (tab-separated)
-        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/SOTA_datasets_raw_downloads/Wikidata5M/'
+        dataset_folder = os.path.join(BASE_PATH_HOST,
+                                      'data/raw/SOTA_datasets_raw_downloads/Wikidata5M/')
         file_name = 'wikidata5m_all_triplets.txt'
-        triples_df = pd.read_csv(os.path.join('/home/lena/git/master_thesis_bias_in_NLP/data/interim/wikidata5m_human_facts_subset_complete_050122.tsv'), sep = '\t',
-                                 names = ['head_entity', 'relation', 'tail_entity'])
+        triples_df = pd.read_csv(os.path.join(BASE_PATH_HOST,
+                                              'data/interim/wikidata5m_human_facts_subset_complete_050122_v1.tsv'),
+                                 sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
         property_encoding_ID = 'P_ID'
 
     elif name_of_dataset_processed.lower() == 'wikidatasets-humans':
-        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
+        dataset_folder = os.path.join(BASE_PATH_HOST, 'data/raw/Wikidatasets_humans/')
         # 44 million rows, needs 1GB RAM, rows are integers only
         # contains all triples where the tail entity is no human
         attributes_df = pd.read_csv(os.path.join(dataset_folder, 'attributes.tsv'), sep = '\t',
@@ -92,7 +107,7 @@ def get_triples_df(name_of_dataset_processed):
         property_encoding_ID = 'Wikidatasets_ID'
 
     elif name_of_dataset_processed.lower() == "openke":
-        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/OpenKE-Wikidata/knowledge graphs/'
+        dataset_folder = os.path.join(BASE_PATH_HOST, 'data/raw/OpenKE-Wikidata/knowledge graphs/')
         # each line is a triple: 0 1 0 (tab-separated)
         # 69 million rows, needs 1.5GB RAM, rows are integers only (same as Wikidatasets)
         # column ordering mentioned on Github
@@ -102,7 +117,7 @@ def get_triples_df(name_of_dataset_processed):
         property_encoding_ID = 'OpenKE_ID'
 
     elif name_of_dataset_processed.lower() == 'codex-l' or name_of_dataset_processed.lower() == 'codex-m' or name_of_dataset_processed.lower() == 'codex-s':
-        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Codex_S_M_L/triples/'
+        dataset_folder = os.path.join(BASE_PATH_HOST, 'data/raw/Codex_S_M_L/triples/')
         train_triples = pd.read_csv(
             os.path.join(dataset_folder, name_of_dataset_processed.lower(), 'train.txt'),
             sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
@@ -138,7 +153,7 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
         number_of_human_entities = triples_df[(triples_df['relation'] == 'P31') & (triples_df[
                                                                                        'tail_entity'] == 'Q5')].__len__()  # 1519261 rows  # How many times does "... subclass of human" appear?  # can be neglected!  # triples_df[(triples_df['relation'] == 'P279') & (triples_df['tail_entity'] == 'Q5')]  # 84 rows
     elif name_of_dataset_processed == 'wikidatasets-humans':
-        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
+        dataset_folder = os.path.join(BASE_PATH_HOST, 'data/Wikidatasets_humans/')
         triples_df, lookup_column_for_filtering = get_triples_df(name_of_dataset_processed)
 
         # How many human entities?
@@ -235,8 +250,10 @@ def load_dataset_return_relations_count(property_encoding_df, name_of_dataset_pr
 # final dataset columns: dataset name, relation, tail value, counts (NA or integer)
 
 list_of_all_datasets = ['Wikidata5M', 'OpenKE', 'Wikidatasets-Humans', 'Codex-L', 'Codex-M',
-                        'Codex-S']
-list_of_all_datasets ='Wikidata5M'
+                        'Codex-S', 'HumanWikidata5M']
+list_of_all_datasets = ['HumanWikidata5M']
+
+assert type(list_of_all_datasets) == list
 
 # create dataframe for storing the results
 results_tail_value_counts = pd.DataFrame(
@@ -251,16 +268,16 @@ for dataset in list_of_all_datasets:
 
     # if necessary, load data-specific ID to Q-ID mapping
     if dataset == 'Wikidatasets-Humans':
-        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/Wikidatasets_humans/'
-        Q_IDs_to_labels = pd.read_csv(os.path.join(dataset_folder, 'entities.tsv'),
-                                      sep = '\t', skiprows = 1,
+        dataset_folder = os.path.join(BASE_PATH_HOST, 'data/Wikidatasets_humans/')
+        Q_IDs_to_labels = pd.read_csv(os.path.join(dataset_folder, 'entities.tsv'), sep = '\t',
+                                      skiprows = 1,
                                       names = ['dataset_id', 'wikidata_qid', 'wikidata_label'])
         Q_IDs_to_labels.drop('wikidata_label', axis = 1, inplace = True)
 
     if dataset == 'OpenKE':
-        dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/OpenKE-Wikidata/knowledge graphs/'
+        dataset_folder = os.path.join(BASE_PATH_HOST, 'data/OpenKE-Wikidata/knowledge graphs/')
         Q_IDs_to_labels = pd.read_csv(os.path.join(dataset_folder, 'entity2id.txt'), sep = '\t',
-                                  names = ['wikidata_qid', 'dataset_id'], skiprows = 1)
+                                      names = ['wikidata_qid', 'dataset_id'], skiprows = 1)
         # make sure that first column is dataset-spcific ID
         new_column_titles = ['dataset_id', 'wikidata_qid']
         Q_IDs_to_labels = Q_IDs_to_labels.reindex(columns = new_column_titles)
@@ -314,7 +331,8 @@ for dataset in list_of_all_datasets:
                     all_properties_df[property_encoding_ID] == relation].item()
                 # retrieve Q-IDs for each of the tail entities using Q_IDs_to_labels
                 # use Index from value counts directly to access Q_IDs
-                relation_Q_IDs = Q_IDs_to_labels['wikidata_qid'][triples_df_only_current_relation_value_counts.index].values
+                relation_Q_IDs = Q_IDs_to_labels['wikidata_qid'][
+                    triples_df_only_current_relation_value_counts.index].values
 
             # add this dataframe to the final results dataframe with dataset + relation name
             number_of_new_rows = len(triples_df_only_current_relation_value_counts)
@@ -339,12 +357,12 @@ for dataset in list_of_all_datasets:
                 relation = all_properties_df['P_ID'].loc[i]
 
             # add a NA row to the results dataframe
-            NA_row_to_add = pd.DataFrame(
-                {'dataset_name': [dataset], 'relation_P_ID': [relation],
-                 'relation_label': [all_properties_df['wikidata_label'][
-                                                               all_properties_df[
-                                                                   'P_ID'] == relation].item()],
-                 'tail_entity_Q_ID': ['NA'], 'tail_entity_label': ['NA'], 'count': [np.nan]})
+            NA_row_to_add = pd.DataFrame({'dataset_name': [dataset], 'relation_P_ID': [relation],
+                                          'relation_label': [all_properties_df['wikidata_label'][
+                                                                 all_properties_df[
+                                                                     'P_ID'] == relation].item()],
+                                          'tail_entity_Q_ID': ['NA'], 'tail_entity_label': ['NA'],
+                                          'count': [np.nan]})
             results_tail_value_counts = pd.concat([results_tail_value_counts, NA_row_to_add])
 
     # free up RAM for next dataset
@@ -359,15 +377,22 @@ results_tail_value_counts = results_tail_value_counts.convert_dtypes()
 print('Collected all counts!')
 print('yay')
 
-# write dataframe to csv/pickle
-results_tail_value_counts.to_csv('tail_value_counts_human_facts_W5M_8.2.2022.csv')
-#results_tail_value_counts.to_pickle('tail_value_counts_all_11.11.2021.pkl')
+# TODO add QID labels from the mapping file
+entity_labels = pd.read_csv(os.path.join(BASE_PATH_HOST,
+                                         'data/interim/KG_only_files/entity_ID_to_numID_to_label_08042022_v1.tsv'),
+                            sep = '\t', names = ['Wikidata_ID', 'num_ID', 'label'])
 
+# filter for count threshold
+counts_geq_5 = results_tail_value_counts.query('count>=5')
+
+# write dataframe to csv/pickle
+results_tail_value_counts.to_csv(os.path.join(BASE_PATH_HOST,
+                                 'exploration/relationship_counts/tail_value_counts_human_facts_HumanW5Mv3_14042022.csv'))
 
 # %% after retrieving all counts for the datasets:
 # map from Q-IDs to English Wikidata labels for human readability
 # USE Wikidatasets-Humans entities.tsv
-dataset_folder = '/home/lena/git/master_thesis_bias_in_NLP/data/raw/Wikidatasets_humans'
+dataset_folder = os.path.join(BASE_PATH_HOST, 'data/raw/Wikidatasets_humans')
 Q_IDs_to_labels = pd.read_csv(os.path.join(dataset_folder, 'entities.tsv'), sep = '\t',
                               skiprows = 1,
                               names = ['Wikidatasets_ID', 'tail_entity_Q_ID', 'tail_entity_label'])
@@ -388,17 +413,19 @@ results_tail_value_counts.columns
 # use 'left' merge to keep row ordering of left dataframe
 results_tail_value_counts.info()  # has 894648 rows, this should be maintained!
 # also 'inner' removes 21,331 rows somehow... (uses intersection of Q-IDs)
-results_tail_value_counts = pd.merge(left = results_tail_value_counts.drop('tail_entity_label', axis = 1), right = Q_IDs_to_labels,
-                on = ['tail_entity_Q_ID'], how = 'left')
+results_tail_value_counts = pd.merge(
+    left = results_tail_value_counts.drop('tail_entity_label', axis = 1), right = Q_IDs_to_labels,
+    on = ['tail_entity_Q_ID'], how = 'left')
 print(results_tail_value_counts)
 
 # reorder columns
-column_ordering = ['dataset_name', 'relation_P_ID', 'relation_label', 'tail_entity_Q_ID', 'tail_entity_label', 'count']
+column_ordering = ['dataset_name', 'relation_P_ID', 'relation_label', 'tail_entity_Q_ID',
+                   'tail_entity_label', 'count']
 results_tail_value_counts = results_tail_value_counts.reindex(columns = column_ordering)
 
 # save to disk
 results_tail_value_counts.to_csv('tail_value_counts_all_11.11.2021.csv')
-#results_tail_value_counts.to_pickle('tail_value_counts_all_11.11.2021.pkl')
+# results_tail_value_counts.to_pickle('tail_value_counts_all_11.11.2021.pkl')
 
 # %% Extract sensitive relation counts from current Wikidata via SPARQL
 
