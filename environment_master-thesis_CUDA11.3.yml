@@ -5,7 +5,7 @@ channels:
   - defaults
 dependencies:
   - python=3.9
-  - pytorch=1.9
+  - pytorch
   - torchvision  # 11.1. to run MNIST as GPU test
   - cudatoolkit=11.3 # newest version 11.3 might not work
   - transformers=4.15
@@ -23,7 +23,7 @@ dependencies:
   - easydict  # 8.4.2022 necessary for unpickling the pre-trained Graphvite embeddings
   - pip
   - pip:
-    - pykeen==1.6.0
+    - pykeen
     - torchmetrics
     - pylustrator  # 17.12.21
     - tensorboard  # 4.1.21
