@@ -158,7 +158,10 @@ class KGProcessor(DataProcessor):
 
     # TODO labels [0,1] are hardcoded
     def get_labels(self, data_dir):
-        """Gets all labels (0, 1) for triples in the knowledge graph."""
+        """Gets all labels (0, 1) for triples in the knowledge graph.
+        label 1: the corresponding triple is true and part of the dataset
+        label 0: the corresponding triple was created by corrupting either head or tail entity
+        """
         return ["0", "1"]
 
     def get_entities(self, data_dir):
@@ -190,16 +193,6 @@ class KGProcessor(DataProcessor):
         """Creates examples for the training and dev sets."""
         # entity to text
         ent2text = {}
-        # access to file entity2text.txt
-        with open(os.path.join(data_dir, "entity2text.txt"), 'r') as f:
-            ent_lines = f.readlines()
-            for line in ent_lines:
-                temp = line.strip().split('\t')
-                # Why is this check necessary?
-                if len(temp) == 2:
-                    # select the second entry = entity as text
-                    end = temp[1]  # .find(',')
-                    ent2text[temp[0]] = temp[1]  # [:end]
 
         # IMPORTANT: I disabled the use of entity2textlong.txt
         # original KG-BERT: only execute this code for FB15K and FB15K-237 datasets
@@ -212,6 +205,18 @@ class KGProcessor(DataProcessor):
                 temp = line.strip().split('\t')
                 # first_sent_end_position = temp[1].find(".")
                 ent2text[temp[0]] = temp[1]  # [:first_sent_end_position + 1]
+
+        else:
+            # access to file entity2text.txt
+            with open(os.path.join(data_dir, "entity2text.txt"), 'r') as f:
+                ent_lines = f.readlines()
+                for line in ent_lines:
+                    temp = line.strip().split('\t')
+                    # Why is this check necessary?
+                    # if len(temp) == 2:
+                    # select the second entry = entity as text
+                    #   end = temp[1]  # .find(',')
+                    ent2text[temp[0]] = temp[1]  # [:end]
 
         # access list of entities from ent2text
         entities = list(ent2text.keys())
@@ -226,14 +231,14 @@ class KGProcessor(DataProcessor):
                 # key = entity,
                 rel2text[temp[0]] = temp[1]
 
-                # Create a set of all the triples in `lines` after concatenating them with `\t` character
+        # Create a set of all the triples in `lines` after concatenating them with `\t` character
         lines_str_set = set(['\t'.join(line) for line in lines])
         examples = []
 
         logging.info('Creating InputExamples, i.e. tokens from entity/relation IDs... ')
         # TODO enable tqdm again!
-        # for (i, line) in enumerate(tqdm(lines)):
-        for (i, line) in enumerate(lines):
+        for (i, line) in enumerate(tqdm(lines)):
+        #for (i, line) in enumerate(lines):
 
             head_ent_text = ent2text[line[0]]
             tail_ent_text = ent2text[line[2]]
@@ -272,7 +277,7 @@ class KGProcessor(DataProcessor):
                     # TODO Might it be better move the random sampling inside the loop?
                     # TODO change this baaack
                     # TODO should be range(5)
-                    for j in range(1):
+                    for j in range(5):
                         tmp_head = ''
                         while True:
                             tmp_ent_list = set(entities)
@@ -302,7 +307,7 @@ class KGProcessor(DataProcessor):
                             # create new TSV-separated triple using new tail entity
                             tmp_triple_str = line[0] + '\t' + line[1] + '\t' + tmp_tail
                             if tmp_triple_str not in lines_str_set:
-                                break
+                               break
                         tmp_tail_text = ent2text[
                             tmp_tail]  # retrieve text version of the corrupt entity
                         # append corrupt/negative example to list of InputExample objects with label 0 = False
@@ -321,8 +326,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
     features = []
     # TODO enable tqdm again!
-    # for (ex_index, example) in enumerate(tqdm(examples)):
-    for (ex_index, example) in enumerate(examples):
+    for (ex_index, example) in enumerate(tqdm(examples)):
+    #for (ex_index, example) in enumerate(examples):
         if ex_index % 10000 == 0 and print_info:
             logging.info("Writing example %d of %d" % (ex_index, len(examples)))
         # TODO remove this when no longer needed, this is a lot!
@@ -586,8 +591,8 @@ def train_and_validate():
 
     # use other optimizers if using float16 data type
     if args.fp16:
-        raise NotImplementedError(
-            'Using fp16, doublecheck all settings!')  # logger.debug('Setting optimizer for float 16 model.')  # try:  #     from apex.optimizers import FP16_Optimizer  #     from apex.optimizers import FusedAdam  # except ImportError:  #     raise ImportError(  #         "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")  #  # optimizer = FusedAdam(optimizer_grouped_parameters, lr = args.learning_rate,  #                       bias_correction = False, max_grad_norm = 1.0)  # if args.loss_scale == 0:  #     optimizer = FP16_Optimizer(optimizer, dynamic_loss_scale = True)  # else:  #     optimizer = FP16_Optimizer(optimizer, static_loss_scale = args.loss_scale)
+        raise NotImplementedError('Using fp16, doublecheck all settings!')
+        # logger.debug('Setting optimizer for float 16 model.')  # try:  #     from apex.optimizers import FP16_Optimizer  #     from apex.optimizers import FusedAdam  # except ImportError:  #     raise ImportError(  #         "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")  #  # optimizer = FusedAdam(optimizer_grouped_parameters, lr = args.learning_rate,  #                       bias_correction = False, max_grad_norm = 1.0)  # if args.loss_scale == 0:  #     optimizer = FP16_Optimizer(optimizer, dynamic_loss_scale = True)  # else:  #     optimizer = FP16_Optimizer(optimizer, static_loss_scale = args.loss_scale)
     #         linear_warmup_lr = get_linear_schedule_with_warmup(
     #             optimizer,
     #             num_warmup_steps = args.warmup_proportion * num_train_optimization_steps,
@@ -607,8 +612,6 @@ def train_and_validate():
         linear_warmup_lr = get_linear_schedule_with_warmup(optimizer,
                                                            num_warmup_steps = args.warmup_proportion * num_train_optimization_steps,
                                                            num_training_steps = num_train_optimization_steps)
-
-
 
     #############------------- PREPARE VALIDATION DATA ---------------#################
 
@@ -646,26 +649,11 @@ def train_and_validate():
         start_time_epoch = time.perf_counter()
         logger.info(f'Epoch {i + 1} has started.')
         ############------------- TRAINING ---------------#################
-        # copy the parameters of the model
-        logger.debug('Saving all named parameters before training the model...')
-        frozen_parameters = {}
-        for name, parameters in model.named_parameters():
-            frozen_parameters[name] = copy.deepcopy(parameters.data)
-
         start_time_epoch_train = time.perf_counter()
         epoch_train_loss = train(train_loader = train_dataloader, model = model,
                                  optimizer = optimizer, lr_warmup = linear_warmup_lr,
                                  num_train_optimization_steps = num_train_optimization_steps)
         end_time_epoch_train = time.perf_counter()
-
-        # check whether the parameters have been changed at all
-        for name, p in model.named_parameters():
-            # return updated = True, if any value for this layer is == True
-            updated = (frozen_parameters[name] != p.data).any().cpu().detach().numpy()
-
-            logger.debug(f"Layer '{name}' has been updated in epoch {i +1}? - {'yes' if updated else 'no'}")
-
-
 
         ############------------- VALIDATION ---------------#################
         # validate the trained model for loss + accuracy
@@ -699,6 +687,15 @@ def train_and_validate():
         # make sure that the values are written to disk immediately
         writer_tb.flush()
 
+        if args.local_rank == -1 or torch.distributed.get_rank() == 0:
+            # Save the trained model, configuration and tokenizer
+            # save model.bin, config.json and vocab.txt to disk
+            model.save_pretrained(os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, f'trained_model_{i + 1}'),
+                                  save_config = True)
+            tokenizer.save_vocabulary(
+                os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'))
+            logger.info('Trained model saved to disk.')
+
         logger.info(f'Saved results of epoch {i + 1} to disk.')
         logger.info(
             f'Epoch {i + 1} of {int(args.num_train_epochs)} ran for {round((end_time_epoch - start_time_epoch_train) / 60, 2)} minutes.')
@@ -707,13 +704,13 @@ def train_and_validate():
     logger.info('################# Finished TRAINING #################')
 
     # save the model (if not running distributed training)
-    if args.local_rank == -1 or torch.distributed.get_rank() == 0:
-        # Save the trained model, configuration and tokenizer
-        # save model.bin, config.json and vocab.txt to disk
-        model.save_pretrained(os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'),
-                              save_config = True)
-        tokenizer.save_vocabulary(os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'))
-        logger.info('Trained model saved to disk.')
+    # if args.local_rank == -1 or torch.distributed.get_rank() == 0:
+    #     # Save the trained model, configuration and tokenizer
+    #     # save model.bin, config.json and vocab.txt to disk
+    #     model.save_pretrained(os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'),
+    #                           save_config = True)
+    #     tokenizer.save_vocabulary(os.path.join(DIRECTORY_FOR_SAVING_OR_LOADING, 'trained_model'))
+    #     logger.info('Trained model saved to disk.')
 
     writer_tb.flush()
     writer_tb.close()
@@ -735,10 +732,6 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
 
     loss_fct = CrossEntropyLoss()
 
-    # IMPORTANT doublecheck that all layers are actually not frozen!
-    for name, param in model.named_parameters():
-        logger.debug(f'Layer {name} has requires_grad = {param.requires_grad}')
-
     for step, batch in enumerate(tqdm(train_loader, desc = "Iteration")):
         batch = tuple(t.to(device) for t in batch)  # unpack and send each tensor to device
         input_ids, input_mask, segment_ids, label_ids = batch  # unpack the batch
@@ -753,15 +746,13 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
         # view(-1) makes the tensor shape flexible
         loss = loss_fct(logits.view(-1, NUM_LABELS), label_ids.view(-1))
 
-        model_output = model(input_ids = input_ids, attention_mask = input_mask,
-                       token_type_ids = segment_ids, labels = input_ids,
-                       output_hidden_states = False)
+        # model_output = model(input_ids = input_ids, attention_mask = input_mask,
+        #                token_type_ids = segment_ids, labels = input_ids,
+        #                output_hidden_states = False)
         #
         # model_output_with_loss = model(input_ids = input_ids, attention_mask = input_mask,
         #                token_type_ids = segment_ids, labels = None,
         #                output_hidden_states = False)
-
-        # TODO calculate loss manually
 
         if n_gpu > 1:
             loss = loss.mean()  # mean() to average on multi-gpu.
@@ -794,11 +785,6 @@ def train(train_loader, model, optimizer, num_train_optimization_steps, lr_warmu
             optimizer.step()
             # logger.debug(f'Current learning rate is: {optimizer.param_groups[0]["lr"]}')
             lr_warmup.step()
-
-            # IMPORTANT: debugging, look at gradients
-            for parameter_name, values in model.named_parameters():
-                if values.requires_grad is True:
-                    logger.debug(f'{parameter_name}.grad: {values.grad}')
 
             optimizer.zero_grad()
             global_step += 1
@@ -1019,13 +1005,13 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
 
     # Loop through all triples
     for test_triple in tqdm(triples_to_evaluate, desc = 'Evaluating triple'):
-        logger.debug(
+        logger.info(
             f'Calculating rank for triple #{test_triple_count + 1} of {len(triples_to_evaluate)}')
         start_time_test_triple = time.perf_counter()
         head = test_triple[0]
         relation = test_triple[1]
         tail = test_triple[2]
-        logger.debug(f'Current test triple: {head, relation, tail}')
+        logger.info(f'Current test triple: {head, relation, tail}')
 
         #############------------- CALCULATE RANK HEAD ---------------#################
 
@@ -1046,7 +1032,7 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
                     break
 
         logger.info('######### Calculating rank head of current test triple #########')
-        logger.debug(f'Length of head_corrupt list is: {len(head_corrupt_list)}')
+        logger.info(f'Length of head_corrupt list is: {len(head_corrupt_list)}')
 
         rank_head, test_triple_as_text, rank_head_metadata = calculate_rank_given_corrupt_list(
             corrupt_list = head_corrupt_list, index_of_triple = test_triple_count,
@@ -1079,7 +1065,7 @@ def calculate_link_prediction_metrics(model, tokenizer, context: str):
                     break
 
         logger.info('######### Calculating rank tail of current test triple #########')
-        logger.debug(f'Length of tail_corrupt list is: {len(tail_corrupt_list)}')
+        logger.info(f'Length of tail_corrupt list is: {len(tail_corrupt_list)}')
 
         rank_tail, _, rank_tail_metadata = calculate_rank_given_corrupt_list(
             corrupt_list = tail_corrupt_list, index_of_triple = test_triple_count,
@@ -1213,7 +1199,7 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, index_of_triple: int, 
     tmp_examples = processor._create_examples(corrupt_list, set_type = "test",
                                               data_dir = args.data_dir)
     test_triple_as_text = f'{tmp_examples[0].text_a} | {tmp_examples[0].text_b} | {tmp_examples[0].text_c}'
-    logger.debug(f'Current test triple as text is: {test_triple_as_text}')
+    logger.info(f'Current test triple as text is: {test_triple_as_text}')
     # logger.debug(f'Size of tmp_examples: {sys.getsizeof(tmp_examples)}')
 
     # TODO check whether file exists on disk
@@ -1268,7 +1254,7 @@ def calculate_rank_given_corrupt_list(corrupt_list: list, index_of_triple: int, 
     # report difference between mean probability value and
     plausibility_scores_probs = F.softmax(plausibility_scores_logits, dim = 0)
     uniform_probability = 1 / len(corrupt_list)
-    logger.debug(
+    logger.info(
         f'Absolute difference between mean probability score and uniform probability is: {abs(torch.mean(plausibility_scores_probs).item() - uniform_probability)}')
 
     # write the predictions as probability values to tensorboard
@@ -1346,12 +1332,12 @@ def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = Non
 
     for test_triple in tqdm(triples_to_evaluate, desc = 'Evaluating triple'):
         start_preprocess_triple = time.perf_counter()
-        logger.debug(
+        logger.info(
             f'Calculating rank for triple #{test_triple_count + 1} of {len(triples_to_evaluate)}')
         head = test_triple[0]
         relation = test_triple[1]
         tail = test_triple[2]
-        logger.debug(f'Current test triple: {head, relation, tail}')
+        logger.info(f'Current test triple: {head, relation, tail}')
 
         #############------------- SAVE HEAD InputFeatures ---------------#################
 
@@ -1375,7 +1361,7 @@ def preprocess_and_save_triples(context: str, dataset_name: str, tokenizer = Non
         tmp_examples = processor._create_examples(head_corrupt_list, set_type = "test",
                                                   data_dir = args.data_dir)
         test_triple_as_text = f'{tmp_examples[0].text_a} | {tmp_examples[0].text_b} | {tmp_examples[0].text_c}'
-        logger.debug(f'Current test triple as text is: {test_triple_as_text}')
+        logger.info(f'Current test triple as text is: {test_triple_as_text}')
 
         tmp_features = convert_examples_to_features(tmp_examples, label_list, args.max_seq_length,
                                                     tokenizer, print_info = False)
@@ -1479,7 +1465,6 @@ parser = argparse.ArgumentParser(
 ## Required parameters (set default to None)
 # TODO change back to None, provided manual defaults for debugging
 
-# debugging example: FB15k237
 parser.add_argument("--data_dir",
                     default = '/home/lena/git/master_thesis_bias_in_NLP/code_from_other_papers/Yao_KG_BERT/data/FB15k-237',
                     type = str, required = True,
@@ -1491,6 +1476,9 @@ parser.add_argument("--bert_model", default = 'bert-base-cased', type = str, req
 parser.add_argument('-n', '--name', type = str,
                     help = 'Experiment name, - if not doing preprocessing- a folder with this name'
                            ' will be created  or loaded from in the results/KG_and_LM folder.')
+parser.add_argument('--gpu_id', type = int, required = True,
+                    help = 'Sets the environment variable CUDA_VISIBLE_DEVICES which decides which'
+                           'GPUs are used.')
 
 ## Other parameters
 parser.add_argument('-d', "--debug", action = 'store_true',
@@ -1568,7 +1556,7 @@ if args.do_preprocessing_val or args.do_preprocessing_test:
 
     # initialize logger
     logger_file_name = f'log_preprocessing_{context}_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
-    logger = initialize_my_logger(file_name = logger_file_name, level = logging.DEBUG)
+    logger = initialize_my_logger(file_name = logger_file_name, level = logging.DEBUG, file_mode = 'w')
     logger.info(f'Saving everything in folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
 
     # get global variables needed for preprocessing
@@ -1627,7 +1615,7 @@ if args.do_train:
         logger_file_name = f'log_train_test_{socket.gethostname()}_' + EXPERIMENT_NAME + '.txt'
 
     # configure the logging to stdout and file
-    logger = initialize_my_logger(file_name = logger_file_name, level = logging.DEBUG)
+        logger = initialize_my_logger(file_name = logger_file_name, level = logging.DEBUG, file_mode = 'w')
 
     logger.info(f'Saving everything in folder: {DIRECTORY_FOR_SAVING_OR_LOADING}')
 
@@ -1673,8 +1661,10 @@ if args.local_rank == -1 or args.no_cuda:
     # IMPORTANT if n_gpu > 1 this enables  simple distributed training
     # using model = torch.nn.DataParallel(model)
     n_gpu = torch.cuda.device_count()
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    n_gpu = 1
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu_id)
 else:
+    raise NotImplementedError
     logger.info('Distributed training using torch.distributed backend.')
     torch.cuda.set_device(args.local_rank)
     device = torch.device("cuda", args.local_rank)
@@ -1688,7 +1678,6 @@ logger.info(f"CUDA is used: {torch.cuda.is_available()}")
 logger.info(f'Using {n_gpu} device(s).')
 if n_gpu > 1:
     logger.info('Using torchs DataParallel mode for the model.')
-    logger
 logger.info(f'Using torch.distributed: {bool(args.local_rank != -1)}')
 logger.info(f'Using half-precision float16 datatype: {args.fp16}')
 
