@@ -893,241 +893,47 @@ print(test_string_raw)
 test_string = 'Wilhelm D\u00F6rpfeld'
 print(test_string)  # special character is recognized by Python
 
-# %% Step 10: Apply changes after removing entities/relations to the other files
 
-# 1,743,638 QIDs remain
-remaining_tails = set(human_triples_that_have_labels['tail_entity'])
-remaining_heads = set(human_triples_that_have_labels['head_entity'])
-remaining_QIDs = remaining_tails.union(remaining_heads)
-# 294 PIDs remain
-remaining_PIDs = set(human_triples_that_have_labels['relation'])
 
-### Remove the QIDs with no truthy label from the human entities file
+# %% After all processing of the full HumanWikidata5M dataset: create a subset
 
-old_human_entities_file = pd.read_csv(
-    os.path.join(BASE_PATH_HOST, 'data/interim/wikidata5m_human_entities_040122_v1.tsv'),
-    header = None).squeeze('columns')
+# decision made on 6th May that training the models with the full 11 million triples
+# is too time-consuming, so we will use a subset of the HumanWikidata5M dataset
 
-# This removes 6272 entities --> the majority of the overall 6566 QIDs!
-human_entities_to_remove_mask = old_human_entities_file.isin(remaining_QIDs)
-new_human_entities_file = old_human_entities_file[human_entities_to_remove_mask]
+# load the v3 version of HumanWikidata5M
+full_HumanWikidata5M = pd.read_csv(os.path.join(BASE_PATH_HOST,
+                                                'data/interim/wikidata5m_human_facts_with_binary_gender_added_01042022_v3.tsv'),
+                                   sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
 
-# save the new version of the file
-new_human_entities_file.to_csv(
-    os.path.join(BASE_PATH_HOST, 'data/interim/wikidata5m_human_entities_310322_v2.tsv'),
-    sep = '\t', header = False, index = False)
+assert len(full_HumanWikidata5M) == 11114797  # size of HumanWikidata5M after adding gender
 
-### Filter the entity2text and relation2text files created in step 8
-# Python objects: all_entity_labels, all_relation_labels
-entity_labels_for_my_W5M_subset_mask = all_entity_labels['ID'].isin(remaining_QIDs)
-entity_labels_for_my_W5M_subset = all_entity_labels[entity_labels_for_my_W5M_subset_mask]
+random_seed = 42
 
-# I expect that I get a label from the large file for each QID in my subset.
-assert len(entity_labels_for_my_W5M_subset) == len(remaining_QIDs)
-number_of_entity_labels_that_are_not_needed = len(all_entity_labels) - len(
-    entity_labels_for_my_W5M_subset)
-# 80041813 QID labels can be discarded.
+# I decided to make it 10 times larger than FB15K-237.
+# 10 * 310,116 = 3,101,160
+target_dataset_size = 3101160
 
-# do the same for the relation labels
-relation_labels_for_my_W5M_subset_mask = all_relation_labels['ID'].isin(remaining_PIDs)
-relation_labels_for_my_W5M_subset = all_relation_labels[relation_labels_for_my_W5M_subset_mask]
+# create new dataframe with new index 0,1,...,n-1
+subset_HumanWikidata5M = full_HumanWikidata5M.sample(
+    n = target_dataset_size, replace = False, random_state = random_seed,
+    ignore_index = True, axis = 0  # sample rows = 0
+)
 
-# I expect that I get a label from the large file for each QID in my subset.
-assert len(relation_labels_for_my_W5M_subset) == len(remaining_PIDs)
-number_of_relation_labels_that_are_not_needed = len(all_relation_labels) - len(
-    relation_labels_for_my_W5M_subset)
-# 9207 PID labels can be discarded.
-
-# Save new entity2text and relation2text files
-# entity_labels_for_my_W5M_subset.to_csv(
-#     os.path.join(BASE_PATH_HOST, 'data/interim/truthy_triples_file_for_W5M_gender_facts/entity2label_W5M_truthy_31032022_v2.tsv'),
-#     sep = '\t', header = False, index = False)
-# relation_labels_for_my_W5M_subset.to_csv(
-#     os.path.join(BASE_PATH_HOST, 'data/interim/truthy_triples_file_for_W5M_gender_facts/relation2label_W5M_truthy_31032022_v2.tsv'),
+# # save subset as v4 to disk /61MB)
+# subset_HumanWikidata5M.to_csv(
+#     os.path.join(BASE_PATH_HOST, 'data/interim/wikidata5M_human_facts_subset_060522_v4.tsv'),
 #     sep = '\t', header = False, index = False)
 
+# Regarding the split, I decided for (0.9, 0.05, 0.05)
 
-# %% TODO Decide how to treat the rare triples, e.g. count > 5
+from utils_with_pykeen import create_train_val_test_split_from_single_TSV
 
-# data/interim/tail_value_counts_human_facts_W5M_8.2.2022.csv
-# exploration/relationship_counts/tail_value_counts_all_11.11.2021.csv
-
-
-# %% TODO alternative: keep existing splits and use only human facts
-
-# check whether doing this removes triple uniformly from all 3 splits
+# create split and directly save it to data/interim
+create_train_val_test_split_from_single_TSV(train_val_test_split = (0.9, 0.05, 0.05),
+                                            rel_path_to_human_facts_file = 'data/interim/wikidata5M_human_facts_subset_060522_v4.tsv',
+                                            random_state = random_seed)
 
 
-# %% Exploration: What are interesting aspects in the P21 relations extracted from the truthy triples file?
-
-gender_facts_W5M_humans = pd.read_csv(os.path.join(BASE_PATH_HOST,
-                                                   'data/interim/truthy_triples_file_for_W5M_gender_facts/all_gender_facts_W5M_human_entities_24032022.tsv'),
-                                      sep = '\t',
-                                      names = ['head_entity', 'relation', 'tail_entity'])
-
-# How many humans in W5M have missing gender information? - 6886
-number_of_missing_gender_facts = len(human_entities) - len(gender_facts_W5M_humans)
-
-# Does anyone have more than one gender statement?
-counts_heads = gender_facts_W5M_humans['head_entity'].value_counts()
-gender_facts_W5M_humans['head_entity'].value_counts().unique()  # [4, 3, 2, 1]
-counts_heads[counts_heads > 1]  # this is the case for 269 people
-# 2 times 4 statements, 4 times 3 statements, the rest has 2 statements
-# Most of these entities are queer people, e.g. non-binary --> multiple identities
-
-# Do a quick plot of gender tail values:
-counts_tails = gender_facts_W5M_humans['tail_entity'].value_counts()
-counts_tails.plot.barh(logx = True,
-                       title = 'Tail entity counts for gender facts extracted from truthy triples\n (filtered down to the 1.5M W5M human entities)')
-plt.show()
-
-# Save the distribution of tail entities for the W5M human entities
-gender_facts_W5M_humans = pd.read_csv(os.path.join(BASE_PATH_HOST,
-                                                   'data/interim/truthy_triples_file_for_W5M_gender_facts/all_gender_facts_W5M_human_entities_24032022.tsv'),
-                                      sep = '\t',
-                                      names = ['head_entity', 'relation', 'tail_entity'])
-
-gender_tail_value_counts_filtered_to_W5M = gender_facts_W5M_humans['tail_entity'].value_counts()
-
-# gender_tail_value_counts_filtered_to_W5M.to_csv(
-#     'exploration/relationship_counts/only_W5M_humans_nttriples_dump_P21_tail_counts_24032022.csv')
-
-# %% Exploration: explore the alias files from the original Wikidata5M files
-
-# Idea: Can I use the first alias as the label for an entity/relation?
-# Problem: There are data quality issues for the entity files! i.e. typos, etc.
-# I can't use these files, and will instead extract the labels from a recent dump!
-
-# for the labels, only access the first two columns
-# the columns beyond these are the aliases, not the label
-entity_labels_raw = pd.read_csv('./data/interim/wikidata5m_entity_aliases.txt', sep = '\t',
-                                usecols = [0, 1], names = ['wikidata_ID', 'label'])
-# correct import: provide names, only use first two columns
-relation_labels_raw = pd.read_csv('./data/interim/wikidata5m_relation_aliases.txt', sep = '\t',
-                                  usecols = [0, 1], names = ['wikidata_ID', 'label'])
-
-# sort the dataframe according to the Wikidata IDs in ascending order
-# (this makes it more reproducible)
-entity_labels_sorted = entity_labels_raw.sort_values(by = 'wikidata_ID', ascending = True,
-                                                     ignore_index = True)
-relation_labels_sorted = relation_labels_raw.sort_values(by = 'wikidata_ID', ascending = True,
-                                                         ignore_index = True)
-
-# add index as numeric column
-# (numeric ID mapping will later be used by pykeen
-entity_labels_sorted['numeric_relation_ID'] = entity_labels_sorted.index
-relation_labels_sorted['numeric_relation_ID'] = relation_labels_sorted.index
-
-# save this dataframe to disk, always use it!
-# save first column as entities.txt and relations.txt
-# don't write index and column name
-entity_labels_sorted['wikidata_ID'].to_csv('./data/interim/KG_and_LM/entities.txt', index = False,
-                                           header = False)
-relation_labels_sorted['wikidata_ID'].to_csv('./data/interim/KG_and_LM/relations.txt',
-                                             index = False, header = False)
-
-# idea: save 1st and 2nd column as entity2text.txt
-
-my_human_entities = pd.read_csv('data/interim/wikidata5m_human_entities_040122.tsv', sep = '\t')
-my_human_facts = pd.read_csv('data/interim/wikidata5m_human_facts_subset_complete_050122.tsv',
-                             sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
-
-len(set(my_human_facts.iloc[:, 1]))
-human_relations = set(my_human_facts.iloc[:, 1])  # 298
-
-# save dataframes as CSV: entities_NumID_WikidataID_label.csv, relations_NumID_WikidataID_label.csv
 
 
-# %% Exploration: check whether W5M in pykeen contains short labels
 
-import pykeen
-from pykeen.datasets import Wikidata5M
-
-# there are no text labels, only numeric IDs!
-# after all it is only considered a knowledge graph dataset here...
-w5m = Wikidata5M()
-w5m.relation_to_id
-w5m.entity_to_id
-
-# %% Exploration: check whether W5M in graphvite contains short labels
-# conclusion: I can't install Graphvite properly, so I can't check it
-
-# the documentation mentions the aliases, i.e. natural language labels
-# source: https://graphvite.io/docs/latest/pretrained_model
-# "Load the alias mapping from the dataset.
-# Now we can access the embeddings by natural language index."
-
-import graphvite as gv
-
-alias2entity = gv.dataset.wikidata5m.alias2entity
-alias2relation = gv.dataset.wikidata5m.alias2relation  # print(entity_embeddings[entity2id[alias2entity["machine learning"]]])
-# print(relation_embeddings[relation2id[alias2relation["field of work"]]])
-
-
-# %% Exploration: Do the relation labels if Wikidata5M and truthy triples largely agree?
-
-# load the original Wikidata5M relation alias file
-relation_labels_original_W5M = pd.read_csv('./data/interim/wikidata5m_relation_aliases.txt',
-                                           sep = '\t', usecols = [0, 1],
-                                           names = ['wikidata_ID', 'label'])
-
-# load my version of this value based on truthy triples file
-relation_labels_truthy = pd.read_csv(
-    './data/interim/truthy_triples_file_for_W5M_gender_facts/relation2label_W5M_truthy_29032022_v1.tsv',
-    sep = '\t', names = ['wikidata_ID', 'label'])
-
-# W5M file only has 825 relations, the truthy triple file has 9501
-
-# get the intersection of the PIDs
-PIDs_original_W5M = set(relation_labels_original_W5M['wikidata_ID'])
-PIDs_truthy = set(relation_labels_truthy['wikidata_ID'])
-
-PIDs_in_both_files = PIDs_original_W5M.intersection(PIDs_truthy)
-# these are 821 IDs --> 4 IDs are in W5M, but not in truthy
-# Which ones? - 'P134', 'P1432', 'P1773', 'P2157'
-PIDs_not_in_truthy = PIDs_original_W5M.difference(PIDs_in_both_files)
-
-relation_labels_original_W5M[relation_labels_original_W5M['wikidata_ID'] == 'P134']
-relation_labels_original_W5M[relation_labels_original_W5M['wikidata_ID'] == 'P1432']
-relation_labels_original_W5M[relation_labels_original_W5M['wikidata_ID'] == 'P1773']
-relation_labels_original_W5M[relation_labels_original_W5M['wikidata_ID'] == 'P2157']
-
-### Do the labels on the intersection PIDs agree in all cases? - No.
-
-# select the common PIDs for one dataframe
-intersection_labels_original_W5M = relation_labels_original_W5M[
-    relation_labels_original_W5M['wikidata_ID'].isin(list(PIDs_in_both_files))].reset_index(
-    drop = True)
-# and the other
-intersection_labels_truthy = relation_labels_truthy[
-    relation_labels_truthy['wikidata_ID'].isin(list(PIDs_in_both_files))].reset_index(drop = True)
-
-intersection_labels_original_W5M.sort_values(by = 'wikidata_ID', ascending = True,
-                                             ignore_index = True, inplace = True)
-intersection_labels_truthy.sort_values(by = 'wikidata_ID', ascending = True, ignore_index = True,
-                                       inplace = True)
-
-compare_both_labels_df = intersection_labels_original_W5M.rename(
-    columns = {'label': 'label_original_W5M'})
-compare_both_labels_df['label_truthy_file'] = intersection_labels_truthy['label']
-
-# use apply to add  True/False column
-compare_both_labels_df['agreement'] = compare_both_labels_df['label_original_W5M'] == \
-                                      compare_both_labels_df['label_truthy_file']
-
-len(compare_both_labels_df['agreement']) - sum(compare_both_labels_df['agreement'])
-# only 39 labels do not agree
-# Which ones are those?
-disagreeing_labels = compare_both_labels_df[compare_both_labels_df['agreement'] == False]
-
-### Do the 4 missing labels (of the truthy file) appear anywhere in the human subset?
-human_triples = pd.read_csv(
-    os.path.join(BASE_PATH_HOST, 'data/interim/wikidata5m_human_facts_subset_complete_050122.tsv'),
-    sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
-
-set_of_human_subset_PIDs = set(human_triples['relation'].unique())
-# overall 298 relations
-for item in PIDs_not_in_truthy:
-    is_in_human_subset = item in set_of_human_subset_PIDs
-    print(
-        f'Relation {item} is contained in the set of PIDs appearing in my human facts subset: {is_in_human_subset}')  # No ,they don't! So it's not relevant for my use case
