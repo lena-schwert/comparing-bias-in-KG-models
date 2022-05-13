@@ -658,7 +658,7 @@ my_subset_of_entity_descriptions = changed_descriptions[my_subset_of_entity_desc
 # I expect that I get a description from the large file for each QID in my subset.
 assert len(my_subset_of_entity_descriptions) == len(HumanWikidata5M_all_QIDs)
 
-my_subset_of_entity_descriptions.to_csv(os.path.join(save_path, 'HumanWikidata5M_descriptions_22042022_v1.tsv'),
+my_subset_of_entity_descriptions.to_csv(os.path.join(save_path, 'entity2description_wikidata5m_human_22042022_v1.tsv'),
                                         sep = '\t', header = False, index = False)
 
 my_subset_of_entity_descriptions['string_len'] = my_subset_of_entity_descriptions[
@@ -667,9 +667,6 @@ my_subset_of_entity_descriptions.query('string_len<50')
 
 my_subset_of_entity_descriptions.to_csv(os.path.join(save_path, 'HumanWikidata5M_clean_descriptions_for_easy_import_with_length_counts.tsv'),
                                         sep = '\t')
-
-
-
 
 
 # %% Step 14: Create files needed for KG+LM models + save filtered entity2label and relation2label files
@@ -684,6 +681,7 @@ my_subset_of_entity_descriptions.to_csv(os.path.join(save_path, 'HumanWikidata5M
 #   data/interim/KG_and_LM_files/entities_04042022_v1.txt (14.9MB)
 #   data/interim/KG_and_LM_files/relations_04042022_v1.txt (1.5KB)
 #   entity2label_wikidata5m_human_08042022_v2.tsv (43MB)
+#   entity2label_wikidata5m_human_clean_utf8_11052022_v3.tsv
 #   relation2label_wikidata5m_human_08042022_v2.tsv (5.8KB)
 
 human_triples_with_new_gender = pd.read_csv(os.path.join(BASE_PATH_HOST,
@@ -738,7 +736,7 @@ relation_labels_for_my_W5M_subset_sorted = relation_labels_for_my_W5M_subset.sor
                                                                                          ascending = True)
 assert list(relation_labels_for_my_W5M_subset_sorted['ID']) == list(set_of_human_relations)
 
-# Save new entity2label (43MB) and relation2label (5.8 KB) files
+# Save the filtered entity2label (43MB) and relation2label (5.8 KB) files
 # entity_labels_for_my_W5M_subset_sorted.to_csv(
 #     os.path.join(BASE_PATH_HOST, 'data/interim/entity2label_wikidata5m_human_08042022_v2.tsv'),
 #     sep = '\t', header = False, index = False)
@@ -746,11 +744,45 @@ assert list(relation_labels_for_my_W5M_subset_sorted['ID']) == list(set_of_human
 #     os.path.join(BASE_PATH_HOST, 'data/interim/relation2label_wikidata5m_human_08042022_v2.tsv'),
 #     sep = '\t', header = False, index = False)
 
+# IMPORTANT correct the encoding and save weird Unicode \uxxxx special characters as normal UTF-8
+
+# source: https://stackoverflow.com/questions/41466814/python-unicode-double-backslashes
+
+with open('data/interim/entity2label_wikidata5m_human_08042022_v2.tsv', 'r') as old_file_with_unicode_characters, \
+    open('data/interim/entity2label_wikidata5m_human_clean_utf8_11052022_v3.tsv', 'w') as new_file_as_utf8:
+
+    # default encoding of with open() is utf-8, but that does not work
+    for line in old_file_with_unicode_characters:
+        line.strip()
+        temp = line.encode('latin1').decode('unicode_escape')
+        new_file_as_utf8.write(temp)
+
+new_file_as_utf8.close()
+old_file_with_unicode_characters.close()
+
+with open('data/interim/entity2label_wikidata5m_human_08042022_v2.tsv', 'r') as old_file_with_unicode_characters, \
+    open('data/interim/entity2label_wikidata5m_human_clean_utf8_11052022_v3.tsv', 'w') as new_file_as_utf8:
+
+    # default encoding of with open() is utf-8, but that does not work
+    for line in old_file_with_unicode_characters:
+        line.strip()
+        temp = line.encode('latin1').decode('unicode_escape')
+        new_file_as_utf8.write(temp)
+
+new_file_as_utf8.close()
+old_file_with_unicode_characters.close()
+
+# IMPORTANT this is not necessary for the relation file as it does not contain special characters!
+
 ### entity2label.tsv: 1 column QIDs, one column label, i.e. short text version
 # simple copy the file created in the previous step to folder KG_and_LM_files
 
 ### relation2label.tsv: 1 column PIDs, one column label, i.e. short text version
 # simple copy the file created in the previous step to folder KG_and_LM_files
+
+
+
+
 
 ### TODO entity2textlong.tsv: filter down the original Wikidata5M description file
 entity_descriptions = pd.read_csv(os.path.join(BASE_PATH_HOST,
@@ -773,7 +805,7 @@ entity_descriptions_filtered_sorted = my_subset_of_entity_descriptions.sort_valu
 
 ### TODO train.tsv, dev.tsv, test.tsv --> decide for a split
 
-from src.utils_with_pykeen import create_train_val_test_split_from_single_TSV
+from src.utils import create_train_val_test_split_from_single_TSV
 
 create_train_val_test_split_from_single_TSV(train_val_test_split = (0.98, 0.01, 0.01),
     rel_path_to_human_facts_file= 'data/interim/wikidata5m_human_facts_with_binary_gender_added_01042022_v3.tsv')
@@ -806,15 +838,15 @@ test_data_dot1[test_data_dot1['relation'] == 'P106']  # 49515
 # IMPORTANT: this order matters for utils.HumanWikidata5M_pykeen._load!
 
 # uses files:
-#   entity2label_W5M_truthy_06042022_v2.tsv
+#   entity2label_wikidata5m_human_clean_utf8_11052022_v3.tsv
 #   relation2label_W5M_truthy_06042022_v2.tsv
 
 # creates files:
-#   entity_ID_to_numID_to_label_08042022_v1.tsv
+#   entity_ID_to_numID_to_label_11052022_v1.tsv
 #   relation_ID_to_numID_to_label_08042022_v1.tsv
 
 entity_labels = pd.read_csv(
-    os.path.join(BASE_PATH_HOST, 'data/interim/entity2label_wikidata5m_human_08042022_v2.tsv'),
+    os.path.join(BASE_PATH_HOST, 'data/interim/entity2label_wikidata5m_human_clean_utf8_11052022_v3.tsv'),
     sep = '\t', names = ['ID', 'label'])
 relation_labels = pd.read_csv(
     os.path.join(BASE_PATH_HOST, 'data/interim/relation2label_wikidata5m_human_08042022_v2.tsv'),
@@ -829,70 +861,12 @@ entity_ID_to_numID_to_label = entity_labels[['ID', 'numeric_relation_ID', 'label
 relation_ID_to_numID_to_label = relation_labels[['ID', 'numeric_relation_ID', 'label']]
 
 # Save to TSV
-# entity_ID_to_numID_to_label.to_csv(
-#     os.path.join(BASE_PATH_HOST, 'data/interim/KG_only_files/entity_ID_to_numID_to_label_08042022_v1.tsv'),
-#     sep = '\t', header = False, index = False)
+entity_ID_to_numID_to_label.to_csv(
+    os.path.join(BASE_PATH_HOST, 'data/interim/KG_only_files/entity_ID_to_numID_to_label_11052022_v1.tsv'),
+    sep = '\t', header = False, index = False)
 # relation_ID_to_numID_to_label.to_csv(
 #     os.path.join(BASE_PATH_HOST, 'data/interim/KG_only_files/relation_ID_to_numID_to_label_08042022_v1.tsv'),
 #     sep = '\t', header = False, index = False)
-
-
-# %% TODO handle the Unicode literals in the label file
-
-# 7/4/ try out importing it first with Python's IOTextWrapper
-
-# uses file:
-#   old file: entity2label_wikidata5m_human_08042022_v2.tsv
-
-# creates file:
-
-relation_labels = pd.read_csv(
-    os.path.join(BASE_PATH_HOST, 'data/interim/relation2label_wikidata5m_human_08042022_v2.tsv'),
-    sep = '\t', names = ['ID', 'label'])
-
-entity_labels = pd.read_csv(
-    os.path.join(BASE_PATH_HOST, 'data/interim/entity2label_wikidata5m_human_08042022_v2.tsv'),
-    sep = '\t', names = ['ID', 'label'])
-
-
-# Manojs code snippet
-def replace_unicode(item):
-    res_item = item.encode("utf-8").decode()
-    print(item, " - ", res_item)
-    return res_item
-
-
-for label in entity_labels.head()['label']:
-    replace_unicode(label)
-
-with open('data/interim/old/entity2label_W5M_truthy_31032022_v2.tsv', 'r', encoding = 'utf-8') as f:
-    all_lines = f.read().splitlines()
-    for line in all_lines:
-        replace_unicode(line)
-
-with open('filename.txt', 'r', encoding = 'utf-8') as f:
-    entity_to_label = []
-    all_lines = f.read().splitlines()
-    for line in all_lines:
-        line = replace_unicode(line)
-        one_line = line.strip().split('\t')
-        entity_to_label.append(one_line)
-entity_to_label
-
-with open('data/interim/old/entity2label_W5M_truthy_31032022_v2.tsv', encoding = 'utf-8') as f:
-    for line in f:
-        print(repr(line))
-
-# generally useful: https://docs.python.org/3/howto/unicode.html#unicode-literals-in-python-source-code
-
-# Try an example
-# useless source for python 2: https://stackoverflow.com/questions/21646245/how-to-decode-a-text-with-unicodes-like-u00e7-in-python
-test_string_raw = r'Wilhelm D\u00F6rpfeld'
-print(test_string_raw)
-# versus
-test_string = 'Wilhelm D\u00F6rpfeld'
-print(test_string)  # special character is recognized by Python
-
 
 
 # %% After all processing of the full HumanWikidata5M dataset: create a subset
@@ -926,7 +900,7 @@ subset_HumanWikidata5M = full_HumanWikidata5M.sample(
 
 # Regarding the split, I decided for (0.9, 0.05, 0.05)
 
-from utils_with_pykeen import create_train_val_test_split_from_single_TSV
+from utils import create_train_val_test_split_from_single_TSV
 
 # create split and directly save it to data/interim
 create_train_val_test_split_from_single_TSV(train_val_test_split = (0.9, 0.05, 0.05),
