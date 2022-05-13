@@ -1,0 +1,102 @@
+12.05.2022 20:59:35 - INFO - triplet.py/__init__: Load 1396220 entities from /home/lena/git/master_thesis_bias_in_NLP/data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/for_debugging/entities.json
+12.05.2022 20:59:35 - INFO - triplet.py/__init__: Triplets path: []
+12.05.2022 20:59:35 - INFO - triplet.py/__init__: Triplet statistics: 0 relations, 0 triplets
+12.05.2022 20:59:36 - INFO - predict.py/_setup_args: Args used in training: {
+    "pretrained_model": "bert-base-uncased",
+    "model_dir": "/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_and_LM/SimKGC/12.05.2022_19:34_wiki5m_trans_first_try_SimKGC_4xa6k5",
+    "pre_batch": 0,
+    "pre_batch_weight": 0.5,
+    "use_self_negative": false,
+    "task": "wiki5m_trans",
+    "train_path": "/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/training_data_subset_0.9.tsv.json",
+    "valid_path": "/hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/validation_data_subset_0.05.tsv.json",
+    "warmup": 400,
+    "max_to_keep": 10,
+    "grad_clip": 10.0,
+    "pooling": "mean",
+    "dropout": 0.1,
+    "use_amp": true,
+    "t": 0.05,
+    "use_link_graph": false,
+    "eval_every_n_step": 10000,
+    "additive_margin": 0.02,
+    "finetune_t": true,
+    "max_num_tokens": 50,
+    "workers": 3,
+    "epochs": 1,
+    "batch_size": 1024,
+    "lr": 3e-05,
+    "lr_scheduler": "linear",
+    "weight_decay": 0.0001,
+    "print_freq": 20,
+    "seed": 42,
+    "is_test": false,
+    "rerank_n_hop": 2,
+    "neighbor_weight": 0.0,
+    "eval_model_path": ""
+}
+12.05.2022 20:59:36 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:36 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+12.05.2022 20:59:36 - DEBUG - _api.py/acquire: Attempting to acquire lock 139939888284912 on /home/lena/.cache/huggingface/transformers/c1d7f0a763fb63861cc08553866f1fc3e5a6f4f07621be277452d26d71303b7e.20430bd8e10ef77a7d2977accefe796051e01bc2fc4aa146bc862997a1a15e79.lock
+12.05.2022 20:59:36 - DEBUG - _api.py/acquire: Lock 139939888284912 acquired on /home/lena/.cache/huggingface/transformers/c1d7f0a763fb63861cc08553866f1fc3e5a6f4f07621be277452d26d71303b7e.20430bd8e10ef77a7d2977accefe796051e01bc2fc4aa146bc862997a1a15e79.lock
+12.05.2022 20:59:36 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:37 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "GET /bert-base-uncased/resolve/main/tokenizer_config.json HTTP/1.1" 200 28
+12.05.2022 20:59:37 - DEBUG - _api.py/release: Attempting to release lock 139939888284912 on /home/lena/.cache/huggingface/transformers/c1d7f0a763fb63861cc08553866f1fc3e5a6f4f07621be277452d26d71303b7e.20430bd8e10ef77a7d2977accefe796051e01bc2fc4aa146bc862997a1a15e79.lock
+12.05.2022 20:59:37 - DEBUG - _api.py/release: Lock 139939888284912 released on /home/lena/.cache/huggingface/transformers/c1d7f0a763fb63861cc08553866f1fc3e5a6f4f07621be277452d26d71303b7e.20430bd8e10ef77a7d2977accefe796051e01bc2fc4aa146bc862997a1a15e79.lock
+12.05.2022 20:59:37 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:38 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "GET /api/models/bert-base-uncased HTTP/1.1" 200 1096
+12.05.2022 20:59:38 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:38 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/config.json HTTP/1.1" 200 0
+12.05.2022 20:59:38 - DEBUG - _api.py/acquire: Attempting to acquire lock 139939888287120 on /home/lena/.cache/huggingface/transformers/3c61d016573b14f7f008c02c4e51a366c67ab274726fe2910691e2a761acf43e.37395cee442ab11005bcd270f3c34464dc1704b715b5d7d52b1a461abe3b9e4e.lock
+12.05.2022 20:59:38 - DEBUG - _api.py/acquire: Lock 139939888287120 acquired on /home/lena/.cache/huggingface/transformers/3c61d016573b14f7f008c02c4e51a366c67ab274726fe2910691e2a761acf43e.37395cee442ab11005bcd270f3c34464dc1704b715b5d7d52b1a461abe3b9e4e.lock
+12.05.2022 20:59:38 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:39 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "GET /bert-base-uncased/resolve/main/config.json HTTP/1.1" 200 570
+12.05.2022 20:59:39 - DEBUG - _api.py/release: Attempting to release lock 139939888287120 on /home/lena/.cache/huggingface/transformers/3c61d016573b14f7f008c02c4e51a366c67ab274726fe2910691e2a761acf43e.37395cee442ab11005bcd270f3c34464dc1704b715b5d7d52b1a461abe3b9e4e.lock
+12.05.2022 20:59:39 - DEBUG - _api.py/release: Lock 139939888287120 released on /home/lena/.cache/huggingface/transformers/3c61d016573b14f7f008c02c4e51a366c67ab274726fe2910691e2a761acf43e.37395cee442ab11005bcd270f3c34464dc1704b715b5d7d52b1a461abe3b9e4e.lock
+12.05.2022 20:59:39 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:39 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "GET /api/models/bert-base-uncased HTTP/1.1" 200 1096
+12.05.2022 20:59:39 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:40 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/vocab.txt HTTP/1.1" 200 0
+12.05.2022 20:59:40 - DEBUG - _api.py/acquire: Attempting to acquire lock 139939891018768 on /home/lena/.cache/huggingface/transformers/45c3f7a79a80e1cf0a489e5c62b43f173c15db47864303a55d623bb3c96f72a5.d789d64ebfe299b0e416afc4a169632f903f693095b4629a7ea271d5a0cf2c99.lock
+12.05.2022 20:59:40 - DEBUG - _api.py/acquire: Lock 139939891018768 acquired on /home/lena/.cache/huggingface/transformers/45c3f7a79a80e1cf0a489e5c62b43f173c15db47864303a55d623bb3c96f72a5.d789d64ebfe299b0e416afc4a169632f903f693095b4629a7ea271d5a0cf2c99.lock
+12.05.2022 20:59:40 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:40 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "GET /bert-base-uncased/resolve/main/vocab.txt HTTP/1.1" 200 231508
+12.05.2022 20:59:41 - DEBUG - _api.py/release: Attempting to release lock 139939891018768 on /home/lena/.cache/huggingface/transformers/45c3f7a79a80e1cf0a489e5c62b43f173c15db47864303a55d623bb3c96f72a5.d789d64ebfe299b0e416afc4a169632f903f693095b4629a7ea271d5a0cf2c99.lock
+12.05.2022 20:59:41 - DEBUG - _api.py/release: Lock 139939891018768 released on /home/lena/.cache/huggingface/transformers/45c3f7a79a80e1cf0a489e5c62b43f173c15db47864303a55d623bb3c96f72a5.d789d64ebfe299b0e416afc4a169632f903f693095b4629a7ea271d5a0cf2c99.lock
+12.05.2022 20:59:41 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:42 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/tokenizer.json HTTP/1.1" 200 0
+12.05.2022 20:59:42 - DEBUG - _api.py/acquire: Attempting to acquire lock 139939888284576 on /home/lena/.cache/huggingface/transformers/534479488c54aeaf9c3406f647aa2ec13648c06771ffe269edabebd4c412da1d.7f2721073f19841be16f41b0a70b600ca6b880c8f3df6f3535cbc704371bdfa4.lock
+12.05.2022 20:59:42 - DEBUG - _api.py/acquire: Lock 139939888284576 acquired on /home/lena/.cache/huggingface/transformers/534479488c54aeaf9c3406f647aa2ec13648c06771ffe269edabebd4c412da1d.7f2721073f19841be16f41b0a70b600ca6b880c8f3df6f3535cbc704371bdfa4.lock
+12.05.2022 20:59:42 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:42 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "GET /bert-base-uncased/resolve/main/tokenizer.json HTTP/1.1" 200 466062
+12.05.2022 20:59:43 - DEBUG - _api.py/release: Attempting to release lock 139939888284576 on /home/lena/.cache/huggingface/transformers/534479488c54aeaf9c3406f647aa2ec13648c06771ffe269edabebd4c412da1d.7f2721073f19841be16f41b0a70b600ca6b880c8f3df6f3535cbc704371bdfa4.lock
+12.05.2022 20:59:43 - DEBUG - _api.py/release: Lock 139939888284576 released on /home/lena/.cache/huggingface/transformers/534479488c54aeaf9c3406f647aa2ec13648c06771ffe269edabebd4c412da1d.7f2721073f19841be16f41b0a70b600ca6b880c8f3df6f3535cbc704371bdfa4.lock
+12.05.2022 20:59:43 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:43 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/added_tokens.json HTTP/1.1" 404 0
+12.05.2022 20:59:43 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:44 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/special_tokens_map.json HTTP/1.1" 404 0
+12.05.2022 20:59:44 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:44 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+12.05.2022 20:59:44 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:45 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "GET /api/models/bert-base-uncased HTTP/1.1" 200 1096
+12.05.2022 20:59:45 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:46 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/config.json HTTP/1.1" 200 0
+12.05.2022 20:59:46 - INFO - dict_hub.py/build_tokenizer: Build tokenizer from bert-base-uncased
+12.05.2022 20:59:46 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:46 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "GET /api/models/bert-base-uncased HTTP/1.1" 200 1096
+12.05.2022 20:59:46 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:47 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/config.json HTTP/1.1" 200 0
+12.05.2022 20:59:47 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:47 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "GET /api/models/bert-base-uncased HTTP/1.1" 200 1096
+12.05.2022 20:59:47 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:48 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/config.json HTTP/1.1" 200 0
+12.05.2022 20:59:48 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): huggingface.co:443
+12.05.2022 20:59:49 - DEBUG - connectionpool.py/_make_request: https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/pytorch_model.bin HTTP/1.1" 302 0
+12.05.2022 20:59:49 - DEBUG - _api.py/acquire: Attempting to acquire lock 139939854167248 on /home/lena/.cache/huggingface/transformers/a8041bf617d7f94ea26d15e218abd04afc2004805632abc0ed2066aa16d50d04.faf6ea826ae9c5867d12b22257f9877e6b8367890837bd60f7c54a29633f7f2f.lock
+12.05.2022 20:59:49 - DEBUG - _api.py/acquire: Lock 139939854167248 acquired on /home/lena/.cache/huggingface/transformers/a8041bf617d7f94ea26d15e218abd04afc2004805632abc0ed2066aa16d50d04.faf6ea826ae9c5867d12b22257f9877e6b8367890837bd60f7c54a29633f7f2f.lock
+12.05.2022 20:59:49 - DEBUG - connectionpool.py/_new_conn: Starting new HTTPS connection (1): cdn-lfs.huggingface.co:443
+12.05.2022 20:59:49 - DEBUG - connectionpool.py/_make_request: https://cdn-lfs.huggingface.co:443 "GET /bert-base-uncased/097417381d6c7230bd9e3557456d726de6e83245ec8b24f529f60198a67b203a HTTP/1.1" 200 440473133
+12.05.2022 21:00:55 - DEBUG - _api.py/release: Attempting to release lock 139939854167248 on /home/lena/.cache/huggingface/transformers/a8041bf617d7f94ea26d15e218abd04afc2004805632abc0ed2066aa16d50d04.faf6ea826ae9c5867d12b22257f9877e6b8367890837bd60f7c54a29633f7f2f.lock
+12.05.2022 21:00:55 - DEBUG - _api.py/release: Lock 139939854167248 released on /home/lena/.cache/huggingface/transformers/a8041bf617d7f94ea26d15e218abd04afc2004805632abc0ed2066aa16d50d04.faf6ea826ae9c5867d12b22257f9877e6b8367890837bd60f7c54a29633f7f2f.lock
+12.05.2022 21:00:57 - INFO - predict.py/load: Load model from /home/lena/git/master_thesis_bias_in_NLP/results/KG_and_LM/SimKGC/12.05.2022_19:34_wiki5m_trans_first_try_SimKGC_4xa6k5/model_last.mdl successfully
+12.05.2022 21:00:57 - INFO - eval_wiki5m_trans.py/_dump_entity_embeddings: shard_id=0, from 0 to 1000000
