@@ -1,0 +1,11 @@
+Tue Apr 26 11:20:13 CEST 2022
+wikidata5m_transductive_test.txt
+wikidata5m_transductive_train.txt
+wikidata5m_transductive_valid.txt
+wikidata5m_inductive_test.txt
+wikidata5m_inductive_train.txt
+wikidata5m_inductive_valid.txt
+wikidata5m_entity.txt
+wikidata5m_relation.txt
+Done
+Tue Apr 26 11:22:26 CEST 2022

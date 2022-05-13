@@ -1,0 +1,56 @@
+Tue Apr 26 11:24:02 CEST 2022
+Process ./data/wiki5m_trans/train.txt...
+Load 825 relations from ./data/wiki5m_trans/wikidata5m_relation.txt
+Load 4813491 entity names from ./data/wiki5m_trans/wikidata5m_entity.txt
+Load 4815483 entity texts from ./data/wiki5m_trans/wikidata5m_text.txt
+Save 822 relations to ./data/wiki5m_trans/relations.json
+Find 15001 invalid examples in ./data/wiki5m_trans/train.txt
+Save 20599278 examples to ./data/wiki5m_trans/train.txt.json
+Process ./data/wiki5m_trans/valid.txt...
+Find 2 invalid examples in ./data/wiki5m_trans/valid.txt
+Invalid examples: [
+    {
+        "head_id": "Q17545815",
+        "head": null,
+        "relation": "located in the administrative territorial entity",
+        "tail_id": "Q1199980",
+        "tail": "derbyshire dales district council"
+    },
+    {
+        "head_id": "Q22342849",
+        "head": null,
+        "relation": "sport",
+        "tail_id": "Q2736",
+        "tail": "futebol"
+    }
+]
+Save 5163 examples to ./data/wiki5m_trans/valid.txt.json
+Process ./data/wiki5m_trans/test.txt...
+Find 3 invalid examples in ./data/wiki5m_trans/test.txt
+Invalid examples: [
+    {
+        "head_id": "Q130886",
+        "head": "Longzi",
+        "relation": "contains administrative territorial entity",
+        "tail_id": "Q10865761",
+        "tail": null
+    },
+    {
+        "head_id": "Q3551399",
+        "head": null,
+        "relation": "located in the administrative territorial entity",
+        "tail_id": "Q93358",
+        "tail": "episcopia bihor"
+    },
+    {
+        "head_id": "Q18528057",
+        "head": null,
+        "relation": "country of citizenship",
+        "tail_id": "Q145",
+        "tail": "royaume-uni"
+    }
+]
+Save 5133 examples to ./data/wiki5m_trans/test.txt.json
+Get 4589610 entities, 819 relations in total
+Done
+Tue Apr 26 11:29:12 CEST 2022

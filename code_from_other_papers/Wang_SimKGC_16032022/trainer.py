@@ -139,6 +139,9 @@ class Trainer:
 
         for i, batch_dict in enumerate(self.train_loader):
             # switch to train mode
+            if i <= 3:
+                logger.info(batch_dict)
+
             self.model.train()
 
             if torch.cuda.is_available():
@@ -155,9 +158,9 @@ class Trainer:
             outputs = ModelOutput(**outputs)
             logits, labels = outputs.logits, outputs.labels
             assert logits.size(0) == batch_size
-            # head + relation -> tail
+            # IMPORTANT: loss from paper: head + relation -> tail
             loss = self.criterion(logits, labels)
-            # tail -> head + relation
+            # IMPORTANT: improved loss on github: tail -> head + relation
             loss += self.criterion(logits[:, :batch_size].t(), labels)
 
             acc1, acc3 = accuracy(logits, labels, topk=(1, 3))
@@ -190,6 +193,7 @@ class Trainer:
     def _setup_training(self):
         if torch.cuda.device_count() > 1:
             self.model = torch.nn.DataParallel(self.model).cuda()
+            logger.info('Using model in DataParallel mode for multi-GPU training.')
         elif torch.cuda.is_available():
             self.model.cuda()
         else:

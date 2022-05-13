@@ -1,14 +1,18 @@
 import logging
-
+import sys
+from datetime import datetime
 
 def _setup_logger():
-    log_format = logging.Formatter("[%(asctime)s %(levelname)s] %(message)s")
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    format_long = '%(asctime)s - %(levelname)s - %(filename)s/%(funcName)s: %(message)s'
+    logger_start_time = datetime.now().strftime("%d.%m.%Y_%H:%M")
+    logging.basicConfig(format = format_long, level = logging.DEBUG,
+                        datefmt = "%d.%m.%Y %H:%M:%S",
+                        handlers = [
+                            logging.FileHandler(f'log_SimKGC_run_{logger_start_time}.txt', mode = 'w'),
+                            logging.StreamHandler(sys.stdout)
+                        ])
 
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(log_format)
-    logger.handlers = [console_handler]
+    logger = logging.getLogger()
 
     return logger
 
