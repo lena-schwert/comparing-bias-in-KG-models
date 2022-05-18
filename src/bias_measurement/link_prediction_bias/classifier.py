@@ -20,6 +20,7 @@ from ignite.contrib.handlers import ProgressBar
 from ignite.engine import Engine, Events
 from ignite.metrics import Accuracy, Precision, Recall, RunningAverage
 from ignite.handlers import Checkpoint, ModelCheckpoint
+from ignite.contrib.handlers.tensorboard_logger import *
 # Torch
 from torch.utils.data import DataLoader
 import torch
@@ -31,9 +32,11 @@ from src.bias_measurement.link_prediction_bias.classifier_models import MLP
 # makes it compatible with logging coming from other sources
 logger = logging.getLogger(__name__)
 
+
 class TargetRelationClassifier:
 
     def __init__(self, dataset, embedding_model_path, target_relation, num_classes,
+                 trained_classifier_filename: str, load_trained_classifier = False,
                  batch_size = 200, lr = 0.01, model_type = 'mlp', **model_kwargs, ):
         """"
         embedding_model_path : path to the kg embedding that will be used
@@ -74,12 +77,13 @@ class TargetRelationClassifier:
         with open(embedding_model_path, 'rb') as f:
             graphvite_human_entity_embeddings = pickle.load(f)
         # convert original numpy arrays to torch tensors
-        HumanWikidata5M_ID_to_embedding = {dataset.entity_to_id.get(key): torch.from_numpy(value) for key, value in
+        HumanWikidata5M_ID_to_embedding = {dataset.entity_to_id.get(key): torch.from_numpy(value)
+                                           for key, value in
                                            graphvite_human_entity_embeddings.items()}
 
         model = {'embedding_dim': list(graphvite_human_entity_embeddings.values())[0].shape[0],
-            # dim = 512
-            'entity_embeddings_dict': HumanWikidata5M_ID_to_embedding}
+                 # dim = 512
+                 'entity_embeddings_dict': HumanWikidata5M_ID_to_embedding}
 
         # How to get embeddings from it?
         list_of_IDs = [1372282, 502531]
@@ -87,22 +91,28 @@ class TargetRelationClassifier:
         selected_embeddings = model.get('entity_embeddings_dict')
 
         # for pretrained pykeen model:
-        #self._link_prediction_model = torch.load(embedding_model_path, map_location = self._device)
+        # self._link_prediction_model = torch.load(embedding_model_path, map_location = self._device)
 
         self._link_prediction_model = model
         # accesses the specific classifier object
         # creates: self._target_relation_classifier
-        self.set_target_relation_classifier(model_type, **model_kwargs)
+        # IMPORTANT create new model or load trained checkpoint
+        self.set_target_relation_classifier(model_type = model_type,
+                                            trained_classifier_filename = trained_classifier_filename,
+                                            load_trained_classifier = load_trained_classifier,
+                                            **model_kwargs)
 
-        self._optimizer = torch.optim.Adam(self._target_relation_classifier.parameters(),
-                                           lr = lr)
+        self._optimizer = torch.optim.Adam(self._target_relation_classifier.parameters(), lr = lr)
 
-    def set_target_relation_classifier(self, type = 'mlp', **model_kwargs):
+    def set_target_relation_classifier(self, trained_classifier_filename: str,
+                                       load_trained_classifier: bool, model_type = 'mlp',
+                                       **model_kwargs):
         """
 
         Parameters
         ----------
         type (str): hardcoded to 'mlp'
+        type
         model_kwargs
 
         Returns
@@ -110,18 +120,27 @@ class TargetRelationClassifier:
         self._target_relation_classifier is assigned
         """
         output_layer_size = 1 if self.binary else self.num_classes
-        if type == 'mlp':
-            if "hdims" in model_kwargs:
-                hidden_layer_sizes = model_kwargs["hdims"]
+        if model_type == 'mlp':
+            if load_trained_classifier:
+                logging.info(
+                    f'Loading trained target relation classifier: {trained_classifier_filename}')
+                device = self._device
+                loaded_pytorch_model = torch.load(trained_classifier_filename,
+                                                  map_location = device)
+                assert issubclass(type(loaded_pytorch_model), torch.nn.Module)
+                self._target_relation_classifier = loaded_pytorch_model
             else:
-                hidden_layer_sizes = [256, 16]
-            # create list of relevant dimensions
-            # original code: all_layer_dims = [self._link_prediction_model.embedding_dim] + hidden_layer_sizes + [output_layer_size]
-            all_layer_dims = [self._link_prediction_model.get('embedding_dim')] + hidden_layer_sizes + [
-                output_layer_size]
-            # actually instantiate the classifier
-            self._target_relation_classifier = MLP(all_layer_dims, device = self._device)
-        elif type == 'rf':
+                if "hdims" in model_kwargs:
+                    hidden_layer_sizes = model_kwargs["hdims"]
+                else:
+                    hidden_layer_sizes = [256, 16]
+                # create list of relevant dimensions
+                # original code: all_layer_dims = [self._link_prediction_model.embedding_dim] + hidden_layer_sizes + [output_layer_size]
+                all_layer_dims = [self._link_prediction_model.get(
+                    'embedding_dim')] + hidden_layer_sizes + [output_layer_size]
+                # actually instantiate the classifier
+                self._target_relation_classifier = MLP(all_layer_dims, device = self._device)
+        elif model_type == 'rf':
             from sklearn.ensemble import RandomForestClassifier
             self._target_relation_classifier = RandomForestClassifier(**model_kwargs)
             raise ValueError('Using the wrong class for a RF classifier!')
@@ -135,20 +154,52 @@ class TargetRelationClassifier:
         modifies self._trainer: attaches loss
         modifies self._evaluator
         """
-        avg_loss = RunningAverage(output_transform = lambda x: x)
-        avg_loss.attach(self._trainer, 'loss')
+        def get_loss_from_y_pred(output):
+            # output is what process_function/eval_function return
+            # this is y_pred and y
+            y_pred, y = output
 
-        accuracy = Accuracy()
-        accuracy.attach(self._evaluator, 'accuracy')
+            # copied from Keidars original process_function() which returned loss
+            with torch.no_grad():
+                ce_loss = self._loss(y_pred, y)
+                loss = ce_loss.item()
 
-        precision = Precision(average = False)
-        precision.attach(self._evaluator, 'precision')
+            logger.debug(
+                f'Loss calculated inside get_loss_from_y_pred() is: {round(loss, 5)}')
 
-        recall = Recall(average = False)
-        recall.attach(self._evaluator, 'recall')
+            return loss
 
-        F1 = (precision * recall * 2 / (precision + recall)).mean()
-        F1.attach(self._evaluator, 'F1')
+        ### training metrics (on training dataset)
+        training_avg_loss = RunningAverage(output_transform = get_loss_from_y_pred)
+        training_avg_loss.attach(self._trainer, 'training_loss')
+
+        training_accuracy = Accuracy()
+        training_accuracy.attach(self._trainer, 'training_accuracy')
+
+        training_precision = Precision(average = False)
+        training_precision.attach(self._trainer, 'training_precision')
+
+        training_recall = Recall(average = False)
+        training_recall.attach(self._trainer, 'training_recall')
+
+        training_F1 = (training_precision * training_recall * 2 / (training_precision + training_recall)).mean()
+        training_F1.attach(self._trainer, 'training_F1')
+
+        ### evaluation metrics (on validation dataset)
+        validation_avg_loss = RunningAverage(output_transform = get_loss_from_y_pred)
+        validation_avg_loss.attach(self._evaluator, 'validation_loss')
+
+        validation_accuracy = Accuracy()
+        validation_accuracy.attach(self._evaluator, 'validation_accuracy')
+
+        validation_precision = Precision(average = False)
+        validation_precision.attach(self._evaluator, 'validation_precision')
+
+        validation_recall = Recall(average = False)
+        validation_recall.attach(self._evaluator, 'validation_recall')
+
+        validation_F1 = (validation_precision * validation_recall * 2 / (validation_precision + validation_recall)).mean()
+        validation_F1.attach(self._evaluator, 'validation_F1')
 
     def set_loss(self, binary):
         # set the loss function based on the number of classes
@@ -166,16 +217,17 @@ class TargetRelationClassifier:
         ----------
         heads
         relation
-
         Returns
         -------
 
         """
+        assert type(relation) == type(self._target)
         if relation != self._target:
             logger.info("predicting tails for wrong relation, prediction is for", self._target)
         heads = heads.to(self._device)
         # original code: head_embeddings = self._link_prediction_model.entity_embeddings(heads)
-        head_embeddings = torch.stack([self._link_prediction_model.get('entity_embeddings_dict')[x.item()] for x in heads])
+        head_embeddings = torch.stack(
+            [self._link_prediction_model.get('entity_embeddings_dict')[x.item()] for x in heads])
         yhat = self._target_relation_classifier(head_embeddings).detach().cpu()
         if self.binary:
             return torch.round(torch.sigmoid(yhat))  # need to put in cpu if trained on gpu...
@@ -184,32 +236,36 @@ class TargetRelationClassifier:
 
     def set_data_loaders(self, target_relation):
         # IMPORTANT possible to extend this to multiple target relations!
-        only_keep_relations = [target_relation]
+        only_keep_relations = target_relation
 
-        logger.debug(f'Target relation(s) in use: {target_relation}')
+        logger.info(f'Target relation(s) in use: {target_relation}')
 
         # new_with_restriction(): only keep facts that have relation = target relation (usually occupation)
         self.train_triples_factory = train_triples_factory = self._dataset.training.new_with_restriction(
             relations = only_keep_relations)
-
-
         # create a SHUFFLED pytorch Dataloader using the train triples
         # create_lcwa_instances(): store triples in sparse format
         # In: self._train_loader.dataset[0]
         # Out: (array([ 13, 191]), array([0., 0., 0., ..., 0., 0., 0.], dtype=float32))
         self._train_loader = DataLoader(dataset = train_triples_factory.create_lcwa_instances(),
-            batch_size = self._batch_size, shuffle = True)
+                                        batch_size = self._batch_size, shuffle = True)
+
+        self.valid_triples_factory = valid_triples_factory = self._dataset.validation.new_with_restriction(
+            relations = only_keep_relations)
+        # create a NOT SHUFFLED pytorch Dataloader
+        self._valid_loader = DataLoader(dataset = valid_triples_factory.create_lcwa_instances(),
+                                       batch_size = self._batch_size, shuffle = False)
 
         self.test_triples_factory = test_triples_factory = self._dataset.testing.new_with_restriction(
             relations = only_keep_relations)
-
         # create a NOT SHUFFLED pytorch Dataloader
         self._test_loader = DataLoader(dataset = test_triples_factory.create_lcwa_instances(),
-            batch_size = self._batch_size, shuffle = False)
+                                       batch_size = self._batch_size, shuffle = False)
 
-        logger.debug(f'Training triples factory has {self.train_triples_factory.num_triples} triples.')
+        logger.debug(
+            f'Training triples factory has {self.train_triples_factory.num_triples} triples.')
+        logger.debug(f'Validation triples factory has {self.valid_triples_factory.num_triples} triples.')
         logger.debug(f'Test triples factory has {self.test_triples_factory.num_triples} triples.')
-
 
         # TODO current version 1.6 of pykeen: LCWAInstances does not have attribute labels
         # TODO Why are the labels reshaped here?
@@ -252,6 +308,7 @@ class TargetRelationClassifier:
 
     def train(self, epochs):
 
+        # both functions need engine, batch as arguments
         self._trainer = Engine(self.process_function)
         self._evaluator = Engine(self.eval_function)
 
@@ -260,29 +317,75 @@ class TargetRelationClassifier:
         self._pbar = ProgressBar(persist = True, bar_format = '')
         self._pbar.attach(self._trainer, ['loss'])
 
-        # Define what should happen w.r.t. logging + saving before running training!
-        @self._trainer.on(Events.EPOCH_COMPLETED)
-        def log_test_results(engine):
-            # log to stdout
-            self._evaluator.run(self._test_loader)
-            metrics = self._evaluator.state.metrics
-            self._pbar.log_message(
-                f'Current Time: {datetime.now().strftime("%d.%m.%Y %H:%M")}\nEpoch: {engine.state.epoch} \nMetrics:\n {pprint.pformat(metrics)}')
-            # TODO add logging to Tensorboard here
+        ### Define what should happen w.r.t. logging + saving before running training!
 
-        # save the model after all epochs are completed
-        model_save_handler = ModelCheckpoint(dirname = os.getcwd(),  # save to existing logging directory
-                                             filename_prefix = 'trained',
-                                             include_self = True,  # save state_dict
-                                             n_saved = None  # keep all saved checkpoints
+        # save the classifier object every couple epochs in case overfitting occurs
+        @self._trainer.on(Events.EPOCH_COMPLETED(every = 1))
+        def save_model_with_torch_save(engine):
+            # Run evaluation on validation dataset after each epoch
+
+            metrics = self._trainer.state.metrics
+            logger.info(
+                f'Current Time: {datetime.now().strftime("%d.%m.%Y %H:%M")}\n'
+                f'Epoch {engine.state.epoch} ran for {round(engine.state.times["EPOCH_COMPLETED"]/60, 2)} min \n'
+                f'Training Metrics:\n {pprint.pformat(metrics)}')
+
+            # needs validation loader as argument
+            self._evaluator.run(self._valid_loader)
+            logger.info(f'Evaluation Metrics:\n {pprint.pformat(self._evaluator.state.metrics)}')
+
+            assert issubclass(type(self._target_relation_classifier), nn.Module)
+            torch.save(self._target_relation_classifier, f'trained_classifier_e_{engine.state.epoch}.pt')
+
+        #@self._trainer.on(Events.EPOCH_COMPLETED(every = 1))
+        #def run_validation_after_each_epoch(engine):
+
+
+        # save the trainer object every couple epochs to resume training later on
+        model_save_handler = ModelCheckpoint(dirname = os.getcwd(),
+                                             # save to existing logging directory
+                                             filename_prefix = 'trainer_engine', include_self = True,
+                                             # save state_dict
+                                             n_saved = None  # if None, keep all saved checkpoints
                                              )
-        assert issubclass(type(self._target_relation_classifier), nn.Module)
-        self._trainer.add_event_handler(Events.EPOCH_COMPLETED(every = 1), model_save_handler,
-                                        {'model': self._target_relation_classifier,
-                                         'trainer': self._trainer})
+        self._trainer.add_event_handler(Events.EPOCH_COMPLETED(every = 5), model_save_handler,
+                                        {'trainer': self._trainer})
 
-        # Run training
+        # add tensorboard logging for metrics + weights
+        tb_logger = TensorboardLogger(log_dir = os.getcwd(), flush_secs = 30,
+                                      filename_suffix = f'_train_log')
+        tb_logger.attach(
+            self._trainer,
+            event_name = Events.EPOCH_COMPLETED,
+            log_handler = OutputHandler(
+                tag = 'training',
+                metric_names = 'all'  # using 'all' is fine, but typechecking complains anyway
+            )
+        )
+        tb_logger.attach(
+            self._evaluator,
+            event_name = Events.EPOCH_COMPLETED,
+            log_handler = OutputHandler(
+                tag = 'validation',
+                metric_names = 'all'  # using 'all' is fine, but typechecking complains
+            )
+        )
+        # log weights as histograms after each epoch
+        tb_logger.attach(
+            self._trainer,
+            event_name = Events.EPOCH_COMPLETED,
+            log_handler = WeightsHistHandler(self._target_relation_classifier)
+        )
+        # log gradients as histograms after each epoch
+        tb_logger.attach(
+            self._trainer,
+            event_name = Events.EPOCH_COMPLETED,
+            log_handler = GradsHistHandler(self._target_relation_classifier)
+        )
+
+        # Run training (evaluation is run inside)
         self._trainer.run(self._train_loader, max_epochs = epochs)
+        tb_logger.close()
 
 
     def process_function(self, engine, batch):
@@ -303,18 +406,21 @@ class TargetRelationClassifier:
         self._target_relation_classifier.train()
 
         # heads,tails are both torch.Tensor, dtype = int64
-        heads, tails = self.get_heads_tails(engine, batch)
-        labels = torch.Tensor([self.target2label(tl) for tl in tails])  #
+        heads, tails = self.get_heads_tails(batch)
+        labels = torch.Tensor([self.target2label(tl) for tl in tails])
+        # change labels tensor to respective format and send to device
+        assert labels.dtype == torch.float
         if self.binary:
-            labels = torch.tensor(labels, dtype = torch.float, device = self._device)
+            labels.to(self._device)
         else:
-            labels = torch.tensor(labels, dtype = torch.long, device = self._device)
+            labels = labels.long().to(self._device)
         # original code: embeddings = self._link_prediction_model.entity_embeddings(heads.to(self._device))
         # TODO remove hacky code: extract embeddings as list of tensors from the graphvite dict....
-        embeddings = torch.stack([self._link_prediction_model.get('entity_embeddings_dict')[x.item()] for x in heads])
+        embeddings = torch.stack(
+            [self._link_prediction_model.get('entity_embeddings_dict')[x.item()] for x in heads])
         # doublecheck the input
         # TODO why is the below assert statement not true?
-        #assert embeddings.size()[0] == self._batch_size
+        # assert embeddings.size()[0] == self._batch_size
         assert embeddings.size()[1] == self._link_prediction_model.get('embedding_dim')
         assert type(embeddings) == torch.Tensor
         logits = self._target_relation_classifier(embeddings.to(self._device))
@@ -324,7 +430,15 @@ class TargetRelationClassifier:
         self._optimizer.zero_grad()
         ce_loss.mean().backward()
         self._optimizer.step()
-        return ce_loss.item()
+
+        # IMPORTANT: Output required to calculate classficiation metrics using pytorch ignite is:
+        y_pred = logits
+        y = labels
+
+        logger.debug(f'Loss calculated inside process_function() is: {round(ce_loss.item(), 5)}')
+
+
+        return y_pred, y
 
     def eval_function(self, engine, batch):
         """
@@ -341,7 +455,7 @@ class TargetRelationClassifier:
 
         """
         self._target_relation_classifier.eval()
-        heads, tails = self.get_heads_tails(engine, batch)
+        heads, tails = self.get_heads_tails(batch)
 
         labels = self.targets2labels(tails)
         labels = labels.type(dtype = torch.int64).to(self._device)
@@ -352,9 +466,13 @@ class TargetRelationClassifier:
                 [self._link_prediction_model.get('entity_embeddings_dict')[x.item()] for x in
                  heads])
 
-            return self._target_relation_classifier.predict(embeddings.to(self._device)), labels
+            # IMPORTANT: Output required to calculate classification metrics using pytorch ignite is:
+            y_pred = self._target_relation_classifier.predict(embeddings.to(self._device))
+            y = labels
 
-    def get_heads_tails(self, engine, batch):
+            return y_pred, y
+
+    def get_heads_tails(self, batch):
         """
         Split batch into heads and tails
         """
@@ -514,13 +632,13 @@ class RFRelationClassifier:
         # In: self._train_loader.dataset[0]
         # Out: (array([ 13, 191]), array([0., 0., 0., ..., 0., 0., 0.], dtype=float32))
         self._train_loader = DataLoader(dataset = train_triples_factory.create_lcwa_instances(),
-            batch_size = self._batch_size, shuffle = True)
+                                        batch_size = self._batch_size, shuffle = True)
         self.test_triples_factory = test_triples_factory = self._dataset.testing.new_with_restriction(
             relations = only_keep_relations)
 
         # create a NOT SHUFFLED pytorch Dataloader
         self._test_loader = DataLoader(dataset = test_triples_factory.create_lcwa_instances(),
-            batch_size = self._batch_size, shuffle = False)
+                                       batch_size = self._batch_size, shuffle = False)
 
         # TODO current version 1.6 of pykeen: LCWAInstances does not have attribute labels  # TODO Why are the labels reshaped here?  # self._train_loader.dataset.labels = self._train_loader.dataset.labels.reshape(  #     self._train_loader.dataset.labels.shape[0])  # self._test_loader.dataset.labels = self._test_loader.dataset.labels.reshape(  #     self._test_loader.dataset.labels.shape[0])
 
@@ -559,7 +677,8 @@ class RFRelationClassifier:
     def train(self):
         for batch in self._train_loader:
             heads, tails = self.get_heads_tails(batch)
-            heads = self._link_prediction_model.entity_embeddings(heads.to(self._device)).detach().numpy()
+            heads = self._link_prediction_model.entity_embeddings(
+                heads.to(self._device)).detach().numpy()
             labels = self.targets2labels(tails)
             labels = labels.type(dtype = torch.int).to(self._device).detach().numpy()
             self._target_relation_classifier.n_estimators += 11

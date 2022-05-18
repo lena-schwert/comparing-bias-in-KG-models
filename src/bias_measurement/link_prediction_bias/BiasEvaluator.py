@@ -1,6 +1,9 @@
-from Measurement import *
+from src.bias_measurement.link_prediction_bias.Measurement import *
 import torch
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 class BiasEvaluator:
     """An evaluator for KG embedding bias detection"""
@@ -71,12 +74,12 @@ class BiasEvaluator:
         """
         if 'require_preds_df' in kwargs.keys() and kwargs['require_preds_df']:
             if self.predictions is None:
-                print("No predictions sorry, please set a predictions dataframe")
+                logger.info("No predictions sorry, please set a predictions dataframe")
                 return None
             else:
                 bias_relations = self.filter_missing_relations(bias_relations)
 
-        print("Evaluating ...")
+        logger.info("Evaluating ...")
         
         if bias_measures is None:
             bias_measures = self.measures
@@ -84,22 +87,9 @@ class BiasEvaluator:
         bias_result = {}
         for measure in bias_measures:
             name = measure.get_name()
-            print(f"Measure: {name}\n =============\n")
+            logger.info(f"Measure: {name}\n =============\n")
             # call calculate method from respective class in Measurement.py
             bias_result[name] = measure.calculate(self, bias_relations)
         return bias_result
 
-    # TODO this function is never used anywhere!
-    def calculate_prediction_scores(self, relation):
-        attributes = self.predictions[relation]
-        attribute_set = list(set(attributes))
-        accuracy,precision,recall = [],[],[]
-        for attr in attribute_set:
-            has_attr = self.predictions[self.predictions[relation] == attr]
-            ytrue = has_attr.true_tail
-            ypred = has_attr.pred
-            accuracy.append(accuracy_score(y_true=ytrue,y_pred=ypred))
-            precision.append(precision_score(y_true=ytrue, y_pred=ypred,average='micro'))
-            recall.append(recall_score(y_true=ytrue, y_pred=ypred,average='macro'))
-        df = pd.DataFrame({"relation_val":attribute_set, "precision":precision,"recall":recall,"accuracy":accuracy})
-        return df
+
