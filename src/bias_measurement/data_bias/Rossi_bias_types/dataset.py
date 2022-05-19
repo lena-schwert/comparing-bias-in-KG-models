@@ -5,20 +5,18 @@ from typing import Tuple
 
 import numpy
 
-from config import DATA_PATH
+from bias_measurement.data_bias.Rossi_bias_types.config import DATA_PATH
 
 # relation types
-ONE_TO_ONE="1-1"
-ONE_TO_MANY="1-N"
-MANY_TO_ONE="N-1"
-MANY_TO_MANY="N-N"
+ONE_TO_ONE = "1-1"
+ONE_TO_MANY = "1-N"
+MANY_TO_ONE = "N-1"
+MANY_TO_MANY = "N-N"
+
 
 class Dataset:
 
-    def __init__(self,
-                 name: str,
-                 separator: str = "\t",
-                 load: bool = True):
+    def __init__(self, name: str, debugging: bool, separator: str = "\t", load: bool = True):
         """
             Dataset constructor.
             This method will initialize the Dataset and its structures.
@@ -34,7 +32,10 @@ class Dataset:
 
         self.name = name
         self.separator = separator
-        self.home = os.path.join(DATA_PATH, self.name)
+        if debugging:
+            self.home = os.path.join(DATA_PATH, self.name, 'for_debugging')
+        else:
+            self.home = os.path.join(DATA_PATH, self.name)
 
         # train, valid and test set paths
         self.train_path = os.path.join(self.home, "train.txt")
@@ -51,9 +52,7 @@ class Dataset:
         self.relation_name_2_id, self.relation_id_2_name = dict(), dict()
 
         # collections of triples (facts with textual names) and samples (facts with numeric ids)
-        self.train_triples, self.train_samples,\
-        self.valid_triples, self.valid_samples, \
-        self.test_triples, self.test_samples = None, None, None, None, None, None
+        self.train_triples, self.train_samples, self.valid_triples, self.valid_samples, self.test_triples, self.test_samples = None, None, None, None, None, None
 
         # Map each (head_id, rel_id) pair to the tail ids that complete the pair in train, valid or test samples.
         # This is used when computing ranks in filtered scenario.
@@ -85,9 +84,12 @@ class Dataset:
 
             # read train, valid and test triples, and extract the corresponding samples; both are numpy arrays.
             # Triples feature entity and relation names; samples feature the corresponding ids.
-            self.train_triples, self.train_samples = self._read_triples(self.train_path, self.separator)
-            self.valid_triples, self.valid_samples = self._read_triples(self.valid_path, self.separator)
-            self.test_triples, self.test_samples = self._read_triples(self.test_path, self.separator)
+            self.train_triples, self.train_samples = self._read_triples(self.train_path,
+                                                                        self.separator)
+            self.valid_triples, self.valid_samples = self._read_triples(self.valid_path,
+                                                                        self.separator)
+            self.test_triples, self.test_samples = self._read_triples(self.test_path,
+                                                                      self.separator)
 
             self.train_samples_set = set()
             self.train_triples_set = set()
@@ -104,7 +106,7 @@ class Dataset:
             # update the overall number of distinct entities and distinct relations in the dataset
             self.num_entities = len(self.entities)
             self.num_direct_relations = len(self.relations)
-            self.num_relations = 2*len(self.relations)  # also count inverse relations
+            self.num_relations = 2 * len(self.relations)  # also count inverse relations
 
             # add the inverse relations to the relation_id_2_name and relation_name_2_id data structures
             for relation_id in range(self.num_direct_relations):
@@ -124,17 +126,17 @@ class Dataset:
                 # Also fill the entity_2_degree and relation_2_degree dicts.
                 if i < len(self.train_samples):
                     self.train_to_filter[(head_id, relation_id)].append(tail_id)
-                    self.train_to_filter[(tail_id, relation_id + self.num_direct_relations)].append(head_id)
+                    self.train_to_filter[(tail_id, relation_id + self.num_direct_relations)].append(
+                        head_id)
                     self.entity_2_degree[head_id] += 1
                     self.relation_2_degree[relation_id] += 1
                     if tail_id != head_id:
                         self.entity_2_degree[tail_id] += 1
 
-
             # map each relation id to its type (ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, or MANY_TO_MANY)
             self._compute_relation_2_type()
 
-    def _read_triples(self, triples_path: str, separator="\t"):
+    def _read_triples(self, triples_path: str, separator = "\t"):
         """
             Private method to read the triples (that is, facts and samples) from a textual file
             :param triples_path: the path of the file to read the triples from
@@ -148,7 +150,7 @@ class Dataset:
         with open(triples_path, "r") as triples_file:
             lines = triples_file.readlines()
             for line in lines:
-                line = html.unescape(line).lower()   # this is required for some YAGO3-10 lines
+                line = html.unescape(line).lower()  # this is required for some YAGO3-10 lines
                 head_name, relation_name, tail_name = line.strip().split(separator)
 
                 # remove unwanted characters
@@ -204,7 +206,6 @@ class Dataset:
 
         return output
 
-
     def _compute_relation_2_type(self):
         """
             This method computes the type of each relation in the dataset based on the self.train_to_filter structure
@@ -213,14 +214,16 @@ class Dataset:
             :return: None
         """
         if len(self.train_to_filter) == 0:
-            raise Exception("The dataset has not been loaded yet, so it is not possible to compute relation types yet.")
+            raise Exception(
+                "The dataset has not been loaded yet, so it is not possible to compute relation types yet.")
 
         relation_2_heads_nums = defaultdict(lambda: list())
         relation_2_tails_nums = defaultdict(lambda: list())
 
         for (x, relation) in self.train_to_filter:
             if relation >= self.num_direct_relations:
-                relation_2_heads_nums[relation - self.num_direct_relations].append(len(self.to_filter[(x, relation)]))
+                relation_2_heads_nums[relation - self.num_direct_relations].append(
+                    len(self.to_filter[(x, relation)]))
             else:
                 relation_2_tails_nums[relation].append(len(self.to_filter[(x, relation)]))
 
@@ -255,14 +258,16 @@ class Dataset:
 
     def sample_to_fact(self, sample_to_convert: Tuple):
         head_id, rel_id, tail_id = sample_to_convert
-        return self.entity_id_2_name[head_id], self.relation_id_2_name[rel_id], self.entity_id_2_name[tail_id]
+        return self.entity_id_2_name[head_id], self.relation_id_2_name[rel_id], \
+               self.entity_id_2_name[tail_id]
 
     def fact_to_sample(self, fact_to_convert: Tuple):
         head_name, rel_name, tail_name = fact_to_convert
-        return self.entity_name_2_id[head_name], self.relation_name_2_id[rel_name], self.entity_name_2_id[tail_name]
+        return self.entity_name_2_id[head_name], self.relation_name_2_id[rel_name], \
+               self.entity_name_2_id[tail_name]
 
     def printable_sample(self, sample: Tuple[int, int, int]):
         return "<" + ", ".join(self.sample_to_fact(sample)) + ">"
 
     def printable_nple(self, nple: list):
-        return" + ".join([self.printable_sample(sample) for sample in nple])
+        return " + ".join([self.printable_sample(sample) for sample in nple])

@@ -1,9 +1,15 @@
 import os
+from src.utils import set_base_path_based_on_host
 
-ROOT = os.path.realpath(os.path.join(os.path.abspath(__file__), ".."))
-DATA_PATH = os.path.join(ROOT, "data")
-BIAS_DATA_PATH = os.path.join(ROOT, "bias_data")
-RESULTS_PATH = os.path.join(ROOT, "comparative_analysis_results")
+
+ROOT = set_base_path_based_on_host()
+DATA_PATH = os.path.join(ROOT, "data/interim")
+BIAS_DATA_PATH = os.path.join(ROOT, "results/bias_measurement/data_bias/Rossi_bias_types")
+RESULTS_PATH = os.path.join(ROOT, "results/bias_measurement/data_bias/comparative_analysis_results")
+
+# make sure that these folders exist
+for path in [DATA_PATH, BIAS_DATA_PATH, RESULTS_PATH]:
+    assert os.path.isdir(path), f'Folder {path} does not exist!'
 
 # model names
 ANALOGY = "ANALOGY"
@@ -31,10 +37,7 @@ ALL_MODEL_NAMES = [DISTMULT, COMPLEX, ANALOGY, SIMPLE, HOLE, TUCKER,
                    CONVE, CONVKB, CONVR, INTERACTE, CAPSE, RSN,
                    ANYBURL]
 
-SELECTED_MODEL_NAMES = [COMPLEX, TUCKER,
-                        TRANSE, CROSSE, HAKE,
-                        INTERACTE, CAPSE, RSN,
-                        ANYBURL]
+SELECTED_MODEL_NAMES = [TRANSE]
 
 # dataset names
 FB15K = "FB15k"
@@ -42,4 +45,7 @@ FB15K_237 = "FB15k-237"
 WN18 = "WN18"
 WN18RR = "WN18RR"
 YAGO3_10 = "YAGO3-10"
-ALL_DATASET_NAMES = [FB15K, FB15K_237, WN18, WN18RR, YAGO3_10]
+HUMANWIKIDATA5M = "HumanWikidata5M"
+ALL_DATASET_NAMES = [FB15K, FB15K_237, WN18, WN18RR, YAGO3_10, HUMANWIKIDATA5M]
+
+SELECTED_DATASET_NAMES = [HUMANWIKIDATA5M]

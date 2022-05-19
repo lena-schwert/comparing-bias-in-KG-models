@@ -3,13 +3,13 @@ import os
 sys.path.append(os.path.realpath(os.path.join(os.path.abspath(__file__), os.path.pardir, os.path.pardir)))
 
 from collections import defaultdict
-from dataset import Dataset, MANY_TO_ONE, ONE_TO_MANY, MANY_TO_MANY
-from config import ALL_DATASET_NAMES, BIAS_DATA_PATH
+from bias_measurement.data_bias.Rossi_bias_types.dataset import Dataset, MANY_TO_ONE, ONE_TO_MANY, MANY_TO_MANY
+from bias_measurement.data_bias.Rossi_bias_types.config import SELECTED_DATASET_NAMES, BIAS_DATA_PATH
 
 THRESHOLD = 0.75
 
 outlines = []
-for dataset_name in ALL_DATASET_NAMES:
+for dataset_name in SELECTED_DATASET_NAMES:
     data = Dataset(dataset_name)
     print("Identifying test predictions prone to bias type 2 in dataset " + dataset_name + "...")
 
@@ -84,7 +84,7 @@ for dataset_name in ALL_DATASET_NAMES:
         if biased_tail_prediction:
             biased_tail_prediction_str = "1"
 
-        outlines.append(";".join([x, y, z, biased_head_prediction_str, biased_tail_prediction_str]) + "\n")
+        outlines.append(",".join([x, y, z, biased_head_prediction_str, biased_tail_prediction_str]) + "\n")
 
     output_path = os.path.join(BIAS_DATA_PATH, dataset_name + "_test_set_b2.csv")
     with open(output_path, "w") as outfile:
