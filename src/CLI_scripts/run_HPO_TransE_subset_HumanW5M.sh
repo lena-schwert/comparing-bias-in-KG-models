@@ -7,6 +7,10 @@
 #SBATCH --cpus-per-task=30
 #SBATCH --mem=40GB
 #SBATCH -t 3-00:00:00
+#SBATCH --mail-user=lena.schwertmann@guest.hpi.de
+#SBATCH --mail-type=ALL
+#SBATCH -e /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/HPO/slurm-%j_TransE.txt
+#SBATCH -o /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/HPO/slurm-%j_TransE.txt
 
 #set -x
 

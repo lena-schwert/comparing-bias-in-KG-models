@@ -111,7 +111,7 @@ def run_pykeen_pipeline(KGE_MODEL_NAME_S: str = args.kge, EXPERIMENT_NAME: str =
         rel_validation_set_path = rel_validation_set_path
         rel_test_set_path = rel_test_set_path
     # create path for saving all the result files
-    DIRECTORY_FOR_SAVING = os.path.join(BASE_PATH_HOST, 'results/KG_only/HPO', EXPERIMENT_NAME)
+    DIRECTORY_FOR_SAVING = os.path.join(BASE_PATH_HOST, 'results/KG_only', EXPERIMENT_NAME)
 
     # create directory and then use it as working directory
     if not os.path.isdir(DIRECTORY_FOR_SAVING):
@@ -202,29 +202,27 @@ def run_pykeen_pipeline(KGE_MODEL_NAME_S: str = args.kge, EXPERIMENT_NAME: str =
         )
 
         logger.info("Starting training with pykeen pipeline...")
-        pipeline_result = pipeline(  # automatic_memory_optimization = True,
+        pipeline_result = pipeline(
             dataset = dataset,  # IMPORTANT this is usually HumanWikidata5M_pykeen
-            device = device,  # automatically determine
-            # epochs = 1000,  # PLACEHOLDER ######################
+            device = device,  # device used with PyTorch: CUDA or CPU
             evaluator = RankBasedEvaluator(),
             # default: enable Bordes 2013 filtered setting
-            evaluator_kwargs = dict(filtered = True, mode = 'validation'),
-            # evaluation_relation_whitelist = {'P21'},  # useful when evaluating only specific relations
-            # filter_validation_when_testing = True,
+            evaluator_kwargs = dict(filtered = True, mode = 'validation',
+                                    additional_filter_triples = [
+                                        dataset.training.mapped_triples,
+                                        dataset.validation.mapped_triples,
+                                        dataset.testing.mapped_triples,
+                                    ]),
+            filter_validation_when_testing = True,
             loss = loss_function,  # PLACEHOLDER ######################
-            # loss_kwargs = None,   # PLACEHOLDER ######################
-            # lr_scheduler = None,   # PLACEHOLDER ######################
             metadata = metadata_for_HPO,  # information about parameters for HPO
-            # metric = None,  # PLACEHOLDER ######################
             model = model,  # specify KGE model name (as string)
             model_kwargs = dict(  # model parameters for instantiating
                 embedding_dim = EMBEDDING_DIM),
-            # model_kwargs_ranges = None,  # to override HPO defaults
-            negative_sampler = 'basic',  # basic sampler does sampling with uniform probability
             # provide string or pykeen.sampling class
+            negative_sampler = 'basic',  # basic sampler does sampling with uniform probability
             negative_sampler_kwargs = dict(num_negs_per_pos = NEGATIVE_SAMPLES),  # default: 1
-            # negative_sampler_kwargs_ranges = None,  # for HPO ######################
-            # optimizer = None,  # PLACEHOLDER ######################
+            optimizer = optimizer,  # PLACEHOLDER ######################
             optimizer_kwargs = dict(lr = LEARNING_RATE),  # same as KEPLER for TransE
             random_seed = RANDOM_SEED,  # regularizer = None,  # PLACEHOLDER ######################
             regularizer = regularizer,  # PLACEHOLDER ######################
@@ -233,13 +231,12 @@ def run_pykeen_pipeline(KGE_MODEL_NAME_S: str = args.kge, EXPERIMENT_NAME: str =
                                          # only applicable to TensorBoardResultTracker
                                          ),
             # stopper = 'early',  # PLACEHOLDER ######################
-            # training_loop = None,  # PLACEHOLDER ######################
             training_kwargs = dict(num_epochs = NUM_EPOCHS, batch_size = BATCH_SIZE,
                                    checkpoint_name = 'checkpoint_' + EXPERIMENT_NAME + '.pt',
                                    # After how many minutes should a checkpoint be saved?
                                    checkpoint_frequency = 10,
                                    checkpoint_directory = os.path.join(BASE_PATH_HOST,
-                                                                       'results/KG_only/HPO',
+                                                                       'results/KG_only',
                                                                        EXPERIMENT_NAME,
                                                                        'checkpoints'),
                                    # to save a checkpoint when training loop fails
@@ -254,17 +251,17 @@ def run_pykeen_pipeline(KGE_MODEL_NAME_S: str = args.kge, EXPERIMENT_NAME: str =
         # IMPORTANT finalize the model putput using metadata.json
         filtered_result_dict = dict(
             mean_rank_both = int(pipeline_result.metric_results.get_metric('both.realistic.arithmetic_mean_rank')),
-            MRR_both = round(pipeline_result.metric_results.get_metric('both.realistic.inverse_arithmetic_mean_rank'), 4),
+            MRR_both = round(pipeline_result.metric_results.get_metric('both.realistic.inverse_harmonic_mean_rank'), 4),
             hits_at_1_both = round(pipeline_result.metric_results.get_metric('both.realistic.hits_at_1'), 4),
             hits_at_3_both = round(pipeline_result.metric_results.get_metric('both.realistic.hits_at_3'), 4),
             hits_at_10_both = round(pipeline_result.metric_results.get_metric('both.realistic.hits_at_10'), 4),
             mean_rank_head = int(pipeline_result.metric_results.get_metric('head.realistic.arithmetic_mean_rank')),
-            MRR_head = round(pipeline_result.metric_results.get_metric('head.realistic.inverse_arithmetic_mean_rank'), 4),
+            MRR_head = round(pipeline_result.metric_results.get_metric('head.realistic.inverse_harmonic_mean_rank'), 4),
             hits_at_1_head = round(pipeline_result.metric_results.get_metric('head.realistic.hits_at_1'), 4),
             hits_at_3_head = round(pipeline_result.metric_results.get_metric('head.realistic.hits_at_3'), 4),
             hits_at_10_head = round(pipeline_result.metric_results.get_metric('head.realistic.hits_at_10'), 4),
             mean_rank_tail = int(pipeline_result.metric_results.get_metric('tail.realistic.arithmetic_mean_rank')),
-            MRR_tail = round(pipeline_result.metric_results.get_metric('tail.realistic.inverse_arithmetic_mean_rank'), 4),
+            MRR_tail = round(pipeline_result.metric_results.get_metric('tail.realistic.inverse_harmonic_mean_rank'), 4),
             hits_at_1_tail = round(pipeline_result.metric_results.get_metric('tail.realistic.hits_at_1'), 4),
             hits_at_3_tail = round(pipeline_result.metric_results.get_metric('tail.realistic.hits_at_3'), 4),
             hits_at_10_tail = round(pipeline_result.metric_results.get_metric('tail.realistic.hits_at_10'), 4),
@@ -301,6 +298,10 @@ def get_all_predictions_df(path_to_trained_model: str, model_class: str,
     -------
 
     """
+
+    # TODO implement that the predictions are only done for the selected relations!!!
+    # bias + target relations!
+
     if pipeline_result_object:
         assert type(
             pipeline_result_object) == PipelineResult, 'Something went wrong, object is no PipelineResult!'
