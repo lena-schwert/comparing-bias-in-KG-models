@@ -8,8 +8,22 @@ BATCH_SIZE=1024
 LEARNING_RATE=0.01
 
 # train the model in multiple steps to save models at different states:
-EPOCH=100
+EPOCH=200
+python experiments_KG_only.py --load-checkpoint --kge $MODEL -n "23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_100ep" -e $EPOCH -bs $BATCH_SIZE -lr $LEARNING_RATE --dim $DIM -ns $NEGATIVE_SAMPLES
 
-python experiments_KG_only.py --kge $MODEL -n "final_model_${MODEL}_${DIM}dim_${NEGATIVE_SAMPLES}ns_${BATCH_SIZE}bs_${LEARNING_RATE}lr_${EPOCH}ep" -e $EPOCH -bs $BATCH_SIZE -lr $LEARNING_RATE --dim $DIM -ns $NEGATIVE_SAMPLES
+cp -r /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/final/23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_100ep /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/final/23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_after_200ep
 
+EPOCH=300
+python experiments_KG_only.py --load-checkpoint --kge $MODEL -n "23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_100ep" -e $EPOCH -bs $BATCH_SIZE -lr $LEARNING_RATE --dim $DIM -ns $NEGATIVE_SAMPLES
 
+cp -r /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/final/23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_100ep /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/final/23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_after_300ep
+
+EPOCH=400
+python experiments_KG_only.py --load-checkpoint --kge $MODEL -n "23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_100ep" -e $EPOCH -bs $BATCH_SIZE -lr $LEARNING_RATE --dim $DIM -ns $NEGATIVE_SAMPLES
+
+cp -r /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/final/23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_100ep /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/final/23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_after_400ep
+
+EPOCH=500
+python experiments_KG_only.py --load-checkpoint --kge $MODEL -n "23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_100ep" -e $EPOCH -bs $BATCH_SIZE -lr $LEARNING_RATE --dim $DIM -ns $NEGATIVE_SAMPLES
+
+cp -r /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/final/23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_100ep /hpi/fs00/scratch/lena.schwertmann/pycharm_master_thesis/results/KG_only/final/23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_after_500ep

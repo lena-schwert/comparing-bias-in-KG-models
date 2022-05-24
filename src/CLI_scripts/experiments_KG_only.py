@@ -44,6 +44,8 @@ parser.add_argument('-d', '--debug', action = 'store_true',
                     help = 'Debugging or not? If this flag is added, this modifies the folder name and a subset of Wikidata5M is used.')
 parser.add_argument('--debug-nations', action = 'store_true',
                     help = 'Use this flag when you want to use the pykeen Nations dataset. Useful for fast runs when developing the code.')
+parser.add_argument('--load-checkpoint', action = 'store_true',
+                    help = 'use this flag when resuming training, --name argument will be used as folder to load from')
 
 parser.add_argument('-e', '--epochs', type = int, required = True,
                     help = 'Number of epochs the model should be trained for.')
@@ -83,7 +85,8 @@ def run_pykeen_pipeline(KGE_MODEL_NAME_S: str = args.kge, EXPERIMENT_NAME: str =
                         NUM_EPOCHS: int = args.epochs, NEGATIVE_SAMPLES: int = args.ns,
                         rel_training_set_path: str = args.trainset,
                         rel_validation_set_path: str = args.valset,
-                        rel_test_set_path: str = args.testset):
+                        rel_test_set_path: str = args.testset,
+                        LOAD_FROM_CHECKPOINT: bool = args.load_checkpoint):
     """
 
     Parameters
@@ -101,17 +104,22 @@ def run_pykeen_pipeline(KGE_MODEL_NAME_S: str = args.kge, EXPERIMENT_NAME: str =
 
     # set dataset paths and experiment name
     if DEBUGGING:
+        if LOAD_FROM_CHECKPOINT:
+            raise NotImplementedError()
         EXPERIMENT_NAME = START_TIME + '_DEBUGGING_' + EXPERIMENT_NAME
         rel_training_set_path = 'data/processed/files_per_model/KG_only_KGE/for_debugging/training_data_subset_0.9_rs42_06_05_2022_15:11_for_debugging.tsv'
         rel_validation_set_path = 'data/processed/files_per_model/KG_only_KGE/for_debugging/validation_data_subset_0.05_rs42_06_05_2022_15:11_for_debugging.tsv'
         rel_test_set_path = 'data/processed/files_per_model/KG_only_KGE/for_debugging/test_data_subset_0.05_rs42_06_05_2022_15:11_for_debugging.tsv'
     else:
-        EXPERIMENT_NAME = START_TIME + '_' + EXPERIMENT_NAME
+        if LOAD_FROM_CHECKPOINT:
+            EXPERIMENT_NAME = EXPERIMENT_NAME
+        else:
+            EXPERIMENT_NAME = START_TIME + '_' + EXPERIMENT_NAME
         rel_training_set_path = rel_training_set_path
         rel_validation_set_path = rel_validation_set_path
         rel_test_set_path = rel_test_set_path
     # create path for saving all the result files
-    DIRECTORY_FOR_SAVING = os.path.join(BASE_PATH_HOST, 'results/KG_only', EXPERIMENT_NAME)
+    DIRECTORY_FOR_SAVING = os.path.join(BASE_PATH_HOST, 'results/KG_only/final', EXPERIMENT_NAME)
 
     # create directory and then use it as working directory
     if not os.path.isdir(DIRECTORY_FOR_SAVING):
@@ -119,15 +127,19 @@ def run_pykeen_pipeline(KGE_MODEL_NAME_S: str = args.kge, EXPERIMENT_NAME: str =
     os.chdir(DIRECTORY_FOR_SAVING)
 
     # save the currently running script file for later reference
-    file_name = 'script_' + EXPERIMENT_NAME + '.py'
-    source_path = os.path.join(BASE_PATH_HOST, 'src/CLI_scripts', __file__)
-    shutil.copy(src = source_path, dst = os.path.join(os.getcwd(), file_name))
+    if not LOAD_FROM_CHECKPOINT:
+        file_name = 'script_' + EXPERIMENT_NAME + '.py'
+        source_path = os.path.join(BASE_PATH_HOST, 'src/CLI_scripts', __file__)
+        shutil.copy(src = source_path, dst = os.path.join(os.getcwd(), file_name))
 
     # save the argparse arguments to disk
     save_argparse_obj_to_disk(argparse_namespace = args)
 
     # create a logger
-    logger_file_name = f'log_train_{socket.gethostname()}' + EXPERIMENT_NAME + '.txt'
+    if not LOAD_FROM_CHECKPOINT:
+        logger_file_name = f'log_train_{socket.gethostname()}' + EXPERIMENT_NAME + '.txt'
+    if LOAD_FROM_CHECKPOINT:
+        logger_file_name = f'log_continue_training_for_{NUM_EPOCHS}ep_at {START_TIME}_{socket.gethostname()}' + EXPERIMENT_NAME + '.txt'
     logger = initialize_my_logger(file_name = logger_file_name)
 
     logger.info('The experiment has started!')
@@ -236,7 +248,7 @@ def run_pykeen_pipeline(KGE_MODEL_NAME_S: str = args.kge, EXPERIMENT_NAME: str =
                                    # After how many minutes should a checkpoint be saved?
                                    checkpoint_frequency = 10,
                                    checkpoint_directory = os.path.join(BASE_PATH_HOST,
-                                                                       'results/KG_only',
+                                                                       'results/KG_only/final',
                                                                        EXPERIMENT_NAME,
                                                                        'checkpoints'),
                                    # to save a checkpoint when training loop fails
