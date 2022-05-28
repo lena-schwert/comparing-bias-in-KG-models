@@ -32,67 +32,34 @@ from src.utils import set_base_path_based_on_host, initialize_my_logger, \
 from src.bias_measurement.link_prediction_bias.predict_tails import get_preds_df
 from src.bias_measurement.link_prediction_bias.BiasEvaluator import BiasEvaluator
 from src.bias_measurement.link_prediction_bias.Measurement import DemographicParity, PredictiveParity
+from src.bias_measurement.link_prediction_bias.utils import get_sensitive_and_target_relations
 
 BASE_PATH_HOST = set_base_path_based_on_host()
 improve_pandas_viewing_options()
 
 
-def get_sensitive_and_target_relations(dataset_name):
-    if dataset_name.lower() == "wikidata5m":
-        target_relations = ['P106']  # occupation
-        sensitive_relations = ['P21']  # sex or gender
-        # The k most common relations in Wikidata5M (old version)
-        # P27 - country of citizenship                  #######################################
-        # P54 - member of sports team                   #######################################
-        # P735 - given name                             #######################################
-        # P19 - place of birth                          #######################################
-        # P69 - educated at                             #######################################
-        # P641 -  sport                                   #######################################
-        # P20 - place of death                          #######################################
-        # P1412 - languages spoken, written or signed   #######################################
-        # P1344 - participant in                        #######################################
-        # P413 - position played on team/specialty      #######################################
-        # P166 - award received                         #######################################
-    else:
-        raise NotImplementedError('Other datasets than Wikidata5M are currently not implemented.')
-
-    # This is required such that the relations can be looped through meaningfully
-    # relevant for predict_tails.add_relation_values(), Measurement.py
-    assert type(sensitive_relations) == list
-    assert type(target_relations) == list
-
-    all([type(item) == str for item in sensitive_relations])
-    all([type(item) == str for item in target_relations])
-
-    return sensitive_relations, target_relations
-
-
-def create_preds_df():
+def get_preds_df(path_to_existing_preds_df: str = None):
     """
-    1. This uses the predict_tails.get_preds_df() function from Keidar.
-    2. This function then calls utils.get_classifier().
-    3. classifier.train() then trains an occupation classifier based on the embeddings
-       of the link prediction model.
-    4. predict_tails.predict_relation_tails() creates the first 4 columns of the preds_df:
-       entity, relation, true tail, preds (by the classifier)
-       This shows true labels for occupation and what the classifier predicted.
-    5. predict_tails.add_relation_values() gets the sensitive attribute values for each person
-       in preds_df from the original dataset, e.g. who is female/male/value missing.
-    6. This dataframe is then stored as CSV, one preds_df per model.
 
     Arguments needed for this are:
         dataset = a dataset object, originally inherited from pykeen.PathDataset(LazyDataset(Dataset))
-        classifier_args = epochs, batch size, type (e.g. MLP), number of classes
-        model_args = the path to a trained link prediction model
         target_relation = an identifier of the target relation, will be 'P106' (occupation) for W5M
         bias_relations = list of identifier for relations that bias should be calculated for
         (originally in utils.suggest_relations: ['P27', 'P735', 'P19', 'P54', 'P69', 'P641', 'P20', 'P1344', 'P1412', 'P413'])
-
 
     Returns
     -------
 
     """
+    if path_to_existing_preds_df:
+        preds_df = pd.read_csv(path_to_existing_preds_df,
+                               sep = '\t')
+        # TODO specify file names and seperator
+        return preds_df
+
+
+
+
 
     pass
 
@@ -110,25 +77,11 @@ parser.add_argument('-n', '--name', required = True, type = str,
 parser.add_argument("--data_dir", default = 'data/processed/human_Wikidata5M', type = str,
                     help = "The input data dir. Should contain the .tsv files (or other data files) for the task.")
 
-# parameters for training a classifier
-parser.add_argument('--epochs', type = int,
-                    help = "Number of training epochs of link prediction classifier (used for DP & PP), default to 100",
-                    default = 10)
-parser.add_argument('--batch', type = int,
-                    help = "Training batch size for the target relation classifier.", default = 256)
-parser.add_argument('--clsf_type', type = str, choices = {'mlp', 'rf'},
-                    help = "Type of target relation classifier.", default = 'mlp')
-parser.add_argument('--num_classes', type = int,
-                    help = "Number of training epochs of link prediction classifier (used for DP & PP), default to 100",
-                    default = 11)
-
 # paramters needed when classifier/preds_df is loaded from existing folder
 parser.add_argument('--load_from_folder', action = 'store_true',
-                    help = 'Add this flag when you want to load existing files, e.g. a trained '
-                           'classifier and/or a preds_df. Files will be loaded from an existing '
+                    help = 'Add this flag when you want to load an existing preds_df. Files will '
+                           'be loaded from an existing '
                            'folder specified with the "name" parameter.')
-parser.add_argument('--trained_classifier', type = str,
-                    help = 'File name of the checkpoint file to load from.')
 
 # parameters needed in both cases
 parser.add_argument('--embedding_name', type = str, default = 'transe',
@@ -245,7 +198,7 @@ random.seed(args.random_seed)
 np.random.seed(args.random_seed)
 torch.manual_seed(args.random_seed)
 
-### Create variables needed by Keidar code
+### Create variables needed
 if args.dataset_name == 'FB15K-237':
     dataset = pykeen.datasets.FB15k237()
 if args.dataset_name == 'Wikidata5M':
@@ -264,20 +217,6 @@ sensitive_relations, target_relations = get_sensitive_and_target_relations(args.
 
 
 
-
-PATH_TO_EMBEDDING = os.path.join(BASE_PATH_HOST,
-                                 f'trained_models/KG_only/graphvite_pretrained_W5M/{args.embedding_name}_pretrained_human_W5M.pkl')
-PATH_TO_EMBEDDING = os.path.join(BASE_PATH_HOST,
-                                 'results/KG_only/TransE_fullW5M_80epochs/trained_model.pkl')
-PATH_TO_EMBEDDING = os.path.join(BASE_PATH_HOST,
-                                 f'trained_models/KG_only/graphvite_pretrained_W5M/{args.embedding_name}_pretrained_human_W5M_entity_embeddings_dict.pkl')
-PATH_TO_EMBEDDING = os.path.join(BASE_PATH_HOST,
-                                 'trained_models/KG_only/Keidar_FB15k-237/trans_e.pkl')
-
-# ComplEx
-model = torch.load(PATH_TO_EMBEDDING, map_location = device)
-
-
 # Check whether a preds_df already exists in the current folder, if yes it is loaded
 list_of_preds_df_files = []
 for file in os.listdir(os.getcwd()):
@@ -293,24 +232,20 @@ elif len(list_of_preds_df_files) == 1:
 else:
     raise ValueError('More than one preds_df found, but only one expected!')
 
-# Create arguments needed for training the target relation classifier
-model_args = {'embedding_model_path': PATH_TO_EMBEDDING}
-
-classifier_args = {'epochs': args.epochs, "batch_size": args.batch, "type": args.clsf_type,
-                   'num_classes': args.num_classes,
-                   'load_trained_classifier': args.load_from_folder,
-                   'trained_classifier_filename': args.trained_classifier}
-
-preds_df = get_preds_df(dataset = dataset, classifier_args = classifier_args,
-                        model_args = model_args, target_relation = target_relations,
-                        bias_relations = sensitive_relations,
-                        preds_df_path = path_to_existing_preds_df)
+preds_df = create_preds_df(path_to_existing_preds_df,
+                           sensitive_relations, target_relations)
 
 # save preds_df to disk in case it was just created
 if path_to_existing_preds_df is None:
+
     preds_df.to_csv(f'preds_df_{args.model_type}_{args.embedding_name}_{EXPERIMENT_NAME}.csv')
 
-# Given a preds_df, calculate bias scores for given mesaures
+# IMPORTANT Given a preds_df
+
+
+# IMPORTANT Given a preds_df, calculate bias scores for given mesaures usin Keidar code
+# drop columns not needed
+preds_df_for_Keidar_code = None
 
 assert preds_df.empty is False
 measures = [DemographicParity(), PredictiveParity()]
