@@ -1,0 +1,153 @@
+relation_id	relation_label	tail_entity_id	tail_entity_label	class_label_geq50_based_on_testset	count_FB15k237_complete	count_testset_FB15k237
+/people/person/profession	occupation	/m/02hrh1q	Actor-GB	1	2759	261
+/people/person/profession	occupation	/m/0dxtg	Screenwriter	2	1072	116
+/people/person/profession	occupation	/m/01d_h8	Film Producer-GB	3	1086	111
+/people/person/profession	occupation	/m/02jknp	Film Director	4	741	79
+/people/person/profession	occupation	/m/09jwl	Musician-GB	5	693	71
+/people/person/profession	occupation	/m/03gjzk	Television producer-GB	6	691	61
+/people/person/profession	occupation	/m/0cbd2	Writer-GB	7	530	51
+/people/person/profession	occupation	/m/0nbcg	Songwriter-GB	8	475	50
+/people/person/profession	occupation	/m/0dz3r	Record producer-GB	0	369	42
+/people/person/profession	occupation	/m/0kyk	Author-GB	0	364	41
+/people/person/profession	occupation	/m/018gz8	Comedian	0	347	36
+/people/person/profession	occupation	/m/01c72t	Composer	0	335	34
+/people/person/profession	occupation	/m/02krf9	Television Director	0	295	32
+/people/person/profession	occupation	/m/0np9r	Voice Actor	0	406	30
+/people/person/profession	occupation	/m/016z4k	Singer-songwriter-GB	0	345	27
+/people/person/profession	occupation	/m/039v1	Guitarist-GB	0	191	
+/people/person/profession	occupation	/m/0n1h	Artist-GB	0	187	
+/people/person/profession	occupation	/m/0d1pc	Model	0	168	
+/people/person/profession	occupation	/m/02hv44_	Playwright-GB	0	124	
+/people/person/profession	occupation	/m/0fj9f	Politician-GB	0	112	
+/people/person/profession	occupation	/m/025352	Lyricist	0	102	
+/people/person/profession	occupation	/m/015cjr	Presenter-GB	0	102	
+/people/person/profession	occupation	/m/05z96	Poet	0	99	
+/people/person/profession	occupation	/m/0dgd_	Cinematographer-GB	0	97	
+/people/person/profession	occupation	/m/012t_z	Businessperson-GB	0	92	
+/people/person/profession	occupation	/m/01c8w0	Conductor	0	82	
+/people/person/profession	occupation	/m/0fnpj	Keyboard player-GB	0	76	
+/people/person/profession	occupation	/m/0d8qb	Journalist-GB	0	72	
+/people/person/profession	occupation	/m/05vyk	Pianist-GB	0	64	
+/people/person/profession	occupation	/m/0gl2ny2	Football player	0	60	
+/people/person/profession	occupation	/m/04gc2	Lawyer	0	50	
+/people/person/profession	occupation	/m/0196pc	Cartoonist	0	45	
+/people/person/profession	occupation	/m/015h31	Animator-GB	0	40	
+/people/person/profession	occupation	/m/09lbv	Drummer-GB	0	38	
+/people/person/profession	occupation	/m/04f2zj	Multi-instrumentalist-GB	0	37	
+/people/person/profession	occupation	/m/0q04f	Theatre Director	0	36	
+/people/person/profession	occupation	/m/02pjxr	Production Designer	0	35	
+/people/person/profession	occupation	/m/0gbbt	Bassist	0	34	
+/people/person/profession	occupation	/m/026sdt1	Costume Designer-GB	0	34	
+/people/person/profession	occupation	/m/029bkp	Bandleader	0	33	
+/people/person/profession	occupation	/m/01d30f	Teacher-GB	0	33	
+/people/person/profession	occupation	/m/028kk_	Music Director	0	31	
+/people/person/profession	occupation	/m/089fss	Set decorator-GB	0	31	
+/people/person/profession	occupation	/m/01445t	Athlete	0	30	
+/people/person/profession	occupation	/m/016fly	Professor-GB	0	29	
+/people/person/profession	occupation	/m/08z956	Radio personality-GB	0	27	
+/people/person/profession	occupation	/m/02dsz	Disc jockey-GB	0	27	
+/people/person/profession	occupation	/m/06q2q	Scientist-GB	0	27	
+/people/person/profession	occupation	/m/05sxg2	Theatrical producer	0	26	
+/people/person/profession	occupation	/m/01b30l	Organist	0	25	
+/people/person/profession	occupation	/m/099md	Soldier-GB	0	24	
+/people/person/profession	occupation	/m/0lgw7	Photographer	0	23	
+/people/person/profession	occupation	/m/02tx6q	Audio Engineer	0	20	
+/people/person/profession	occupation	/m/01c979	Designer	0	18	
+/people/person/profession	occupation	/m/05snw	Physicist	0	18	
+/people/person/profession	occupation	/m/05t4q	Physician	0	18	
+/people/person/profession	occupation	/m/01xr66	Spokesperson-GB	0	17	
+/people/person/profession	occupation	/m/021wpb	Character Actor	0	17	
+/people/person/profession	occupation	/m/04s2z	Mathematician	0	15	
+/people/person/profession	occupation	/m/03sbb	Inventor-GB	0	14	
+/people/person/profession	occupation	/m/064xm0	Music Video Director	0	14	
+/people/person/profession	occupation	/m/01p5_g	Pin-up girl-GB	0	13	
+/people/person/profession	occupation	/m/015btn	Critic	0	13	
+/people/person/profession	occupation	/m/03jgz	Historian	0	13	
+/people/person/profession	occupation	/m/0frz0	Economist	0	13	
+/people/person/profession	occupation	/m/0mn6	Architect	0	13	
+/people/person/profession	occupation	/m/047rgpy	Music executive-GB	0	12	
+/people/person/profession	occupation	/m/012qdp	Army officer-GB	0	12	
+/people/person/profession	occupation	/m/0747nrk	Commentator	0	11	
+/people/person/profession	occupation	/m/03lgtv	Session musician	0	10	
+/people/person/profession	occupation	/m/080ntlp	Diplomat	0	10	
+/people/person/profession	occupation	/m/014kbl	Puppeteer	0	10	
+/people/person/profession	occupation	/m/0g0vx	Farmer-GB	0	9	
+/people/person/profession	occupation	/m/01tkqy	Stunt performer-GB	0	9	
+/people/person/profession	occupation	/m/025sppp	Investor	0	9	
+/people/person/profession	occupation	/m/09j9h	Engineer-GB	0	9	
+/people/person/profession	occupation	/m/01l5t6	Librarian	0	8	
+/people/person/profession	occupation	/m/02ynfr	Art Director	0	8	
+/people/person/profession	occupation	/m/02t8yb	Playback Singer	0	8	
+/people/person/profession	occupation	/m/07s467s	Environmentalist	0	8	
+/people/person/profession	occupation	/m/016wtf	Sailor	0	7	
+/people/person/profession	occupation	/m/020xn5	Illustrator-GB	0	7	
+/people/person/profession	occupation	/m/0h9c	Astronomer-GB	0	7	
+/people/person/profession	occupation	/m/016m9h	Attorneys in the United States	0	6	
+/people/person/profession	occupation	/m/0xzm	Activism	0	6	
+/people/person/profession	occupation	/m/02y5kn	Coach	0	6	
+/people/person/profession	occupation	/m/0d2ww	Supermodel	0	6	
+/people/person/profession	occupation	/m/01___w	Lecturer-GB	0	6	
+/people/person/profession	occupation	/m/019x4f	Carpenter-GB	0	5	
+/people/person/profession	occupation	/m/014ktf	Announcer	0	5	
+/people/person/profession	occupation	/m/01pxg	Chemist-GB	0	5	
+/people/person/profession	occupation	/m/0jgxn	Psychologist-GB	0	5	
+/people/person/profession	occupation	/m/0dz96	Magician	0	4	
+/people/person/profession	occupation	/m/01nxfc	Mangaka-GB	0	4	
+/people/person/profession	occupation	/m/04j5jl	Master of Ceremonies-GB	0	4	
+/people/person/profession	occupation	/m/012wxt	VJ-GB	0	4	
+/people/person/profession	occupation	/m/01xy5l_	Graphic Designer-GB	0	4	
+/people/person/profession	occupation	/m/094hwz	Animation Director	0	4	
+/people/person/profession	occupation	/m/0d2b38	Storyboard Artist	0	4	
+/people/person/profession	occupation	/m/02p0s5r	Psychiatrist-GB	0	3	
+/people/person/profession	occupation	/m/067nv	Preacher	0	3	
+/people/person/profession	occupation	/m/04gf49c	Restaurateur	0	3	
+/people/person/profession	occupation	/m/025sd_y	Harpsichordist	0	3	
+/people/person/profession	occupation	/m/05xjb	Priest-GB	0	3	
+/people/person/profession	occupation	/m/01bs9f	Civil engineer	0	3	
+/people/person/profession	occupation	/m/025syph	Fighter pilot-GB	0	3	
+/people/person/profession	occupation	/m/01jn5	Barrister-GB	0	3	
+/people/person/profession	occupation	/m/07lqg0	Biologist	0	2	
+/people/person/profession	occupation	/m/03m3mgq	Computer Scientist	0	2	
+/people/person/profession	occupation	/m/066dv	Prophet-GB	0	2	
+/people/person/profession	occupation	/m/03gkb0	Socialite-GB	0	2	
+/people/person/profession	occupation	/m/09zzb8	Makeup Artist-GB	0	2	
+/people/person/profession	occupation	/m/0c5lg	Judge-GB	0	2	
+/people/person/profession	occupation	/m/05ll37	Sports commentator-GB	0	2	
+/people/person/profession	occupation	/m/01sjmd	Biochemist-GB	0	2	
+/people/person/profession	occupation	/m/01pn0r	Chef	0	2	
+/people/person/profession	occupation	/m/05s9tm	Talent manager-GB	0	2	
+/people/person/profession	occupation	/m/0557q	Musical theatre	0	2	
+/people/person/profession	occupation	/m/0dl08	Jurist	0	2	
+/people/person/profession	occupation	/m/06wkj0	Comics artist	0	2	
+/people/person/profession	occupation	/m/04pyp5	Hairdresser-GB	0	2	
+/people/person/profession	occupation	/m/036n1	Geologist	0	1	
+/people/person/profession	occupation	/m/0ch6mp2	Sound Mixer	0	1	
+/people/person/profession	occupation	/m/05xls	Programmer	0	1	
+/people/person/profession	occupation	/m/028sgq	Estate agent-GB	0	1	
+/people/person/profession	occupation	/m/05jnl	Newspaper	0	1	
+/people/person/profession	occupation	/m/0gjm7	Surveyor-GB	0	1	
+/people/person/profession	occupation	/m/02ky346	Engineering-GB	0	1	
+/people/person/profession	occupation	/m/0g_qdz	Basketball Coach	0	1	
+/people/person/profession	occupation	/m/01c6nk	Warlord	0	1	
+/people/person/profession	occupation	/m/025rxky	Astrologer-GB	0	1	
+/people/person/profession	occupation	/m/035y33	Official-GB	0	1	
+/people/person/profession	occupation	/m/025spv	Business magnate-GB	0	1	
+/people/person/profession	occupation	/m/062z7	Political Science	0	1	
+/people/person/profession	occupation	/m/01sfl	Clown	0	1	
+/people/person/profession	occupation	/m/02r_5vd	Promoter	0	1	
+/people/person/profession	occupation	/m/03_vpw	Backing vocalist-GB	0	1	
+/people/person/profession	occupation	/m/025bwc	Impresario-GB	0	1	
+/people/person/profession	occupation	/m/01pvkk	Sound Editor-GB	0	1	
+/people/person/profession	occupation	/m/09vw2b7	Special Effects Supervisor	0	1	
+/people/person/profession	occupation	/m/039h8_	Chief of police-GB	0	1	
+/people/person/profession	occupation	/m/0fy91	Drag queen	0	1	
+/people/person/profession	occupation	/m/01kyvx	Seiyū-GB	0	1	
+/people/person/profession	occupation	/m/0g7nc	Pornographic actor-GB	0	1	
+/people/person/profession	occupation	/m/0mb31	Sheriff	0	1	
+/people/person/profession	occupation	/m/04cvn_	Art critic-GB	0	1	
+/people/person/profession	occupation	/m/0mch7	Solicitor	0	1	
+/people/person/profession	occupation	/m/05kb8h	Motivational speaker-GB	0	1	
+/people/person/profession	occupation	/m/0htp	Astronaut-GB	0	1	
+/people/person/profession	occupation	/m/01fhsb	Pastor	0	1	
+/people/person/profession	occupation	/m/018rn4	Choreography	0	1	
+/people/person/profession	occupation	/m/060m4	Prime Minister of Canada	0	1	

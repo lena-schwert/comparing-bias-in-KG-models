@@ -1,0 +1,1507 @@
+relation_id	relation_label	tail_entity_id	tail_entity_label	class_label_based_on_v4testset	count_Humanv4_subset_testset
+P106	occupation	Q82955	politician	1	1070
+P106	occupation	Q36180	writer	2	262
+P106	occupation	Q40348	lawyer	3	253
+P106	occupation	Q33999	actor	4	158
+P106	occupation	Q937857	association football player	5	142
+P106	occupation	Q49757	poet	6	129
+P106	occupation	Q6625963	novelist	7	109
+P106	occupation	Q28389	screenwriter	8	106
+P106	occupation	Q36834	composer	0	90
+P106	occupation	Q753110	songwriter	0	77
+P106	occupation	Q1930187	journalist	0	70
+P106	occupation	Q81096	engineer	0	65
+P106	occupation	Q639669	musician	0	65
+P106	occupation	Q482980	author	0	56
+P106	occupation	Q3282637	film producer	0	48
+P106	occupation	Q4610556	model	0	45
+P106	occupation	Q488205	singer-songwriter	0	43
+P106	occupation	Q201788	historian	0	42
+P106	occupation	Q855091	guitarist	0	42
+P106	occupation	Q193391	diplomat	0	40
+P106	occupation	Q947873	television presenter	0	40
+P106	occupation	Q4964182	philosopher	0	35
+P106	occupation	Q82594	computer scientist	0	30
+P106	occupation	Q16533	judge	0	29
+P106	occupation	Q39631	physician	0	29
+P106	occupation	Q486748	pianist	0	28
+P106	occupation	Q188094	economist	0	23
+P106	occupation	Q2526255	film director	0	22
+P106	occupation	Q42603	priest	0	18
+P106	occupation	Q47064	military personnel	0	18
+P106	occupation	Q43845	businessperson	0	17
+P106	occupation	Q170790	mathematician	0	17
+P106	occupation	Q189290	military officer	0	11
+P106	occupation	Q33231	photographer	0	9
+P106	occupation	Q183945	record producer	0	9
+P106	occupation	Q42973	architect	0	8
+P106	occupation	Q628099	association football manager	0	2
+P106	occupation	Q169470	physicist	0	
+P106	occupation	Q483501	artist	0	
+P106	occupation	Q214917	playwright	0	
+P106	occupation	Q593644	chemist	0	
+P106	occupation	Q4773904	anthropologist	0	
+P106	occupation	Q5137571	basketball coach	0	
+P106	occupation	Q212980	psychologist	0	
+P106	occupation	Q37226	teacher	0	
+P106	occupation	Q11063	astronomer	0	
+P106	occupation	Q2722764	radio personality	0	
+P106	occupation	Q774306	surgeon	0	
+P106	occupation	Q131512	farmer	0	
+P106	occupation	Q185351	jurist	0	
+P106	occupation	Q121594	professor	0	
+P106	occupation	Q133485	rabbi	0	
+P106	occupation	Q644687	illustrator	0	
+P106	occupation	Q864503	biologist	0	
+P106	occupation	Q245068	comedian	0	
+P106	occupation	Q3246315	head coach	0	
+P106	occupation	Q4991371	soldier	0	
+P106	occupation	Q520549	geologist	0	
+P106	occupation	Q182436	librarian	0	
+P106	occupation	Q222344	cinematographer	0	
+P106	occupation	Q130857	disc jockey	0	
+P106	occupation	Q2066131	athlete	0	
+P106	occupation	Q219477	missionary	0	
+P106	occupation	Q622807	seiyū	0	
+P106	occupation	Q901	scientist	0	
+P106	occupation	Q211346	psychiatrist	0	
+P106	occupation	Q3387717	theatrical director	0	
+P106	occupation	Q2095549	aircraft pilot	0	
+P106	occupation	Q822146	lyricist	0	
+P106	occupation	Q13582652	civil engineer	0	
+P106	occupation	Q2059704	television director	0	
+P106	occupation	Q578109	television producer	0	
+P106	occupation	Q2986228	sports commentator	0	
+P106	occupation	Q859528	association football referee	0	
+P106	occupation	Q205375	inventor	0	
+P106	occupation	Q38142	samurai	0	
+P106	occupation	Q715301	comics artist	0	
+P106	occupation	Q1114448	cartoonist	0	
+P106	occupation	Q128124	audio engineer	0	
+P106	occupation	Q765778	organist	0	
+P106	occupation	Q1476215	human rights activist	0	
+P106	occupation	Q3499072	chef	0	
+P106	occupation	Q627325	graphic designer	0	
+P106	occupation	Q2919046	biochemist	0	
+P106	occupation	Q384593	police officer	0	
+P106	occupation	Q386854	drummer	0	
+P106	occupation	Q806349	bandleader	0	
+P106	occupation	Q901402	geographer	0	
+P106	occupation	Q805221	ballet dancer	0	
+P106	occupation	Q41583	coach	0	
+P106	occupation	Q674426	curator	0	
+P106	occupation	Q5322166	designer	0	
+P106	occupation	Q2732142	statistician	0	
+P106	occupation	Q6168364	jazz guitarist	0	
+P106	occupation	Q488111	pornographic actor	0	
+P106	occupation	Q2143894	cricket umpire	0	
+P106	occupation	Q1086863	columnist	0	
+P106	occupation	Q266569	animator	0	
+P106	occupation	Q191633	mangaka	0	
+P106	occupation	Q846750	jockey	0	
+P106	occupation	Q3126128	geneticist	0	
+P106	occupation	Q808967	barrister	0	
+P106	occupation	Q222982	flying ace	0	
+P106	occupation	Q215536	merchant	0	
+P106	occupation	Q2705098	tarento	0	
+P106	occupation	Q512314	socialite	0	
+P106	occupation	Q1423891	minister	0	
+P106	occupation	Q6337803	neuroscientist	0	
+P106	occupation	Q733786	monk	0	
+P106	occupation	Q11631	astronaut	0	
+P106	occupation	Q484188	serial killer	0	
+P106	occupation	Q329455	justice of the peace	0	
+P106	occupation	Q484876	chief executive officer	0	
+P106	occupation	Q270389	news presenter	0	
+P106	occupation	Q2304859	sovereign	0	
+P106	occupation	Q27349	dentist	0	
+P106	occupation	Q635734	archivist	0	
+P106	occupation	Q876864	contributing editor	0	
+P106	occupation	Q2727289	rikishi	0	
+P106	occupation	Q3427922	restaurateur	0	
+P106	occupation	Q466640	horse trainer	0	
+P106	occupation	Q116	monarch	0	
+P106	occupation	Q29182	bishop	0	
+P106	occupation	Q1198887	music director	0	
+P106	occupation	Q2962070	production designer	0	
+P106	occupation	Q1323191	costume designer	0	
+P106	occupation	Q152002	pastor	0	
+P106	occupation	Q202883	veterinarian	0	
+P106	occupation	Q273108	condottiero	0	
+P106	occupation	Q970153	child actor	0	
+P106	occupation	Q5482740	programmer	0	
+P106	occupation	Q860918	Esperantist	0	
+P106	occupation	Q45199	sailor	0	
+P106	occupation	Q831474	presbyter	0	
+P106	occupation	Q12097	king	0	
+P106	occupation	Q105186	pharmacist	0	
+P106	occupation	Q3286043	glamour model	0	
+P106	occupation	Q2707485	scenographer	0	
+P106	occupation	Q584301	bassist	0	
+P106	occupation	Q3148760	botanical illustrator	0	
+P106	occupation	Q191808	nun	0	
+P106	occupation	Q618694	fighter pilot	0	
+P106	occupation	Q706364	art director	0	
+P106	occupation	Q1753370	curate	0	
+P106	occupation	Q14284	solicitor	0	
+P106	occupation	Q2478141	aristocrat	0	
+P106	occupation	Q2629392	puppeteer	0	
+P106	occupation	Q2961975	business executive	0	
+P106	occupation	Q432386	preacher	0	
+P106	occupation	Q6430706	critic	0	
+P106	occupation	Q1320883	talent manager	0	
+P106	occupation	Q15982858	motivational speaker	0	
+P106	occupation	Q186370	troubadour	0	
+P106	occupation	Q17125263	YouTuber	0	
+P106	occupation	Q948329	character actor	0	
+P106	occupation	Q103163	abbot	0	
+P106	occupation	Q1569495	lecturer	0	
+P106	occupation	Q715222	lady-in-waiting	0	
+P106	occupation	Q728711	Playboy Playmate	0	
+P106	occupation	Q4164507	art critic	0	
+P106	occupation	Q1344174	talent agent	0	
+P106	occupation	Q4182927	stockbroker	0	
+P106	occupation	Q4594605	magistrate	0	
+P106	occupation	Q599151	official	0	
+P106	occupation	Q2566598	religious	0	
+P106	occupation	Q380075	advocate	0	
+P106	occupation	Q201559	privateer	0	
+P106	occupation	Q3242115	revolutionary	0	
+P106	occupation	Q121998	ambassador	0	
+P106	occupation	Q185196	midwife	0	
+P106	occupation	Q2004963	numismatist	0	
+P106	occupation	Q838476	sporting director	0	
+P106	occupation	Q4951095	bowler	0	
+P106	occupation	Q943995	impresario	0	
+P106	occupation	Q1856798	baseball umpire	0	
+P106	occupation	Q1371925	announcer	0	
+P106	occupation	Q164236	war correspondent	0	
+P106	occupation	Q2815948	landscape architect	0	
+P106	occupation	Q935666	make-up artist	0	
+P106	occupation	Q326653	accountant	0	
+P106	occupation	Q5697103	antiquarian	0	
+P106	occupation	Q156839	cook	0	
+P106	occupation	Q131062	urban planner	0	
+P106	occupation	Q719039	queen consort	0	
+P106	occupation	Q691031	concertmaster	0	
+P106	occupation	Q49476	archbishop	0	
+P106	occupation	Q1104153	canon	0	
+P106	occupation	Q1259323	tribal chief	0	
+P106	occupation	Q15978655	consultant	0	
+P106	occupation	Q762707	luthier	0	
+P106	occupation	Q2576499	nutritionist	0	
+P106	occupation	Q11538947	shogi player	0	
+P106	occupation	Q805253	ballet master	0	
+P106	occupation	Q557880	investor	0	
+P106	occupation	Q1708232	medalist	0	
+P106	occupation	Q725440	prelate	0	
+P106	occupation	Q17098559	penciller	0	
+P106	occupation	Q730242	test pilot	0	
+P106	occupation	Q1759246	theatrical producer	0	
+P106	occupation	Q854997	bhikṣu	0	
+P106	occupation	Q125482	imam	0	
+P106	occupation	Q897317	winegrower	0	
+P106	occupation	Q548320	Catholic friar	0	
+P106	occupation	Q3779582	microbiologist	0	
+P106	occupation	Q465501	stunt performer	0	
+P106	occupation	Q1208175	camera operator	0	
+P106	occupation	Q168559	political commissar	0	
+P106	occupation	Q2859671	rugby union match official	0	
+P106	occupation	Q211423	goldsmith	0	
+P106	occupation	Q3089940	music executive	0	
+P106	occupation	Q173950	art dealer	0	
+P106	occupation	Q208762	chaplain	0	
+P106	occupation	Q487596	dramaturge	0	
+P106	occupation	Q5428874	faculty member	0	
+P106	occupation	Q744738	encyclopédistes	0	
+P106	occupation	Q5137576	ice hockey coach	0	
+P106	occupation	Q1186921	baseball manager	0	
+P106	occupation	Q683754	drafter	0	
+P106	occupation	Q2632248	akhoond	0	
+P106	occupation	Q1155838	correspondent	0	
+P106	occupation	Q3186699	Go professional	0	
+P106	occupation	Q600751	prosecutor	0	
+P106	occupation	Q2627699	chess composer	0	
+P106	occupation	Q1075651	keyboardist	0	
+P106	occupation	Q1533366	Queen's Counsel	0	
+P106	occupation	Q193364	vicar	0	
+P106	occupation	Q1999841	Islamic jurist	0	
+P106	occupation	Q2516852	literary editor	0	
+P106	occupation	Q578478	sheriff	0	
+P106	occupation	Q161944	deacon	0	
+P106	occupation	Q1056391	head teacher	0	
+P106	occupation	Q157798	watchmaker	0	
+P106	occupation	Q3364526	alderman	0	
+P106	occupation	Q739437	poster artist	0	
+P106	occupation	Q19643	queen regnant	0	
+P106	occupation	Q4696968	aikidoka	0	
+P106	occupation	Q15816836	bacteriologist	0	
+P106	occupation	Q865935	baseball coach	0	
+P106	occupation	Q462390	docent	0	
+P106	occupation	Q322170	suffragette	0	
+P106	occupation	Q414528	academician	0	
+P106	occupation	Q1630100	art model	0	
+P106	occupation	Q1053574	executive producer	0	
+P106	occupation	Q5121444	intelligence officer	0	
+P106	occupation	Q12859263	orator	0	
+P106	occupation	Q210167	video game developer	0	
+P106	occupation	Q3578589	environmentalist	0	
+P106	occupation	Q3406651	radio producer	0	
+P106	occupation	Q202648	referee	0	
+P106	occupation	Q80687	secretary	0	
+P106	occupation	Q500251	ship-owner	0	
+P106	occupation	Q1154323	spree killer	0	
+P106	occupation	Q316490	funeral director	0	
+P106	occupation	Q46961	gangster	0	
+P106	occupation	Q1937431	organ builder	0	
+P106	occupation	Q212948	partisan	0	
+P106	occupation	Q589298	editor-in-chief	0	
+P106	occupation	Q58968	intellectual	0	
+P106	occupation	Q819677	mountain guide	0	
+P106	occupation	Q189010	notary	0	
+P106	occupation	Q611644	Catholic bishop	0	
+P106	occupation	Q758780	gardener	0	
+P106	occupation	Q12406482	humorist	0	
+P106	occupation	Q254651	navigator	0	
+P106	occupation	Q1079215	AV idol	0	
+P106	occupation	Q3330547	chronicler	0	
+P106	occupation	Q1162163	director	0	
+P106	occupation	Q102083	knight	0	
+P106	occupation	Q662729	public figure	0	
+P106	occupation	Q1642960	pundit	0	
+P106	occupation	Q2350126	vocal coach	0	
+P106	occupation	Q1250916	warrior	0	
+P106	occupation	Q854979	bhikkhunī	0	
+P106	occupation	Q178521	cowboy	0	
+P106	occupation	Q721834	manager	0	
+P106	occupation	Q330204	paramedic	0	
+P106	occupation	Q171692	patriarch	0	
+P106	occupation	Q42857	prophet	0	
+P106	occupation	Q519076	real estate broker	0	
+P106	occupation	Q541892	theatrical makeup	0	
+P106	occupation	Q911554	business magnate	0	
+P106	occupation	Q13391399	chansonnier	0	
+P106	occupation	Q1823479	lighting designer	0	
+P106	occupation	Q278919	literary agent	0	
+P106	occupation	Q2340668	music video director	0	
+P106	occupation	Q852389	beekeeper	0	
+P106	occupation	Q572700	bureaucrat	0	
+P106	occupation	Q667982	creative director	0	
+P106	occupation	Q3237618	wardrobe stylist	0	
+P106	occupation	Q758225	attorney at law	0	
+P106	occupation	Q264323	chamberlain	0	
+P106	occupation	Q207651	executioner	0	
+P106	occupation	Q11030	journalism	0	
+P106	occupation	Q820037	miner	0	
+P106	occupation	Q2747456	prince	0	
+P106	occupation	Q8311	visual effects supervisor	0	
+P106	occupation	Q179985	actuary	0	
+P106	occupation	Q779815	animation director	0	
+P106	occupation	Q7358	clown	0	
+P106	occupation	Q1511216	courtier	0	
+P106	occupation	Q107711	firefighter	0	
+P106	occupation	Q5371902	harpsichordist	0	
+P106	occupation	Q48282	student	0	
+P106	occupation	Q213608	beatboxing	0	
+P106	occupation	Q1639825	blacksmith	0	
+P106	occupation	Q2543769	drug lord	0	
+P106	occupation	Q4988856	Hebraist	0	
+P106	occupation	Q2388514	intelligence analysis	0	
+P106	occupation	Q715679	patent inventor	0	
+P106	occupation	Q2917466	psychic	0	
+P106	occupation	Q140686	chairperson	0	
+P106	occupation	Q55187	hairdresser	0	
+P106	occupation	Q327591	independent politician	0	
+P106	occupation	Q762121	personal trainer	0	
+P106	occupation	Q490253	professional golfer	0	
+P106	occupation	Q144662	sports agent	0	
+P106	occupation	Q7940086	volcanologist	0	
+P106	occupation	Q620573	Arabist	0	
+P106	occupation	Q1797162	artistic director	0	
+P106	occupation	Q623268	chief financial officer	0	
+P106	occupation	Q177826	clergy	0	
+P106	occupation	Q2465611	co-driver	0	
+P106	occupation	Q579021	perfumer	0	
+P106	occupation	Q17221	spokesperson	0	
+P106	occupation	Q2702296	video game producer	0	
+P106	occupation	Q330679	cantor	0	
+P106	occupation	Q247797	customs officer	0	
+P106	occupation	Q337084	drag queen	0	
+P106	occupation	Q165029	electrician	0	
+P106	occupation	Q1495660	food critic	0	
+P106	occupation	Q4845479	grand couturier	0	
+P106	occupation	Q189829	hermit	0	
+P106	occupation	Q83307	minister	0	
+P106	occupation	Q2378505	promoter	0	
+P106	occupation	Q7501153	shopkeeper	0	
+P106	occupation	Q242468	tailor	0	
+P106	occupation	Q2775569	train driver	0	
+P106	occupation	Q1437510	coin collecting	0	
+P106	occupation	Q1780490	communard	0	
+P106	occupation	Q1210069	general manager	0	
+P106	occupation	Q132050	governor	0	
+P106	occupation	Q191421	lama	0	
+P106	occupation	Q716711	official	0	
+P106	occupation	Q1255921	president	0	
+P106	occupation	Q1459149	schoolmaster	0	
+P106	occupation	Q1709010	software engineer	0	
+P106	occupation	Q1141526	stripper	0	
+P106	occupation	Q3178518	vedette	0	
+P106	occupation	Q549322	bullfighter	0	
+P106	occupation	Q7888586	chemical engineer	0	
+P106	occupation	Q54128	domestic worker	0	
+P106	occupation	Q3024627	editorial cartoonist	0	
+P106	occupation	Q326358	joiner	0	
+P106	occupation	Q930374	Mistress of the Robes	0	
+P106	occupation	Q6409989	set decorator	0	
+P106	occupation	Q1044528	vicar general	0	
+P106	occupation	Q18351723	American Sociological Association Distinguished Scholarly Book Award	0	
+P106	occupation	Q1294787	artisan	0	
+P106	occupation	Q2700922	clockmaker	0	
+P106	occupation	Q6500773	general practitioner	0	
+P106	occupation	Q6501749	general secretary	0	
+P106	occupation	Q1595570	local historian	0	
+P106	occupation	Q185992	mufti	0	
+P106	occupation	Q217029	qadi	0	
+P106	occupation	Q623279	chief operating officer	0	
+P106	occupation	Q738142	clerk	0	
+P106	occupation	Q484260	guru	0	
+P106	occupation	Q1148872	impressionist	0	
+P106	occupation	Q285759	insurance broker	0	
+P106	occupation	Q1420621	media proprietor	0	
+P106	occupation	Q5230427	member of a legislative assembly	0	
+P106	occupation	Q955464	parson	0	
+P106	occupation	Q270141	polymath	0	
+P106	occupation	Q13365916	prison warden	0	
+P106	occupation	Q4178004	publicist	0	
+P106	occupation	Q212071	rector	0	
+P106	occupation	Q947305	skald	0	
+P106	occupation	Q3180462	sound editor	0	
+P106	occupation	Q175301	speechwriter	0	
+P106	occupation	Q1861368	tattoo artist	0	
+P106	occupation	Q1568338	technical writer	0	
+P106	occupation	Q1424605	trader	0	
+P106	occupation	Q388338	treasurer	0	
+P106	occupation	Q7939609	voice teacher	0	
+P106	occupation	Q832136	business manager	0	
+P106	occupation	Q45722	cardinal	0	
+P106	occupation	Q1111648	colorist	0	
+P106	occupation	Q126236	conquistador	0	
+P106	occupation	Q5436767	fashion editor	0	
+P106	occupation	Q683476	financial adviser	0	
+P106	occupation	Q196721	machinist	0	
+P106	occupation	Q6785368	mastering engineer	0	
+P106	occupation	Q749387	paratrooper	0	
+P106	occupation	Q326330	primate (bishop)	0	
+P106	occupation	Q1339677	scout	0	
+P106	occupation	Q849424	ship captain	0	
+P106	occupation	Q1646408	abbess	0	
+P106	occupation	Q203764	activism	0	
+P106	occupation	Q160131	baker	0	
+P106	occupation	Q2859667	boxing referee	0	
+P106	occupation	Q327321	bricklayer	0	
+P106	occupation	Q16849727	business consultant	0	
+P106	occupation	Q329737	butcher	0	
+P106	occupation	Q1056337	certified public accountant	0	
+P106	occupation	Q3276037	color commentator	0	
+P106	occupation	Q23068007	Digambara monk	0	
+P106	occupation	Q101539	flight attendant	0	
+P106	occupation	Q6491450	intendant	0	
+P106	occupation	Q883231	law clerk	0	
+P106	occupation	Q2914468	life peer	0	
+P106	occupation	Q327029	mechanic	0	
+P106	occupation	Q486839	member of parliament	0	
+P106	occupation	Q178197	mercenary	0	
+P106	occupation	Q189854	metropolitan	0	
+P106	occupation	Q254508	outlaw	0	
+P106	occupation	Q2032656	Pentito	0	
+P106	occupation	Q5762300	storyboard artist	0	
+P106	occupation	Q688576	tax advisor	0	
+P106	occupation	Q2994387	advisor	0	
+P106	occupation	Q5669847	assistant professor	0	
+P106	occupation	Q9344260	associate professor	0	
+P106	occupation	Q806805	bank teller	0	
+P106	occupation	Q5179781	cattle rancher	0	
+P106	occupation	Q211236	celebrity	0	
+P106	occupation	Q1134614	coroner	0	
+P106	occupation	Q986888	director of audiography	0	
+P106	occupation	Q2034021	dressmaker	0	
+P106	occupation	Q5403434	ethicist	0	
+P106	occupation	Q5060555	farmworker	0	
+P106	occupation	Q331432	fisher	0	
+P106	occupation	Q2505739	hispanist	0	
+P106	occupation	Q26950764	organizational founder	0	
+P106	occupation	Q1058617	private investigator	0	
+P106	occupation	Q1130252	sporting director	0	
+P106	occupation	Q686880	stamp dealer	0	
+P106	occupation	Q865851	supermodel	0	
+P106	occupation	Q901222	tutor	0	
+P106	occupation	Q2824534	administrator of the government	0	
+P106	occupation	Q592996	Amtmann	0	
+P106	occupation	Q11634	art of sculpture	0	
+P106	occupation	Q335757	assessor	0	
+P106	occupation	Q305012	chocolatier	0	
+P106	occupation	Q446966	conservator	0	
+P106	occupation	Q207978	consul	0	
+P106	occupation	Q5197818	cyberneticist	0	
+P106	occupation	Q842782	detective	0	
+P106	occupation	Q492537	dramaturgy	0	
+P106	occupation	Q1383594	executive officer	0	
+P106	occupation	Q1416279	financial analyst	0	
+P106	occupation	Q451286	grammarian	0	
+P106	occupation	Q1328668	gravure idol	0	
+P106	occupation	Q1371796	gunsmith	0	
+P106	occupation	Q1487	hacker	0	
+P106	occupation	Q2045208	internet celebrity	0	
+P106	occupation	Q215793	kapellmeister	0	
+P106	occupation	Q4175034	legislator	0	
+P106	occupation	Q11417	martial arts	0	
+P106	occupation	Q30185	mayor	0	
+P106	occupation	Q918824	military chaplain	0	
+P106	occupation	Q674067	mime artist	0	
+P106	occupation	Q2369218	Murshid	0	
+P106	occupation	Q1388151	press secretary	0	
+P106	occupation	Q1706722	research fellow	0	
+P106	occupation	Q916292	scribe	0	
+P106	occupation	Q3482594	showgirl	0	
+P106	occupation	Q2216340	silversmith	0	
+P106	occupation	Q191493	sommelier	0	
+P106	occupation	Q145806	stand-up comedy	0	
+P106	occupation	Q2305987	structural engineer	0	
+P106	occupation	Q2833480	stunt coordinator	0	
+P106	occupation	Q175240	vizier	0	
+P106	occupation	Q6399436	VJ	0	
+P106	occupation	Q132851	admiral	0	
+P106	occupation	Q369894	aide-de-camp	0	
+P106	occupation	Q706835	auto mechanic	0	
+P106	occupation	Q184402	ayatollah	0	
+P106	occupation	Q160117	broker	0	
+P106	occupation	Q3188089	chief justice	0	
+P106	occupation	Q5287861	chief technology officer	0	
+P106	occupation	Q376924	courtesan	0	
+P106	occupation	Q4958876	dean	0	
+P106	occupation	Q181043	dissident	0	
+P106	occupation	Q593362	draper	0	
+P106	occupation	Q989678	fedayeen	0	
+P106	occupation	Q379318	flight instructor	0	
+P106	occupation	Q1297719	French moralist	0	
+P106	occupation	Q623386	ghostwriter	0	
+P106	occupation	Q1540278	governess	0	
+P106	occupation	Q1067977	hazzan	0	
+P106	occupation	Q842781	hegumen	0	
+P106	occupation	Q466118	hetaera	0	
+P106	occupation	Q1664338	inquisitor	0	
+P106	occupation	Q1327329	multi-instrumentalist	0	
+P106	occupation	Q883211	municipal clerk	0	
+P106	occupation	Q156035	opinion journalism	0	
+P106	occupation	Q1996635	optician	0	
+P106	occupation	Q1191511	pastry chef	0	
+P106	occupation	Q7922	pedagogy	0	
+P106	occupation	Q7178961	petroleum geologist	0	
+P106	occupation	Q1755412	playback singer	0	
+P106	occupation	Q931732	Posek	0	
+P106	occupation	Q1416611	postmaster	0	
+P106	occupation	Q22881	Prince-Bishop	0	
+P106	occupation	Q756215	provost	0	
+P106	occupation	Q7301138	real estate entrepreneur	0	
+P106	occupation	Q43115	saint	0	
+P106	occupation	Q736559	secretary of state	0	
+P106	occupation	Q1818899	settler	0	
+P106	occupation	Q1650727	song book	0	
+P106	occupation	Q2655853	Special agent	0	
+P106	occupation	Q1852228	strongman	0	
+P106	occupation	Q43292	Sultan	0	
+P106	occupation	Q1747339	trobairitz	0	
+P106	occupation	Q13472752	valet	0	
+P106	occupation	Q4671162	academic administration	0	
+P106	occupation	Q1657500	almoner	0	
+P106	occupation	Q1131236	apothecary	0	
+P106	occupation	Q2859165	aquanaut	0	
+P106	occupation	Q1143847	art criticism	0	
+P106	occupation	Q4839644	background artist	0	
+P106	occupation	Q10970991	bailiff	0	
+P106	occupation	Q808266	bartender	0	
+P106	occupation	Q520895	boilermaker	0	
+P106	occupation	Q664702	bookmaker	0	
+P106	occupation	Q829020	bus driver	0	
+P106	occupation	Q559597	cabinetmaker	0	
+P106	occupation	Q61061	chancellor	0	
+P106	occupation	Q216541	chauffeur	0	
+P106	occupation	Q2589465	chief information officer	0	
+P106	occupation	Q1772291	Chief Justice of the Supreme Court of Norway	0	
+P106	occupation	Q355493	church musician	0	
+P106	occupation	Q7876201	Civil libertarianism	0	
+P106	occupation	Q811122	construction worker	0	
+P106	occupation	Q3519259	count	0	
+P106	occupation	Q984276	court painter	0	
+P106	occupation	Q2276446	domestic worker cook	0	
+P106	occupation	Q203184	First Lady	0	
+P106	occupation	Q846430	futurist	0	
+P106	occupation	Q863368	game programmer	0	
+P106	occupation	Q11165895	Geheimrat	0	
+P106	occupation	Q83460	general	0	
+P106	occupation	Q153665	German South-West Africa	0	
+P106	occupation	Q12059906	herder	0	
+P106	occupation	Q3114821	high priest	0	
+P106	occupation	Q1631340	Houngan	0	
+P106	occupation	Q1153051	inker	0	
+P106	occupation	Q3303297	ironmaster	0	
+P106	occupation	Q226008	Japanese idol	0	
+P106	occupation	Q6484023	land agent	0	
+P106	occupation	Q2180295	mail carrier	0	
+P106	occupation	Q3529376	marksman	0	
+P106	occupation	Q390479	master of novices	0	
+P106	occupation	Q625369	mistress	0	
+P106	occupation	Q1917775	music publishing company	0	
+P106	occupation	Q184951	Pasha	0	
+P106	occupation	Q1096316	personal assistant	0	
+P106	occupation	Q252924	plumber	0	
+P106	occupation	Q14212	prime minister	0	
+P106	occupation	Q3445082	reader	0	
+P106	occupation	Q40779	Roman consul	0	
+P106	occupation	Q987061	scenic design	0	
+P106	occupation	Q81710	shepherd	0	
+P106	occupation	Q131767	shogun	0	
+P106	occupation	Q3750514	sophist	0	
+P106	occupation	Q1729188	T4-Gutachter	0	
+P106	occupation	Q1139055	tax collector	0	
+P106	occupation	Q2560600	tool and die maker	0	
+P106	occupation	Q1006696	United States federal judge	0	
+P106	occupation	Q214970	virtuoso	0	
+P106	occupation	Q157195	waiter	0	
+P106	occupation	Q6859454	web developer	0	
+P106	occupation	Q836328	welder	0	
+P106	occupation	Q472898	wet nurse	0	
+P106	occupation	Q26102	whistleblower	0	
+P106	occupation	Q222749	acting	0	
+P106	occupation	Q408832	airman	0	
+P106	occupation	Q499134	amanuensis	0	
+P106	occupation	Q695364	anti-king	0	
+P106	occupation	Q2736	association football	0	
+P106	occupation	Q75178	auxiliary bishop	0	
+P106	occupation	Q4917468	bishop	0	
+P106	occupation	Q851436	bodyguard	0	
+P106	occupation	Q1368409	breeder	0	
+P106	occupation	Q2627286	bushranger	0	
+P106	occupation	Q26409	centurion	0	
+P106	occupation	Q1362384	certified first responder	0	
+P106	occupation	Q373085	chancellor	0	
+P106	occupation	Q104680	colonel	0	
+P106	occupation	Q1414937	combatant	0	
+P106	occupation	Q6989196	conducting	0	
+P106	occupation	Q38883	cooper	0	
+P106	occupation	Q848466	courier	0	
+P106	occupation	Q15647248	coxswain	0	
+P106	occupation	Q1690874	coxswain	0	
+P106	occupation	Q11639	dance	0	
+P106	occupation	Q723682	dean	0	
+P106	occupation	Q489933	dental assistant	0	
+P106	occupation	Q43035	electrical engineering	0	
+P106	occupation	Q39018	emperor	0	
+P106	occupation	Q323336	factor	0	
+P106	occupation	Q289612	general contractor	0	
+P106	occupation	Q5532362	general manager	0	
+P106	occupation	Q8418	handball	0	
+P106	occupation	Q1489454	harbourmaster	0	
+P106	occupation	Q48352	head of state	0	
+P106	occupation	Q808719	hereditary peer	0	
+P106	occupation	Q11242506	highwayman	0	
+P106	occupation	Q46158	humanism	0	
+P106	occupation	Q17379560	impersonator	0	
+P106	occupation	Q181888	Khan	0	
+P106	occupation	Q728973	Kohen	0	
+P106	occupation	Q1686380	lensmann	0	
+P106	occupation	Q6636949	list of rose breeders	0	
+P106	occupation	Q6731168	magistrate	0	
+P106	occupation	Q6746710	manager	0	
+P106	occupation	Q6498826	martyr	0	
+P106	occupation	Q1396008	matron	0	
+P106	occupation	Q2109655	mayanist	0	
+P106	occupation	Q1934938	military advisor	0	
+P106	occupation	Q694116	miller	0	
+P106	occupation	Q16861306	Model	0	
+P106	occupation	Q2462215	Nazis hunter	0	
+P106	occupation	Q3247049	officer of arms	0	
+P106	occupation	Q169180	ombudsman	0	
+P106	occupation	Q46952	organized crime	0	
+P106	occupation	Q855855	page	0	
+P106	occupation	Q838811	peasant	0	
+P106	occupation	Q3610436	personal stylist	0	
+P106	occupation	Q185733	philanthropy	0	
+P106	occupation	Q7163	politics	0	
+P106	occupation	Q1031332	precentor	0	
+P106	occupation	Q8563456	professional fitness coach	0	
+P106	occupation	Q3972943	publishing	0	
+P106	occupation	Q6010	rap	0	
+P106	occupation	Q695829	real estate development	0	
+P106	occupation	Q2138822	regular clergyman	0	
+P106	occupation	Q580241	salaryman	0	
+P106	occupation	Q170305	satrap	0	
+P106	occupation	Q7432601	School of the Art Institute of Chicago	0	
+P106	occupation	Q7643464	school superintendent	0	
+P106	occupation	Q1318187	scrivener	0	
+P106	occupation	Q1569439	sheep shearer	0	
+P106	occupation	Q1937950	sound design	0	
+P106	occupation	Q1758037	speaker	0	
+P106	occupation	Q7621877	strategist	0	
+P106	occupation	Q816425	surveying	0	
+P106	occupation	Q942569	systems analyst	0	
+P106	occupation	Q2442108	Tonmeister	0	
+P106	occupation	Q1039099	tour guide	0	
+P106	occupation	Q508846	truck driver	0	
+P106	occupation	Q42178	vice president	0	
+P106	occupation	Q630349	war artist	0	
+P106	occupation	Q220098	warlord	0	
+P106	occupation	Q41674	webmaster	0	
+P106	occupation	Q2556193	wine critic	0	
+P106	occupation	Q3430033	abbé	0	
+P106	occupation	Q1154390	academic tenure	0	
+P106	occupation	Q4116214	accounting	0	
+P106	occupation	Q188473	action film	0	
+P106	occupation	Q4677709	actor-manager	0	
+P106	occupation	Q357813	adjunct professor	0	
+P106	occupation	Q869212	administrative scrivener	0	
+P106	occupation	Q35986	aesthetics	0	
+P106	occupation	Q862632	air traffic controller	0	
+P106	occupation	Q1370540	akyn	0	
+P106	occupation	Q23404	anthropology	0	
+P106	occupation	Q776268	arborist	0	
+P106	occupation	Q633730	archdeacon	0	
+P106	occupation	Q1757008	assistant director	0	
+P106	occupation	Q107198	barber	0	
+P106	occupation	Q5369	baseball	0	
+P106	occupation	Q630993	bertsolari	0	
+P106	occupation	Q740406	Beylerbey	0	
+P106	occupation	Q4915128	biomedical scientist	0	
+P106	occupation	Q171186	Blogger	0	
+P106	occupation	Q188628	board of directors	0	
+P106	occupation	Q704948	body double	0	
+P106	occupation	Q621613	bounty hunter	0	
+P106	occupation	Q152956	brigadier general	0	
+P106	occupation	Q850220	buccaneer	0	
+P106	occupation	Q599898	cacique	0	
+P106	occupation	Q12681	calligraphy	0	
+P106	occupation	Q1735282	cashier	0	
+P106	occupation	Q619896	Catholicos	0	
+P106	occupation	Q8371	cello	0	
+P106	occupation	Q1108818	chartered accountant	0	
+P106	occupation	Q1502869	chartered surveyor	0	
+P106	occupation	Q61391	cheerleading	0	
+P106	occupation	Q1436517	chief mate	0	
+P106	occupation	Q853982	coadjutor bishop	0	
+P106	occupation	Q152355	cobbler	0	
+P106	occupation	Q2868586	commercial astronaut	0	
+P106	occupation	Q524778	commissioner	0	
+P106	occupation	Q673633	comptroller	0	
+P106	occupation	Q3997704	copyist	0	
+P106	occupation	Q5178032	coupletist	0	
+P106	occupation	Q730551	court Jew	0	
+P106	occupation	Q2215841	cycle sport	0	
+P106	occupation	Q12128	dentistry	0	
+P106	occupation	Q1055894	deputy	0	
+P106	occupation	Q82604	design	0	
+P106	occupation	Q842811	dietitian	0	
+P106	occupation	Q1144278	diocesan bishop	0	
+P106	occupation	Q1889	diplomacy	0	
+P106	occupation	Q653368	district attorney	0	
+P106	occupation	Q1058375	double agent	0	
+P106	occupation	Q1285440	Edler	0	
+P106	occupation	Q4018482	education minister	0	
+P106	occupation	Q5341297	educational psychologist	0	
+P106	occupation	Q211830	emeritus	0	
+P106	occupation	Q268218	Emperor of China	0	
+P106	occupation	Q11051391	envoy	0	
+P106	occupation	Q267936	executive director	0	
+P106	occupation	Q29167936	factory inspector	0	
+P106	occupation	Q1519593	fencing master	0	
+P106	occupation	Q368290	film distributor	0	
+P106	occupation	Q11405	flute	0	
+P106	occupation	Q215279	freelancer	0	
+P106	occupation	Q41726	freemasonry	0	
+P106	occupation	Q1137295	frogman	0	
+P106	occupation	Q18244	Fürst	0	
+P106	occupation	Q1769489	Governor-general of Norway	0	
+P106	occupation	Q1027879	graphics	0	
+P106	occupation	Q14290559	guide	0	
+P106	occupation	Q625163	Hafiz	0	
+P106	occupation	Q217731	hajduk	0	
+P106	occupation	Q1137608	health administration	0	
+P106	occupation	Q1288557	hieromonk	0	
+P106	occupation	Q2596569	housekeeper	0	
+P106	occupation	Q1046722	Industrial Workers of the World	0	
+P106	occupation	Q1364673	informant	0	
+P106	occupation	Q43183	insurance	0	
+P106	occupation	Q1329946	interior architecture	0	
+P106	occupation	Q189459	Islamic scholar	0	
+P106	occupation	Q10312792	juiz de fora	0	
+P106	occupation	Q511123	King of the Geats	0	
+P106	occupation	Q1483709	land owner	0	
+P106	occupation	Q6503343	law enforcement officer	0	
+P106	occupation	Q135450	lay brother	0	
+P106	occupation	Q1553123	lector	0	
+P106	occupation	Q1826375	line producer	0	
+P106	occupation	Q209122	magister militum	0	
+P106	occupation	Q157148	major general	0	
+P106	occupation	Q6756973	Marcher Lord	0	
+P106	occupation	Q101333	mechanical engineering	0	
+P106	occupation	Q17143199	medical examiner	0	
+P106	occupation	Q330264	Médico de familia	0	
+P106	occupation	Q583271	medium	0	
+P106	occupation	Q112983	memoir	0	
+P106	occupation	Q186506	mezzo-soprano	0	
+P106	occupation	Q151197	military engineer	0	
+P106	occupation	Q83353	mineralogy	0	
+P106	occupation	Q6884071	mixing engineer	0	
+P106	occupation	Q239718	muezzin	0	
+P106	occupation	Q6942622	musico	0	
+P106	occupation	Q7019498	news director	0	
+P106	occupation	Q1757103	official (ice hockey)	0	
+P106	occupation	Q9396355	order of canons regular	0	
+P106	occupation	Q288728	painter and varnisher	0	
+P106	occupation	Q16254673	pamphleteer	0	
+P106	occupation	Q1479935	park ranger	0	
+P106	occupation	Q1144892	patent attorney	0	
+P106	occupation	Q638172	peddler	0	
+P106	occupation	Q213156	performance art	0	
+P106	occupation	Q151092	pin-up girl	0	
+P106	occupation	Q281460	pipe organ	0	
+P106	occupation	Q15284879	plasterer	0	
+P106	occupation	Q2330979	polygraph	0	
+P106	occupation	Q7241052	preservationist	0	
+P106	occupation	Q428322	président-directeur général	0	
+P106	occupation	Q845929	pretender	0	
+P106	occupation	Q621802	prima ballerina assoluta	0	
+P106	occupation	Q14211	Prime Minister of the United Kingdom	0	
+P106	occupation	Q863048	princess	0	
+P106	occupation	Q2867219	production assistant	0	
+P106	occupation	Q816432	project manager	0	
+P106	occupation	Q676	prose	0	
+P106	occupation	Q1177007	prothonotary	0	
+P106	occupation	Q7256360	psycholinguist	0	
+P106	occupation	Q3595924	Qāriʾ	0	
+P106	occupation	Q872	radio communications	0	
+P106	occupation	Q182415	reality television	0	
+P106	occupation	Q359351	Rebbe	0	
+P106	occupation	Q477406	regent	0	
+P106	occupation	Q13608061	registered nurse	0	
+P106	occupation	Q42240	research	0	
+P106	occupation	Q3765090	retail manager	0	
+P106	occupation	Q3609	road bicycle racing	0	
+P106	occupation	Q3434088	road manager	0	
+P106	occupation	Q2308372	rosh yeshiva	0	
+P106	occupation	Q1263187	script supervisor	0	
+P106	occupation	Q45393	sea piracy	0	
+P106	occupation	Q2798820	security hacker	0	
+P106	occupation	Q7458488	sex columnist	0	
+P106	occupation	Q625568	show business	0	
+P106	occupation	Q355242	showman	0	
+P106	occupation	Q27939	singing	0	
+P106	occupation	Q201948	sniper	0	
+P106	occupation	Q370919	social anarchism	0	
+P106	occupation	Q30903	soprano	0	
+P106	occupation	Q8313	special effects supervisor	0	
+P106	occupation	Q48519	sport management	0	
+P106	occupation	Q7579803	sports analyst	0	
+P106	occupation	Q1051798	statutory auditor	0	
+P106	occupation	Q1537445	stevedore	0	
+P106	occupation	Q5743503	stockman	0	
+P106	occupation	Q335954	strategos	0	
+P106	occupation	Q252628	strongwoman	0	
+P106	occupation	Q7628798	stunt double	0	
+P106	occupation	Q401642	stylite	0	
+P106	occupation	Q5352191	technician	0	
+P106	occupation	Q2024200	telegraphist	0	
+P106	occupation	Q289	television	0	
+P106	occupation	Q27914	tenor	0	
+P106	occupation	Q7283	terrorism	0	
+P106	occupation	Q1369991	toasting	0	
+P106	occupation	Q2047357	trustee	0	
+P106	occupation	Q651267	Tulku	0	
+P106	occupation	Q180095	tyrant	0	
+P106	occupation	Q7247822	unit production manager	0	
+P106	occupation	Q7890793	United States Naval Aviator	0	
+P106	occupation	Q7927905	video editor	0	
+P106	occupation	Q3191582	video game artist	0	
+P106	occupation	Q80284	viola	0	
+P106	occupation	Q8355	violin	0	
+P106	occupation	Q188844	volunteering	0	
+P106	occupation	Q1391362	warehouseman	0	
+P106	occupation	Q852718	whitesmith	0	
+P106	occupation	Q220695	wholesale	0	
+P106	occupation	Q17040649	worship pastor	0	
+P106	occupation	Q2901587	yogi	0	
+P106	occupation	Q322898	zookeeper	0	
+P106	occupation	Q720247	Župan	0	
+P106	occupation	Q10989378	able seaman	0	
+P106	occupation	Q414422	Academy of Finland	0	
+P106	occupation	Q28135085	acting coach	0	
+P106	occupation	Q344524	actor model	0	
+P106	occupation	Q2916006	admiral	0	
+P106	occupation	Q1436734	adventure	0	
+P106	occupation	Q205757	aedile	0	
+P106	occupation	Q373557	aerobatics	0	
+P106	occupation	Q27688878	African Queens and Women Cultural Leaders Network	0	
+P106	occupation	Q46970	airline	0	
+P106	occupation	Q7889322	ambassador of United States to South Korea	0	
+P106	occupation	Q2981922	American pioneer	0	
+P106	occupation	Q474035	Amoraim	0	
+P106	occupation	Q778274	angel investor	0	
+P106	occupation	Q458634	Anglican Bishop of Llandaff	0	
+P106	occupation	Q459426	animal welfare	0	
+P106	occupation	Q210189	anti-fascism	0	
+P106	occupation	Q22649	antisemitism	0	
+P106	occupation	Q1993358	apostolic administrator	0	
+P106	occupation	Q4068117	Apostolic Nuncio to Venezuela	0	
+P106	occupation	Q592144	apostolic visitor	0	
+P106	occupation	Q253567	apprentice	0	
+P106	occupation	Q127213	arboriculture	0	
+P106	occupation	Q154615	Archduke	0	
+P106	occupation	Q213159	archimandrite	0	
+P106	occupation	Q12271	architecture	0	
+P106	occupation	Q635713	Archivist of the United States	0	
+P106	occupation	Q379755	arrangement	0	
+P106	occupation	Q4795852	arranger	0	
+P106	occupation	Q1757598	art education	0	
+P106	occupation	Q11629	art of painting	0	
+P106	occupation	Q4800911	articled clerk	0	
+P106	occupation	Q14947645	Artist	0	
+P106	occupation	Q610225	artist and repertoire	0	
+P106	occupation	Q4801269	artistic director (music)	0	
+P106	occupation	Q3285163	arts administration	0	
+P106	occupation	Q4813766	athletic director	0	
+P106	occupation	Q755620	athletic trainer	0	
+P106	occupation	Q10949665	auditor	0	
+P106	occupation	Q2570377	auriga	0	
+P106	occupation	Q2920250	autism rights movement	0	
+P106	occupation	Q787489	automotive design	0	
+P106	occupation	Q765633	aviation	0	
+P106	occupation	Q798487	backing vocalist	0	
+P106	occupation	Q243748	bacteriology	0	
+P106	occupation	Q798834	badchen	0	
+P106	occupation	Q41425	ballet	0	
+P106	occupation	Q215144	bard	0	
+P106	occupation	Q31687	baritone	0	
+P106	occupation	Q814407	begum	0	
+P106	occupation	Q2043489	bellhop	0	
+P106	occupation	Q4887411	benefactor	0	
+P106	occupation	Q820043	Bergmeister	0	
+P106	occupation	Q166788	biathlon	0	
+P106	occupation	Q794605	biblical studies	0	
+P106	occupation	Q1062083	billionaire	0	
+P106	occupation	Q7094	biochemistry	0	
+P106	occupation	Q36279	biography	0	
+P106	occupation	Q420	biology	0	
+P106	occupation	Q462693	Bishop of Bangor	0	
+P106	occupation	Q885444	bladesmith	0	
+P106	occupation	Q215184	BMX	0	
+P106	occupation	Q678649	body art	0	
+P106	occupation	Q124100	bodybuilding	0	
+P106	occupation	Q93196	Bollywood	0	
+P106	occupation	Q138775	border guard	0	
+P106	occupation	Q441	botany	0	
+P106	occupation	Q10860242	bouncer	0	
+P106	occupation	Q14406508	bow maker	0	
+P106	occupation	Q32112	boxing	0	
+P106	occupation	Q203563	boyar	0	
+P106	occupation	Q4967196	brigadier general	0	
+P106	occupation	Q4972949	Broder singer	0	
+P106	occupation	Q16824629	Brother	0	
+P106	occupation	Q4830453	business	0	
+P106	occupation	Q623100	business engineering	0	
+P106	occupation	Q3444680	California Institute of Integral Studies	0	
+P106	occupation	Q5024685	calypsonian	0	
+P106	occupation	Q5025806	Camden Professor of Ancient History	0	
+P106	occupation	Q5027838	campaign manager	0	
+P106	occupation	Q163500	captain	0	
+P106	occupation	Q1050607	caretaker manager	0	
+P106	occupation	Q190080	Carnegie Mellon University	0	
+P106	occupation	Q627603	cartoon	0	
+P106	occupation	Q1505781	castellan	0	
+P106	occupation	Q2453550	Castiel	0	
+P106	occupation	Q1735732	catechist	0	
+P106	occupation	Q2284765	Cavalier	0	
+P106	occupation	Q3310583	celebrity chef	0	
+P106	occupation	Q28454946	Chair	0	
+P106	occupation	Q5069592	Chamberlain of London	0	
+P106	occupation	Q1067869	Chartered Financial Analyst	0	
+P106	occupation	Q15296637	Chartered Physicist	0	
+P106	occupation	Q3242291	Chief Constable	0	
+P106	occupation	Q432549	chief data officer	0	
+P106	occupation	Q1109454	Chief Justice of Hungary	0	
+P106	occupation	Q1670755	chief minister	0	
+P106	occupation	Q17481007	Chief of Naval Research	0	
+P106	occupation	Q2855502	chief of police	0	
+P106	occupation	Q5928975	Chief of the Defence Staff	0	
+P106	occupation	Q5096919	Chief Secretary of New South Wales	0	
+P106	occupation	Q5097093	chief strategy officer	0	
+P106	occupation	Q29097536	Chief Technology Officer of the Department of Health and Human Services	0	
+P106	occupation	Q615514	Chorbishop	0	
+P106	occupation	Q180856	choreography	0	
+P106	occupation	Q590870	cinematography	0	
+P106	occupation	Q166861	Cistercians	0	
+P106	occupation	Q25051941	city architect	0	
+P106	occupation	Q3154693	city council	0	
+P106	occupation	Q17027380	civiløkonom	0	
+P106	occupation	Q8343	clarinet	0	
+P106	occupation	Q841090	classics	0	
+P106	occupation	Q5135542	cloth merchant	0	
+P106	occupation	Q1734300	coachbuilder	0	
+P106	occupation	Q1353040	coast guard	0	
+P106	occupation	Q208165	collecting	0	
+P106	occupation	Q1759959	color guard	0	
+P106	occupation	Q27628370	Commander-in-Chief of the Iranian Armed Forces	0	
+P106	occupation	Q11247470	commanding officer	0	
+P106	occupation	Q848507	commercial bank	0	
+P106	occupation	Q3029403	commercial director	0	
+P106	occupation	Q1051088	Commissioner of Baseball	0	
+P106	occupation	Q2043121	community service	0	
+P106	occupation	Q5997995	Community Service Officer	0	
+P106	occupation	Q47506	compiler	0	
+P106	occupation	Q6002306	computer-generated imagery	0	
+P106	occupation	Q5158531	concert production	0	
+P106	occupation	Q1125627	Confédération nationale du travail	0	
+P106	occupation	Q1088777	conservation movement	0	
+P106	occupation	Q11206	constitutional law	0	
+P106	occupation	Q385378	construction	0	
+P106	occupation	Q691522	construction foreman	0	
+P106	occupation	Q664183	consumer protection	0	
+P106	occupation	Q2638620	Controller-General of Finances	0	
+P106	occupation	Q5171647	cornerman	0	
+P106	occupation	Q142554	cosplay	0	
+P106	occupation	Q708492	council member	0	
+P106	occupation	Q17131110	counsel	0	
+P106	occupation	Q511878	Coureur des bois	0	
+P106	occupation	Q641208	court clerk	0	
+P106	occupation	Q5178440	court reporter	0	
+P106	occupation	Q5179297	covert agent	0	
+P106	occupation	Q1138434	crank	0	
+P106	occupation	Q4947495	crime boss	0	
+P106	occupation	Q512345	criminal defense lawyer	0	
+P106	occupation	Q17955	criticism	0	
+P106	occupation	Q897511	cryptanalysis	0	
+P106	occupation	Q11038979	cult	0	
+P106	occupation	Q1418771	culturology	0	
+P106	occupation	Q1075791	cup-bearer	0	
+P106	occupation	Q3008151	cyber-dissident	0	
+P106	occupation	Q2905785	cyberpsychology	0	
+P106	occupation	Q53121	cycling	0	
+P106	occupation	Q61982	daimyo	0	
+P106	occupation	Q2298145	deaconess	0	
+P106	occupation	Q179875	debate	0	
+P106	occupation	Q23839	decorator pattern	0	
+P106	occupation	Q332988	defection	0	
+P106	occupation	Q2518691	defence minister	0	
+P106	occupation	Q336286	defender	0	
+P106	occupation	Q16864857	Deputy Head of Mission	0	
+P106	occupation	Q3023512	Deputy Lieutenant	0	
+P106	occupation	Q487865	dervish	0	
+P106	occupation	Q38523	detection dog	0	
+P106	occupation	Q758870	digital audio editor	0	
+P106	occupation	Q17085175	Digital Champions	0	
+P106	occupation	Q378426	diplomatics	0	
+P106	occupation	Q1501800	director general	0	
+P106	occupation	Q814493	disability rights movement	0	
+P106	occupation	Q570755	dispatcher	0	
+P106	occupation	Q906549	Diversity	0	
+P106	occupation	Q1043197	divination	0	
+P106	occupation	Q752297	Doctor of Philosophy	0	
+P106	occupation	Q1235152	documentalist	0	
+P106	occupation	Q131479	Dominican Order	0	
+P106	occupation	Q1136290	Dragoman	0	
+P106	occupation	Q867634	dream interpretation	0	
+P106	occupation	Q128309	drum kit	0	
+P106	occupation	Q3715809	duke	0	
+P106	occupation	Q1128240	earl	0	
+P106	occupation	Q8008	earth science	0	
+P106	occupation	Q296486	ecocide	0	
+P106	occupation	Q194105	editing	0	
+P106	occupation	Q8434	education	0	
+P106	occupation	Q83058	electronic spam	0	
+P106	occupation	Q1497094	emergency medical technician	0	
+P106	occupation	Q336641	emergency physician	0	
+P106	occupation	Q166382	emir	0	
+P106	occupation	Q11023	engineering	0	
+P106	occupation	Q688603	engineering technologist	0	
+P106	occupation	Q188847	environmental science	0	
+P106	occupation	Q669777	epigraph	0	
+P106	occupation	Q165950	espionage	0	
+P106	occupation	Q975783	estate in land	0	
+P106	occupation	Q5415826	evangelist	0	
+P106	occupation	Q568997	examining magistrate	0	
+P106	occupation	Q897395	executive board	0	
+P106	occupation	Q1420463	faith healing	0	
+P106	occupation	Q193432	fan	0	
+P106	occupation	Q132311	fantasy	0	
+P106	occupation	Q694579	farrier	0	
+P106	occupation	Q12684	fashion	0	
+P106	occupation	Q1398386	Faujdar	0	
+P106	occupation	Q9298846	federal judge	0	
+P106	occupation	Q689909	feldsher	0	
+P106	occupation	Q178844	felony	0	
+P106	occupation	Q2259802	female guards in Nazi concentration camps	0	
+P106	occupation	Q7252	feminism	0	
+P106	occupation	Q258146	feral child	0	
+P106	occupation	Q8193763	fetish model	0	
+P106	occupation	Q1089801	financial planner	0	
+P106	occupation	Q3396098	Fire services in France	0	
+P106	occupation	Q6570924	First Lady of Guatemala	0	
+P106	occupation	Q550594	fishmonger	0	
+P106	occupation	Q1255632	flatulist	0	
+P106	occupation	Q8563791	flight controller	0	
+P106	occupation	Q5462245	flower seller	0	
+P106	occupation	Q132116	folkloristics	0	
+P106	occupation	Q5465542	food writing	0	
+P106	occupation	Q4382663	footman	0	
+P106	occupation	Q188559	Foreign Legion (France)	0	
+P106	occupation	Q7330070	foreign minister	0	
+P106	occupation	Q181648	foreign policy	0	
+P106	occupation	Q79288	Foreman	0	
+P106	occupation	Q495304	forensic science	0	
+P106	occupation	Q472773	Four Evangelists	0	
+P106	occupation	Q28813	fraud	0	
+P106	occupation	Q1161355	fundraising	0	
+P106	occupation	Q1328490	Galan	0	
+P106	occupation	Q858057	game design	0	
+P106	occupation	Q44455	game theory	0	
+P106	occupation	Q5276395	gamer	0	
+P106	occupation	Q1366959	Garda Síochána	0	
+P106	occupation	Q171141	gastronomy	0	
+P106	occupation	Q5527068	gatekeeper	0	
+P106	occupation	Q210377	gaucho	0	
+P106	occupation	Q82723	geisha	0	
+P106	occupation	Q1283397	gemcutter	0	
+P106	occupation	Q2608441	General	0	
+P106	occupation	Q5532366	general manager	0	
+P106	occupation	Q16200524	General officers in the United States	0	
+P106	occupation	Q16992699	General Officers of World War I	0	
+P106	occupation	Q5532381	General partner	0	
+P106	occupation	Q191079	Generalissimo	0	
+P106	occupation	Q214127	genre painting	0	
+P106	occupation	Q2731160	Geometra	0	
+P106	occupation	Q1204489	German Wine Queen	0	
+P106	occupation	Q670152	Germanophile	0	
+P106	occupation	Q1047433	gesaku	0	
+P106	occupation	Q707482	gift	0	
+P106	occupation	Q482999	gladiator	0	
+P106	occupation	Q1010947	glamour photography	0	
+P106	occupation	Q651295	glima	0	
+P106	occupation	Q862488	go-go dancing	0	
+P106	occupation	Q172964	goalkeeper	0	
+P106	occupation	Q205985	goddess	0	
+P106	occupation	Q223973	godparent	0	
+P106	occupation	Q5578940	gold mining in Alaska	0	
+P106	occupation	Q5588439	gourmand	0	
+P106	occupation	Q7188	government	0	
+P106	occupation	Q5589147	government contractor	0	
+P106	occupation	Q4601939	Gran Hermano	0	
+P106	occupation	Q537575	gravedigger	0	
+P106	occupation	Q1073256	Great Royal Wife	0	
+P106	occupation	Q1455520	groom	0	
+P106	occupation	Q1145660	groupie	0	
+P106	occupation	Q80895	guerrilla warfare	0	
+P106	occupation	Q43450	gymnastics	0	
+P106	occupation	Q1552579	handyperson	0	
+P106	occupation	Q663375	hatmaking	0	
+P106	occupation	Q1491624	Hellanodikai	0	
+P106	occupation	Q247297	henchperson	0	
+P106	occupation	Q18336	heraldry	0	
+P106	occupation	Q2997819	High Corps of Spanish State Economists and Trade Experts	0	
+P106	occupation	Q5755201	High Court judge	0	
+P106	occupation	Q5756796	High Sheriff of Gloucestershire	0	
+P106	occupation	Q11401	hip hop music	0	
+P106	occupation	Q1971328	hipparchus	0	
+P106	occupation	Q384001	historical geography	0	
+P106	occupation	Q12322595	Historiographer Royal (Denmark)	0	
+P106	occupation	Q742333	history painting	0	
+P106	occupation	Q527628	holography	0	
+P106	occupation	Q5894401	Hong Kong civil servant	0	
+P106	occupation	Q5905231	horror host	0	
+P106	occupation	Q1265288	horse breeding	0	
+P106	occupation	Q832003	horsecar	0	
+P106	occupation	Q11202952	human computer	0	
+P106	occupation	Q60242	ichthyology	0	
+P106	occupation	Q178659	illustration	0	
+P106	occupation	Q3517917	Indian Police Service	0	
+P106	occupation	Q6021410	Indian Revenue Service	0	
+P106	occupation	Q1265807	information scientist	0	
+P106	occupation	Q1540863	information technology consulting	0	
+P106	occupation	Q511138	inspector	0	
+P106	occupation	Q6050670	International Foundation for Electoral Systems	0	
+P106	occupation	Q180704	Iron Man	0	
+P106	occupation	Q130263	janissary	0	
+P106	occupation	Q215548	jester	0	
+P106	occupation	Q161439	jewelry	0	
+P106	occupation	Q3076908	Jewish partisans	0	
+P106	occupation	Q3757343	Jihadism	0	
+P106	occupation	Q6302457	Judge	0	
+P106	occupation	Q6302859	judicial commissioner	0	
+P106	occupation	Q4390235	judicial scrivener	0	
+P106	occupation	Q194326	juggling	0	
+P106	occupation	Q4932206	jurisprudence	0	
+P106	occupation	Q60523	kannushi	0	
+P106	occupation	Q187878	Khagan	0	
+P106	occupation	Q932945	khatib	0	
+P106	occupation	Q1146749	King Momo	0	
+P106	occupation	Q2997813	King's Royal Rifle Corps	0	
+P106	occupation	Q2503809	Kingston University	0	
+P106	occupation	Q1539595	klepht	0	
+P106	occupation	Q3141282	knowledge engineer	0	
+P106	occupation	Q857972	Ko-ryū	0	
+P106	occupation	Q157662	Korporal	0	
+P106	occupation	Q1333067	Korrespondent	0	
+P106	occupation	Q185851	lacrosse	0	
+P106	occupation	Q3216038	Lady of the Bedchamber	0	
+P106	occupation	Q1627992	lady's maid	0	
+P106	occupation	Q618532	landlord	0	
+P106	occupation	Q17319698	lapidary	0	
+P106	occupation	Q1045845	lead vocalist	0	
+P106	occupation	Q4683600	legal administrator	0	
+P106	occupation	Q157509	legal guardian	0	
+P106	occupation	Q4612907	LGBT social movements	0	
+P106	occupation	Q186024	lieutenant	0	
+P106	occupation	Q16932757	lieutenant (navy)	0	
+P106	occupation	Q493898	lieutenant colonel	0	
+P106	occupation	Q1798619	Lipscomb University	0	
+P106	occupation	Q6567999	list of County Governors of Østfold	0	
+P106	occupation	Q356016	list of Education Ministers of France	0	
+P106	occupation	Q1816883	list of First Ladies of the United States	0	
+P106	occupation	Q8236	literacy	0	
+P106	occupation	Q7958155	literary forgery	0	
+P106	occupation	Q133036	lithography	0	
+P106	occupation	Q1093536	location manager	0	
+P106	occupation	Q2300903	Loco	0	
+P106	occupation	Q845249	logging	0	
+P106	occupation	Q1133078	logographer	0	
+P106	occupation	Q73341	Lord Mayor of London	0	
+P106	occupation	Q185498	Lucifer	0	
+P106	occupation	Q2512021	lumières	0	
+P106	occupation	Q778999	lur	0	
+P106	occupation	Q180733	lute	0	
+P106	occupation	Q1163330	Maharaja	0	
+P106	occupation	Q48362	Mahāyāna	0	
+P106	occupation	Q833860	maid	0	
+P106	occupation	Q2920921	management	0	
+P106	occupation	Q130286	management consulting	0	
+P106	occupation	Q166296	maphrian	0	
+P106	occupation	Q80866	marabout	0	
+P106	occupation	Q157802	margrave	0	
+P106	occupation	Q475604	maritime pilot	0	
+P106	occupation	Q209726	marquess	0	
+P106	occupation	Q1281422	Master class	0	
+P106	occupation	Q6785142	master mariner	0	
+P106	occupation	Q395	mathematics	0	
+P106	occupation	Q6804564	mechanician	0	
+P106	occupation	Q3486937	medic	0	
+P106	occupation	Q14970638	medical assistant	0	
+P106	occupation	Q266750	medicine man	0	
+P106	occupation	Q1671076	medieval archaeology	0	
+P106	occupation	Q3526627	member of a Legislative Assembly of India	0	
+P106	occupation	Q27169	member of the European Parliament	0	
+P106	occupation	Q110223	Mennonites	0	
+P106	occupation	Q372646	mental calculator	0	
+P106	occupation	Q18707261	mental health nurse	0	
+P106	occupation	Q838566	metalsmith	0	
+P106	occupation	Q7193	microbiology	0	
+P106	occupation	Q999897	middle management	0	
+P106	occupation	Q11141137	midshipman	0	
+P106	occupation	Q8473	military	0	
+P106	occupation	Q302691	military attaché	0	
+P106	occupation	Q209572	military service	0	
+P106	occupation	Q1058330	militsiya	0	
+P106	occupation	Q1934482	milkmaid	0	
+P106	occupation	Q278138	milkman	0	
+P106	occupation	Q841192	minstrel	0	
+P106	occupation	Q1463475	mintmaster	0	
+P106	occupation	Q12938564	Miss Nepal	0	
+P106	occupation	Q6877151	Miss Nepal 2011	0	
+P106	occupation	Q6885897	mnemonist	0	
+P106	occupation	Q1943547	Moll	0	
+P106	occupation	Q7560	mother	0	
+P106	occupation	Q328716	motorcycle sport	0	
+P106	occupation	Q2308103	mountain man	0	
+P106	occupation	Q42759	mujahid	0	
+P106	occupation	Q1472936	Mujeres Libres	0	
+P106	occupation	Q188942	mullah	0	
+P106	occupation	Q1753045	museum education	0	
+P106	occupation	Q2391676	mushroom hunting	0	
+P106	occupation	Q638	music	0	
+P106	occupation	Q11748889	music criticism	0	
+P106	occupation	Q164204	musicology	0	
+P106	occupation	Q721960	musketeer	0	
+P106	occupation	Q749811	Mutiny on the Bounty	0	
+P106	occupation	Q585623	Mystic	0	
+P106	occupation	Q45996	mysticism	0	
+P106	occupation	Q936969	nanny	0	
+P106	occupation	Q1318295	narrative	0	
+P106	occupation	Q17110844	National Defense Mediation Board	0	
+P106	occupation	Q308439	National Park Service	0	
+P106	occupation	Q1143194	National Police Corps of Spain	0	
+P106	occupation	Q325855	naval surgeon	0	
+P106	occupation	Q466714	neutron moderator	0	
+P106	occupation	Q7016454	new media artist	0	
+P106	occupation	Q7013201	New York City Fire Commissioner	0	
+P106	occupation	Q16204013	New York City Police Commissioner	0	
+P106	occupation	Q3339059	New York Law School	0	
+P106	occupation	Q7973168	night watchman	0	
+P106	occupation	Q156728	Nomenklatura	0	
+P106	occupation	Q627006	normal school	0	
+P106	occupation	Q2506428	North-West Mounted Police	0	
+P106	occupation	Q2419495	Norwegian resistance movement	0	
+P106	occupation	Q7069608	numbers game	0	
+P106	occupation	Q595071	nurse practitioner	0	
+P106	occupation	Q121176	nursing	0	
+P106	occupation	Q779280	oblate	0	
+P106	occupation	Q1304271	one-man band	0	
+P106	occupation	Q153562	opera house	0	
+P106	occupation	Q3962655	opinion	0	
+P106	occupation	Q1976697	Opperhoofd	0	
+P106	occupation	Q618211	optometry	0	
+P106	occupation	Q217123	oracle	0	
+P106	occupation	Q58848	pacifism	0	
+P106	occupation	Q192832	paintball	0	
+P106	occupation	Q1077786	Palatine of Hungary	0	
+P106	occupation	Q192694	paleobotany	0	
+P106	occupation	Q7127679	pallbearer	0	
+P106	occupation	Q182687	palmistry	0	
+P106	occupation	Q740369	papal legate	0	
+P106	occupation	Q2082403	paramount chief	0	
+P106	occupation	Q7138958	Parliamentarian of the United States Senate	0	
+P106	occupation	Q1553195	party leader	0	
+P106	occupation	Q666261	Patriarch of All Romania	0	
+P106	occupation	Q214092	patronage	0	
+P106	occupation	Q1509927	Peerage of France	0	
+P106	occupation	Q7169249	Permanent Representative of the Philippines to the United Nations	0	
+P106	occupation	Q7888495	Permanent Representative to the United Nations	0	
+P106	occupation	Q2529846	pharmaconomist	0	
+P106	occupation	Q13107184	pharmacy	0	
+P106	occupation	Q190721	philosophy of history	0	
+P106	occupation	Q7187777	photographic assistant	0	
+P106	occupation	Q219067	physical exercise	0	
+P106	occupation	Q551835	physician writer	0	
+P106	occupation	Q413	physics	0	
+P106	occupation	Q521	physiology	0	
+P106	occupation	Q2396572	pigeon keeping	0	
+P106	occupation	Q542704	pilgrim	0	
+P106	occupation	Q1146304	pilot in command	0	
+P106	occupation	Q751439	planetary geology	0	
+P106	occupation	Q4021	plant anatomy	0	
+P106	occupation	Q188956	plant pathology	0	
+P106	occupation	Q185973	plant physiology	0	
+P106	occupation	Q10251	plasma	0	
+P106	occupation	Q3286049	plus-size model	0	
+P106	occupation	Q482	poetry	0	
+P106	occupation	Q35535	police	0	
+P106	occupation	Q599048	political consulting	0	
+P106	occupation	Q1147507	political history	0	
+P106	occupation	Q1121558	politics of France	0	
+P106	occupation	Q37073	pop music	0	
+P106	occupation	Q995600	popular science	0	
+P106	occupation	Q130693	porcelain	0	
+P106	occupation	Q7231725	portfolio manager	0	
+P106	occupation	Q2587924	posadnik	0	
+P106	occupation	Q7234072	postal worker	0	
+P106	occupation	Q19626781	Preacher	0	
+P106	occupation	Q7239684	predikant	0	
+P106	occupation	Q1285463	prefect	0	
+P106	occupation	Q371909	prefect	0	
+P106	occupation	Q26859353	Première dame d'honneur	0	
+P106	occupation	Q30461	president	0	
+P106	occupation	Q1758713	primary producer	0	
+P106	occupation	Q1411354	Prince of the Holy Roman Empire	0	
+P106	occupation	Q6500733	printer	0	
+P106	occupation	Q144334	printing press	0	
+P106	occupation	Q830337	prior	0	
+P106	occupation	Q311396	prison officer	0	
+P106	occupation	Q179637	prisoner of war	0	
+P106	occupation	Q1402736	Privatdozent	0	
+P106	occupation	Q158668	private	0	
+P106	occupation	Q476115	private equity	0	
+P106	occupation	Q1787431	Privy Council of Thailand	0	
+P106	occupation	Q718660	Privy Councillor	0	
+P106	occupation	Q7246579	Pro-Chancellor	0	
+P106	occupation	Q2552738	product manager	0	
+P106	occupation	Q2961972	production sound mixer	0	
+P106	occupation	Q540391	professional dominatrix	0	
+P106	occupation	Q721067	professional wrestling promotion	0	
+P106	occupation	Q7248209	Professor of Greek	0	
+P106	occupation	Q635067	program director	0	
+P106	occupation	Q1508239	Promyshlennik	0	
+P106	occupation	Q15811035	property designer	0	
+P106	occupation	Q1430377	property master	0	
+P106	occupation	Q36633	prostitution	0	
+P106	occupation	Q1029421	prostitution of children	0	
+P106	occupation	Q763779	Protestant reformer	0	
+P106	occupation	Q620175	protonotary apostolic	0	
+P106	occupation	Q1176737	Protovestiarios	0	
+P106	occupation	Q2114175	provost	0	
+P106	occupation	Q7867	psychiatry	0	
+P106	occupation	Q41630	psychoanalysis	0	
+P106	occupation	Q7257749	public health nursing	0	
+P106	occupation	Q3043123	Public Protector	0	
+P106	occupation	Q133080	public relations	0	
+P106	occupation	Q2217284	puppet designer	0	
+P106	occupation	Q3411358	pyrotechnician	0	
+P106	occupation	Q170208	Quakers	0	
+P106	occupation	Q827792	quality control	0	
+P106	occupation	Q234181	quantum gravity	0	
+P106	occupation	Q16204670	quilombola	0	
+P106	occupation	Q2144081	race engineer	0	
+P106	occupation	Q202391	racewalking	0	
+P106	occupation	Q1318390	radio operator	0	
+P106	occupation	Q2294052	radiographer	0	
+P106	occupation	Q77604	radiology	0	
+P106	occupation	Q569205	rally raid	0	
+P106	occupation	Q7856	rallying	0	
+P106	occupation	Q7294323	Rapper	0	
+P106	occupation	Q156945	rear admiral	0	
+P106	occupation	Q1278830	rear admiral	0	
+P106	occupation	Q2630069	recorder of deeds	0	
+P106	occupation	Q16138296	Regent of Thailand	0	
+P106	occupation	Q2138652	Regius Professor	0	
+P106	occupation	Q1784753	répétiteur	0	
+P106	occupation	Q3151032	research associate	0	
+P106	occupation	Q126793	retail	0	
+P106	occupation	Q841594	Reverend	0	
+P106	occupation	Q61465	rhythmic gymnastics	0	
+P106	occupation	Q7334758	ring announcer	0	
+P106	occupation	Q1277348	Romance studies	0	
+P106	occupation	Q1075186	royal mistress	0	
+P106	occupation	Q5378	rugby	0	
+P106	occupation	Q1374447	runology	0	
+P106	occupation	Q60995	Russian Orthodox Church	0	
+P106	occupation	Q1365552	sacristan	0	
+P106	occupation	Q654776	sadhu	0	
+P106	occupation	Q549237	sailmaker	0	
+P106	occupation	Q128758	satire	0	
+P106	occupation	Q9798	saxophone	0	
+P106	occupation	Q6498317	sayaminoge-muno	0	
+P106	occupation	Q16999353	scholar of Piyyut	0	
+P106	occupation	Q2250054	school counselor	0	
+P106	occupation	Q336	science	0	
+P106	occupation	Q2669851	Scottish clan chief	0	
+P106	occupation	Q872181	scouting	0	
+P106	occupation	Q1133195	scree	0	
+P106	occupation	Q103076	screenplay	0	
+P106	occupation	Q452961	script	0	
+P106	occupation	Q261891	script editor	0	
+P106	occupation	Q4488757	secret intelligence	0	
+P106	occupation	Q856887	security guard	0	
+P106	occupation	Q7445933	Seer	0	
+P106	occupation	Q7450649	senior advisor	0	
+P106	occupation	Q17104090	serjeant-at-law	0	
+P106	occupation	Q16324756	service worker	0	
+P106	occupation	Q852857	sex worker	0	
+P106	occupation	Q170912	sexology	0	
+P106	occupation	Q42042	shamanism	0	
+P106	occupation	Q1790941	sheep farming	0	
+P106	occupation	Q261839	Sheep shearing	0	
+P106	occupation	Q3719391	sheet music publisher	0	
+P106	occupation	Q185166	Sheikh	0	
+P106	occupation	Q833228	Shiatsu	0	
+P106	occupation	Q206989	shooting sport	0	
+P106	occupation	Q1440873	showrunner	0	
+P106	occupation	Q2280705	Siam Society	0	
+P106	occupation	Q6129293	Singer	0	
+P106	occupation	Q16254337	siviløkonom	0	
+P106	occupation	Q193210	skydiving	0	
+P106	occupation	Q16406	smoke shop	0	
+P106	occupation	Q817245	social entrepreneurship	0	
+P106	occupation	Q36380	Society of Jesus	0	
+P106	occupation	Q1548249	software architect	0	
+P106	occupation	Q7558519	soloist	0	
+P106	occupation	Q2723352	Sparapet	0	
+P106	occupation	Q168796	spirituality	0	
+P106	occupation	Q650483	sports journalism	0	
+P106	occupation	Q7231714	Starosta	0	
+P106	occupation	Q3968476	State Trooper	0	
+P106	occupation	Q2962020	station master	0	
+P106	occupation	Q482090	steelmaking	0	
+P106	occupation	Q504073	stencil	0	
+P106	occupation	Q20002503	story artist	0	
+P106	occupation	Q2779013	Story Teller	0	
+P106	occupation	Q8067100	street vendor	0	
+P106	occupation	Q1771040	stringer	0	
+P106	occupation	Q7627813	student athlete	0	
+P106	occupation	Q17083482	student leader	0	
+P106	occupation	Q1308620	Studienrat	0	
+P106	occupation	Q631744	succentor	0	
+P106	occupation	Q7634615	Sufi	0	
+P106	occupation	Q15475273	superintendent	0	
+P106	occupation	Q2296367	superintendent	0	
+P106	occupation	Q2437271	superintendent	0	
+P106	occupation	Q190752	supreme court	0	
+P106	occupation	Q40821	surgery	0	
+P106	occupation	Q7647118	Surveyor General	0	
+P106	occupation	Q31920	swimming	0	
+P106	occupation	Q1591359	sysselmann	0	
+P106	occupation	Q327353	system administrator	0	
+P106	occupation	Q2399424	technical director	0	
+P106	occupation	Q139648	technology evangelist	0	
+P106	occupation	Q3502546	tennis umpire	0	
+P106	occupation	Q510865	Texas Ranger Division	0	
+P106	occupation	Q763631	textile design	0	
+P106	occupation	Q13232341	textual criticism of the New Testament	0	
+P106	occupation	Q7764133	The Siegel Group	0	
+P106	occupation	Q34178	theology	0	
+P106	occupation	Q2436108	Tipster	0	
+P106	occupation	Q601401	trade	0	
+P106	occupation	Q771035	traditional medicine	0	
+P106	occupation	Q1392297	train dispatcher	0	
+P106	occupation	Q7590	transport	0	
+P106	occupation	Q7835646	trapper	0	
+P106	occupation	Q61509	travel	0	
+P106	occupation	Q322212	travelling salesperson problem	0	
+P106	occupation	Q11281	troll	0	
+P106	occupation	Q1996467	trouvere	0	
+P106	occupation	Q867996	trustee in bankruptcy	0	
+P106	occupation	Q8427	Turkology	0	
+P106	occupation	Q377688	type foundry	0	
+P106	occupation	Q1432036	tzadik	0	
+P106	occupation	Q7886765	union organizer	0	
+P106	occupation	Q1065	United Nations	0	
+P106	occupation	Q11211	United States Armed Forces	0	
+P106	occupation	Q9212	United States Army	0	
+P106	occupation	Q2094335	United States Attorney	0	
+P106	occupation	Q11218	United States Marine Corps	0	
+P106	occupation	Q178033	United States Navy SEALs	0	
+P106	occupation	Q160302	University of Edinburgh	0	
+P106	occupation	Q28695	University of Helsinki	0	
+P106	occupation	Q457281	University of Illinois at Urbana–Champaign	0	
+P106	occupation	Q34433	University of Oxford	0	
+P106	occupation	Q1049470	University of Waterloo	0	
+P106	occupation	Q7894900	University Professorship	0	
+P106	occupation	Q460797	unofficial collaborator	0	
+P106	occupation	Q1123578	upholstery	0	
+P106	occupation	Q1047808	user experience	0	
+P106	occupation	Q1136723	usurper	0	
+P106	occupation	Q7902372	Utah Highway Patrol	0	
+P106	occupation	Q186286	vaudeville	0	
+P106	occupation	Q2624426	Ventriloquist	0	
+P106	occupation	Q170201	veterinary medicine	0	
+P106	occupation	Q244741	viceroy	0	
+P106	occupation	Q682010	video art	0	
+P106	occupation	Q7928606	Vietnam veteran	0	
+P106	occupation	Q8317	visual effects	0	
+P106	occupation	Q7936594	visual effects art director	0	
+P106	occupation	Q5747846	vivandière	0	
+P106	occupation	Q1516257	vocal pedagogy	0	
+P106	occupation	Q4122737	Vogt	0	
+P106	occupation	Q275102	voivode	0	
+P106	occupation	Q3476281	volapükologist	0	
+P106	occupation	Q7969145	Warden of the Swans	0	
+P106	occupation	Q126399	Warner Bros.	0	
+P106	occupation	Q1027930	webcam model	0	
+P106	occupation	Q83462	weightlifting	0	
+P106	occupation	Q4019568	Whitewash	0	
+P106	occupation	Q188830	wife	0	
+P106	occupation	Q3809586	Wikimedian in residence	0	
+P106	occupation	Q1364176	Wipro	0	
+P106	occupation	Q3589292	women letter writer	0	
+P106	occupation	Q475996	Women's Royal Naval Service	0	
+P106	occupation	Q170424	World Meteorological Organization	0	
+P106	occupation	Q42486	wrestling	0	
+P106	occupation	Q35752	WWE Superstars	0	
+P106	occupation	Q496513	Yahir	0	
+P106	occupation	Q19311988	YouNow	0	
+P106	occupation	Q147245	Zapatera	0	
+P106	occupation	Q431	zoology	0	
