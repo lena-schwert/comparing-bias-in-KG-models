@@ -6,6 +6,7 @@ from collections import Counter
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import pykeen
 
 # Internal Imports
 from src.utils import set_base_path_based_on_host, get_triples_df, HumanWikidata5M_pykeen
@@ -26,17 +27,8 @@ SENSITIVE_RELATIONS, TARGET_RELATIONS = get_sensitive_and_target_relations(
 COLUMN_NAMES_PREDS_DF = ['head_id', 'relation_id', 'relation_label', 'true_tail_id',
                          'true_tail_label', 'pred_tail_id', 'pred_tail_label']
 
-# %% TODO Figure out how many classes to use for each sensitive/target relation
 
-# For SimKGC + my trained pykeen models: class encoding top 8 classes + other for P106 occupation
-file_for_class_encoding = 'src/bias_measurement/link_prediction_bias/' \
-                          'target_relation_encodings/occupation_P106_9classes_using_v4testset.tsv'
-target_relation_class_encoding = pd.read_csv(os.path.join(BASE_PATH_HOST, file_for_class_encoding),
-                                             sep = '\t', usecols = [0, 1, 2, 3, 4])
-target_relation_class_encoding = target_relation_class_encoding.convert_dtypes()
-
-
-# %% TODO extract sensitive attribute information from the v4 subset of HumanWikidata5M
+# %% function for extracting sensitive attribute information from a given pykeen dataset
 
 
 def add_sensitive_relation_values(dataset, preds_df, sensitive_relations):
@@ -70,6 +62,7 @@ def add_sensitive_relation_values(dataset, preds_df, sensitive_relations):
             return -1
 
     assert type(sensitive_relations) == list
+    assert isinstance(dataset, pykeen.datasets.Dataset)
 
     # TODO change this, access the triples from all dataset splits! Create a union of all splits
 
@@ -276,10 +269,15 @@ preds_df_SimKGC_results_for_bias_measurement_withoutNAs.to_csv(
                  'preds_df_SimKGC_IB_occupation_9classes_WITHOUTNAs_sensrel_from_entire_v4subset.tsv'),
     sep = '\t', index = False)
 
-# %% Code chapter: Process pykeen evaluation results (KG only + HumanWikidata5M)
+# %% CODE CHAPTER: Process pykeen evaluation results (KG only + HumanWikidata5M)
 
 
-# %% Code chapter: Process KG-BERT evaluation results (KG+LM + FB15K-237)
+
+
+
+
+
+# %% CODE CHAPTER: Process KG-BERT evaluation results (KG+LM + FB15K-237)
 
 ### IMPORTANT:concatenate all 3 dataframes to a single one (resulting in 1747 rows)
 
@@ -397,10 +395,6 @@ KGBERT_results_filtered_for_target.drop('ID', axis = 1, inplace = True)
 KGBERT_results_for_bias_measurement = KGBERT_results_filtered_for_target[COLUMN_NAMES_PREDS_DF]
 
 ### IMPORTANT: create numeric class encodings for occupation
-KGBERT_results_for_bias_measurement = pd.read_csv(os.path.join(BASE_PATH_HOST,
-                                                               'results/KG_and_LM/KG-BERT/11.05.2022_16:00_train_and_test_default_FB15K-237_6A100_final/preds_df_occupation_without_numlabels_29052022.tsv'),
-                                                  sep = '\t')
-
 file_for_class_encoding = 'src/bias_measurement/link_prediction_bias/' \
                           'target_relation_encodings/profession_FB15k237_9classes_using_testset.tsv'
 target_relation_class_encoding = pd.read_csv(os.path.join(BASE_PATH_HOST, file_for_class_encoding),
@@ -432,7 +426,7 @@ KGBERT_results_for_bias_measurement = KGBERT_results_for_bias_measurement[
     ['head_id', 'relation_id', 'relation_label', 'true_tail_id', 'true_tail_label',
      'true_tail_class_label', 'pred_tail_id', 'pred_tail_label', 'pred_tail_class_label']]
 
-# IMPORTANT count and exclude rows where predicted entity is not an occupation tail entity!
+### IMPORTANT count and exclude rows where predicted entity is not an occupation tail entity!
 # this contains 593 rows
 NAs_KGBERT_pred_tail_class_label = KGBERT_results_for_bias_measurement[
     KGBERT_results_for_bias_measurement['pred_tail_class_label'].isnull()]
@@ -450,7 +444,6 @@ KGBERT_results_for_bias_measurement_withoutNAs = KGBERT_results_for_bias_measure
 
 SENSITIVE_RELATIONS = ['/people/person/gender']
 from pykeen.datasets import FB15k237
-
 dataset = FB15k237()
 
 # GENDER TAIL COUNTS: {'/m/05zppz': 1108, '/m/02zsn': 203}
@@ -474,7 +467,148 @@ preds_df_KGBERT_results_for_bias_measurement_withoutNAs.to_csv(
 
 # %% TODO Process Rossi evaluation results file (KG only + FB15K-237)
 
-# count whether I also get 1747 facts when filtering for occupation and
+# The basis for this models are files where the predictions of the model on the testset are published.
+
+# count whether I also get 1747 facts when filtering for occupation
+
+path_to_results = os.path.join(BASE_PATH_HOST, 'results/KG_only')
+experiment_name = 'Rossi_models_FB15K-237'
+file_name = 'RotatE/rotate_filtered_details.csv'
+# 'TransE/transe_filtered_details.csv'
+# 'DistMult/distmult_filtered_details.csv'
+# 'RotatE/rotate_filtered_details.csv'
+
+### IMPORTANT: clean the results file
+raw_file_Rossi_FB15k237 = pd.read_csv(os.path.join(path_to_results, experiment_name, file_name),
+                                      sep = ';', usecols = [0, 1, 2, 3, 4],
+                                      names = ['head_id', 'relation_id', 'true_tail_id',
+                                               'prediction_type', 'pred_tail_id'])
+
+# keep only the tail predictions (20,438 rows)
+raw_file_Rossi_FB15k237 = raw_file_Rossi_FB15k237[raw_file_Rossi_FB15k237['prediction_type'] == 'predict tail'].copy()
+assert len(raw_file_Rossi_FB15k237['prediction_type'].unique()) == 1
+raw_file_Rossi_FB15k237.drop(columns = 'prediction_type', inplace = True)
+
+# remove brackets from column 'pred_tail_id'
+raw_file_Rossi_FB15k237['pred_tail_id'] = raw_file_Rossi_FB15k237['pred_tail_id'].apply(lambda row: row.strip('[]'))
+
+### IMPORTANT: choose only the occupation relations
+TARGET_RELATIONS = ['/people/person/profession']
+
+Rossi_FB15k237_results_filtered_for_target_mask = raw_file_Rossi_FB15k237['relation_id'].isin(TARGET_RELATIONS)
+Rossi_FB15k237_results_filtered_for_target = raw_file_Rossi_FB15k237[Rossi_FB15k237_results_filtered_for_target_mask].copy()
+# reset the index
+Rossi_FB15k237_results_filtered_for_target.reset_index(drop = True, inplace = True)
+
+assert len(Rossi_FB15k237_results_filtered_for_target) == 1311
+
+### IMPORTANT: retrieve natural language labels for all IDs (14951 labels)
+entity_to_label_FB15k237 = pd.read_csv(os.path.join(BASE_PATH_HOST,
+                                                    'data/processed/files_per_model/KG_and_LM_KGBERT_FB15K-237/entity2text.txt'),
+                                       sep = '\t', names = ['ID', 'label'])
+# add label for relation manually
+# --> profession
+Rossi_FB15k237_results_filtered_for_target['relation_label'] = 'profession'
+
+# add the labels for the true tails
+Rossi_FB15k237_results_filtered_for_target = pd.merge(left = Rossi_FB15k237_results_filtered_for_target,
+                                              right = entity_to_label_FB15k237, how = 'left',
+                                              left_on = 'true_tail_id', right_on = 'ID')
+Rossi_FB15k237_results_filtered_for_target.rename(columns = {'label': 'true_tail_label'}, inplace = True)
+Rossi_FB15k237_results_filtered_for_target.drop('ID', axis = 1, inplace = True)
+
+# add the labels for the predicted tails
+Rossi_FB15k237_results_filtered_for_target = pd.merge(left = Rossi_FB15k237_results_filtered_for_target,
+                                              right = entity_to_label_FB15k237, how = 'left',
+                                              left_on = 'pred_tail_id', right_on = 'ID')
+Rossi_FB15k237_results_filtered_for_target.rename(columns = {'label': 'pred_tail_label'}, inplace = True)
+Rossi_FB15k237_results_filtered_for_target.drop('ID', axis = 1, inplace = True)
+
+# reorder the columns
+Rossi_FB15k237_results_for_bias_measurement = Rossi_FB15k237_results_filtered_for_target[COLUMN_NAMES_PREDS_DF].copy()
+
+### IMPORTANT: create numeric class encodings for occupation
+file_for_class_encoding = 'src/bias_measurement/link_prediction_bias/' \
+                          'target_relation_encodings/profession_FB15k237_9classes_using_testset.tsv'
+target_relation_class_encoding = pd.read_csv(os.path.join(BASE_PATH_HOST, file_for_class_encoding),
+                                             sep = '\t', usecols = [0, 1, 2, 3, 4])
+target_relation_class_encoding = target_relation_class_encoding.convert_dtypes()
+
+# retrieve the numeric class labels for 'true_tail_id' and 'pred_tail_id' using merge()
+Rossi_FB15k237_results_for_bias_measurement = pd.merge(left = Rossi_FB15k237_results_for_bias_measurement,
+                                               right = target_relation_class_encoding[
+                                                   ['tail_entity_id',
+                                                    'class_label_geq50_based_on_testset']],
+                                               how = 'left', left_on = 'true_tail_id',
+                                               right_on = 'tail_entity_id')
+Rossi_FB15k237_results_for_bias_measurement.rename(
+    columns = {'class_label_geq50_based_on_testset': 'true_tail_class_label'}, inplace = True)
+Rossi_FB15k237_results_for_bias_measurement.drop('tail_entity_id', axis = 1, inplace = True)
+Rossi_FB15k237_results_for_bias_measurement = pd.merge(left = Rossi_FB15k237_results_for_bias_measurement,
+                                               right = target_relation_class_encoding[
+                                                   ['tail_entity_id',
+                                                    'class_label_geq50_based_on_testset']],
+                                               how = 'left', left_on = 'pred_tail_id',
+                                               right_on = 'tail_entity_id')
+Rossi_FB15k237_results_for_bias_measurement.rename(
+    columns = {'class_label_geq50_based_on_testset': 'pred_tail_class_label'}, inplace = True)
+Rossi_FB15k237_results_for_bias_measurement.drop('tail_entity_id', axis = 1, inplace = True)
+
+# reorder columns
+Rossi_FB15k237_results_for_bias_measurement = Rossi_FB15k237_results_for_bias_measurement[
+    ['head_id', 'relation_id', 'relation_label', 'true_tail_id', 'true_tail_label',
+     'true_tail_class_label', 'pred_tail_id', 'pred_tail_label', 'pred_tail_class_label']]
+
+### IMPORTANT count and exclude rows where predicted entity is not an occupation tail entity!
+# this is empty for TransE + Distmult (means that the model is actually very good)
+# for RotatE there is one NA row
+NA_rows_Rossi_FB15k237_pred_tail_class_label = Rossi_FB15k237_results_for_bias_measurement[
+    Rossi_FB15k237_results_for_bias_measurement['pred_tail_class_label'].isnull()]
+# this is empty for all 3 models (as expected)
+NA_rows_Rossi_FB15k237_true_tail_class_label = Rossi_FB15k237_results_for_bias_measurement[
+    Rossi_FB15k237_results_for_bias_measurement['true_tail_class_label'].isnull()]
+
+
+### IMPORTANT: add sensitive attribute information as column
+
+SENSITIVE_RELATIONS = ['/people/person/gender']
+from pykeen.datasets import FB15k237
+dataset = FB15k237()
+
+if 'RotatE' in file_name:
+    # dataframe including all 1311 occupation facts
+    Rossi_FB15k237_results_for_bias_measurement_withNAs = Rossi_FB15k237_results_for_bias_measurement.copy()
+    # dataframe filtered for the single NA with 1310 rows
+    Rossi_FB15k237_results_for_bias_measurement_withoutNAs = Rossi_FB15k237_results_for_bias_measurement.drop(
+        index = NA_rows_Rossi_FB15k237_pred_tail_class_label.index)
+    # GENDER TAIL COUNTS: {'/m/05zppz': 1108, '/m/02zsn': 203}
+    preds_df_Rossi_FB15k237_results_for_bias_measurement_withNAs = add_sensitive_relation_values(
+        dataset = dataset, preds_df = Rossi_FB15k237_results_for_bias_measurement_withNAs,
+        sensitive_relations = SENSITIVE_RELATIONS)
+    # GENDER TAIL COUNTS: {'/m/05zppz': 1107, '/m/02zsn': 203}
+    preds_df_Rossi_FB15k237_results_for_bias_measurement_withoutNAs = add_sensitive_relation_values(
+        dataset = dataset, preds_df = Rossi_FB15k237_results_for_bias_measurement_withoutNAs,
+        sensitive_relations = SENSITIVE_RELATIONS)
+
+    preds_df_Rossi_FB15k237_results_for_bias_measurement_withNAs.to_csv(
+        os.path.join(BASE_PATH_HOST, 'results/bias_measurement/link_prediction_bias/',
+                     'preds_df_Rossi_RotatE_FB15k237_occupation_9classes_WITHNAs_sensrel_from_entire_FB15k-237.tsv'),
+        sep = '\t', index = False)
+
+    preds_df_Rossi_FB15k237_results_for_bias_measurement_withoutNAs.to_csv(
+        os.path.join(BASE_PATH_HOST, 'results/bias_measurement/link_prediction_bias/',
+                     'preds_df_Rossi_RotatE_FB15k237_occupation_9classes_WITHOUTNAs_sensrel_from_entire_FB15k-237.tsv'),
+        sep = '\t', index = False)
+
+# GENDER TAIL COUNTS: {'/m/05zppz': 1108, '/m/02zsn': 203}
+preds_df_Rossi_FB15k237_results_for_bias_measurement_withputanyNAs = add_sensitive_relation_values(
+    dataset = dataset, preds_df = Rossi_FB15k237_results_for_bias_measurement,
+    sensitive_relations = SENSITIVE_RELATIONS)
+
+preds_df_Rossi_FB15k237_results_for_bias_measurement_withputanyNAs.to_csv(
+    os.path.join(BASE_PATH_HOST, 'results/bias_measurement/link_prediction_bias/',
+                 'preds_df_Rossi_DistMult_FB15k237_occupation_9classes_DOESNOTHAVENAs_sensrel_from_entire_FB15k-237.tsv'),
+    sep = '\t', index = False)
 
 
 # %% Code chapter: Try out using scikit-learn for calculating fairness metrics
