@@ -7,6 +7,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import pykeen
+import torch
+from tqdm import tqdm
 
 # Internal Imports
 from src.utils import set_base_path_based_on_host, get_triples_df, HumanWikidata5M_pykeen
@@ -21,8 +23,8 @@ BASE_PATH_HOST = set_base_path_based_on_host()
 
 # %% Set target and sensitive relation(s)
 
-SENSITIVE_RELATIONS, TARGET_RELATIONS = get_sensitive_and_target_relations(
-    dataset_name = 'Wikidata5m')
+# SENSITIVE_RELATIONS, TARGET_RELATIONS = get_sensitive_and_target_relations(
+#     dataset_name = 'Wikidata5m')
 
 COLUMN_NAMES_PREDS_DF = ['head_id', 'relation_id', 'relation_label', 'true_tail_id',
                          'true_tail_label', 'pred_tail_id', 'pred_tail_label']
@@ -33,6 +35,9 @@ COLUMN_NAMES_PREDS_DF = ['head_id', 'relation_id', 'relation_label', 'true_tail_
 
 def add_sensitive_relation_values(dataset, preds_df, sensitive_relations):
     """
+    CREDIT: This function is a slightly adapted version from here: https://github.com/mianzg/kgbiasdetec/blob/main/predict_tails.py
+    associated paper: Keidar et al. (2021): Towards Automatic Bias Detection in Knowledge Graphs. EMNLP
+
     Given a dataframe with predictions for the target relation, add the tail values
     for each sensitive relation for each human head entity in the preds_df.
     Adds one column per sensitive relation.
@@ -162,6 +167,158 @@ def add_sensitive_relation_values(dataset, preds_df, sensitive_relations):
 
 # %% TODO extract sensitive attribute information from Fb15k-237
 
+# %% CODE CHAPTER: Process pykeen evaluation results (KG only + HumanWikidata5M)
+
+path_to_results = os.path.join(BASE_PATH_HOST, 'results/KG_only/final')
+experiment_name = '23.05.2022_20:05_final_model_TransE_512dim_32ns_1024bs_0.001lr_after_400ep'
+file_name = 'trained_model.pkl'
+# 23.05.2022_20:05_final_model_TransE_512dim_32ns_1024bs_0.001lr_after_400ep
+# 23.05.2022_20:06_final_model_DistMult_512dim_32ns_1024bs_0.001lr_after_400ep
+# 23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_after_400ep
+
+### IMPORTANT: For each model, get the tail predictions for the target relation triples in the testset
+trained_model = torch.load(os.path.join(path_to_results, experiment_name, file_name),
+                           map_location = 'cpu')
+# retrieve the training Triples
+rel_training_set_path = 'data/processed/output_of_preprocessing/training_data_subset_0.9_rs42_06_05_2022_15:11.tsv'
+rel_validation_set_path = 'data/processed/output_of_preprocessing/validation_data_subset_0.05_rs42_06_05_2022_15:11.tsv'
+rel_test_set_path = 'data/processed/output_of_preprocessing/test_data_subset_0.05_rs42_06_05_2022_15:11.tsv'
+dataset_HumanWikidata5M = HumanWikidata5M_pykeen(base_path_host = BASE_PATH_HOST,
+                                                 rel_training_set_path = rel_training_set_path,
+                                                 rel_validation_set_path = rel_validation_set_path,
+                                                 rel_test_set_path = rel_test_set_path)
+
+# create numpy array of label-based triples in the testset
+# template file with the 3763 occupation triples: preds_df_occupation_HumanW5M_subset_testset.tsv
+occupation_triples = pd.read_csv(
+    os.path.join(BASE_PATH_HOST, 'results/bias_measurement/link_prediction_bias/',
+                 'preds_df_occupation_HumanW5M_subset_testset.tsv'), sep = '\t',
+    usecols = [0, 1, 3])
+# occupation_triples_array = occupation_triples.to_numpy(dtype = str)
+
+# alternatively, try to use functions usually used with PipelineResult:
+# https://pykeen.readthedocs.io/en/stable/api/pykeen.models.predict.predict_triples_df.html
+from pykeen.models.predict import predict_triples_df, get_tail_prediction_df
+from pykeen.models import predict
+
+predicted_tail_entity_IDs = []
+predicted_tail_entity_labels = []
+
+# IMPORTANT: careful, running this takes about 2-4 hours per model on a A100 GPU!
+for rowtuple in occupation_triples.itertuples():
+    #    print(rowtuple)
+    prediction_result = get_tail_prediction_df(model = trained_model, head_label = rowtuple.head_id,
+                                               relation_label = rowtuple.relation_id,
+                                               triples_factory = dataset_HumanWikidata5M.training,
+                                               testing = dataset_HumanWikidata5M.testing.mapped_triples,
+                                               remove_known = True)
+    highest_score_row = prediction_result.iloc[:1]
+    predicted_tail_entity_IDs.append(highest_score_row['tail_label'].item())
+    predicted_tail_entity_labels.append(
+        dataset_HumanWikidata5M.entity_numID_to_label.get(highest_score_row['tail_id'].item()))
+
+print('Finished extracting the tail entity predictions.')
+
+pykeen_HW5M_results_for_bias_measurement = occupation_triples.copy()
+
+pykeen_HW5M_results_for_bias_measurement['pred_tail_id'] = predicted_tail_entity_IDs
+pykeen_HW5M_results_for_bias_measurement['pred_tail_label'] = predicted_tail_entity_labels
+
+# pykeen_HW5M_results_for_bias_measurement.to_csv(
+#     os.path.join(BASE_PATH_HOST, 'results/bias_measurement/link_prediction_bias/',
+#                  'predsdf_pykeen_TransE_top1predictions_occupation.tsv'),
+#     sep = '\t', index = False)
+
+### IMPORTANT: recode the tail values into a fixed set of classes
+file_for_class_encoding = 'src/bias_measurement/link_prediction_bias/' \
+                          'target_relation_encodings/occupation_P106_9classes_using_v4testset.tsv'
+target_relation_class_encoding = pd.read_csv(os.path.join(BASE_PATH_HOST, file_for_class_encoding),
+                                             sep = '\t', usecols = [0, 1, 2, 3, 4])
+target_relation_class_encoding = target_relation_class_encoding.convert_dtypes()
+
+experiment_name = '23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_after_400ep'
+# 23.05.2022_20:05_final_model_TransE_512dim_32ns_1024bs_0.001lr_after_400ep
+# 23.05.2022_20:06_final_model_DistMult_512dim_32ns_1024bs_0.001lr_after_400ep
+# 23.05.2022_20:06_final_model_RotatE_512dim_32ns_1024bs_0.01lr_after_400ep
+file_name = 'pykeen_RotatE_top1predictions_occupation_31052022.tsv'
+# pykeen_TransE_top1predictions_occupation_31052022.tsv
+# pykeen_DistMult_top1predictions_occupation_31052022.tsv
+# pykeen_RotatE_top1predictions_occupation_31052022.tsv
+
+pykeen_HW5M_results_for_bias_measurement = pd.read_csv(
+    os.path.join(path_to_results, experiment_name, file_name), sep = '\t')
+
+# retrieve the numeric class labels for 'true_tail_id' and 'pred_tail_id' using merge()
+pykeen_HW5M_results_for_bias_measurement = pd.merge(left = pykeen_HW5M_results_for_bias_measurement,
+                                                    right = target_relation_class_encoding[
+                                                        ['tail_entity_id',
+                                                         'class_label_based_on_v4testset']],
+                                                    how = 'left', left_on = 'true_tail_id',
+                                                    right_on = 'tail_entity_id')
+pykeen_HW5M_results_for_bias_measurement.rename(
+    columns = {'class_label_based_on_v4testset': 'true_tail_class_label'}, inplace = True)
+pykeen_HW5M_results_for_bias_measurement.drop('tail_entity_id', axis = 1, inplace = True)
+pykeen_HW5M_results_for_bias_measurement = pd.merge(left = pykeen_HW5M_results_for_bias_measurement,
+                                                    right = target_relation_class_encoding[
+                                                        ['tail_entity_id',
+                                                         'class_label_based_on_v4testset']],
+                                                    how = 'left', left_on = 'pred_tail_id',
+                                                    right_on = 'tail_entity_id')
+pykeen_HW5M_results_for_bias_measurement.rename(
+    columns = {'class_label_based_on_v4testset': 'pred_tail_class_label'}, inplace = True)
+pykeen_HW5M_results_for_bias_measurement.drop('tail_entity_id', axis = 1, inplace = True)
+
+# detect dtypes
+pykeen_HW5M_results_for_bias_measurement = pykeen_HW5M_results_for_bias_measurement.convert_dtypes()
+# reorder columns
+pykeen_HW5M_results_for_bias_measurement = pykeen_HW5M_results_for_bias_measurement[
+    ['head_id', 'relation_id', 'relation_label', 'true_tail_id', 'true_tail_label',
+     'true_tail_class_label', 'pred_tail_id', 'pred_tail_label', 'pred_tail_class_label']]
+
+# IMPORTANT count and exclude rows where predicted entity is not an occupation tail entity!
+# this contains for TransE 28 rows, DistMult 5 rows, RotatE 54 rows
+NA_rows_pykeen_HW5M_pred_tail_class_label = pykeen_HW5M_results_for_bias_measurement[
+    pykeen_HW5M_results_for_bias_measurement['pred_tail_class_label'].isnull()]
+# this is empty (as expected)
+NA_rows_pykeen_HW5M_true_tail_class_label = pykeen_HW5M_results_for_bias_measurement[
+    pykeen_HW5M_results_for_bias_measurement['true_tail_class_label'].isnull()]
+
+# dataframe including all 3763 occupation facts
+pykeen_HW5M_results_for_bias_measurement_withNAs = pykeen_HW5M_results_for_bias_measurement.copy()
+# dataframe filtered for NAs with 3735 rows (TransE), 3758 rows (DistMult), 3709 (RotatE)
+pykeen_HW5M_results_for_bias_measurement_withoutNAs = pykeen_HW5M_results_for_bias_measurement.drop(
+    index = NA_rows_pykeen_HW5M_pred_tail_class_label.index)
+
+### IMPORTANT: add sensitive attribute information as columns
+SENSITIVE_RELATIONS = ['P21', 'P27', 'P172', 'P140']
+# gender, country of citizenship, ethnic group, religion
+rel_training_set_path = 'data/processed/output_of_preprocessing/training_data_subset_0.9_rs42_06_05_2022_15:11.tsv'
+rel_validation_set_path = 'data/processed/output_of_preprocessing/validation_data_subset_0.05_rs42_06_05_2022_15:11.tsv'
+rel_test_set_path = 'data/processed/output_of_preprocessing/test_data_subset_0.05_rs42_06_05_2022_15:11.tsv'
+dataset = HumanWikidata5M_pykeen(base_path_host = BASE_PATH_HOST,
+                                 rel_training_set_path = rel_training_set_path,
+                                 rel_validation_set_path = rel_validation_set_path,
+                                 rel_test_set_path = rel_test_set_path)
+
+pykeen_HW5M_results_for_bias_measurement_withNAs = add_sensitive_relation_values(
+    dataset = dataset, preds_df = pykeen_HW5M_results_for_bias_measurement_withNAs,
+    sensitive_relations = SENSITIVE_RELATIONS)
+
+pykeen_HW5M_results_for_bias_measurement_withoutNAs = add_sensitive_relation_values(
+    dataset = dataset, preds_df = pykeen_HW5M_results_for_bias_measurement_withoutNAs,
+    sensitive_relations = SENSITIVE_RELATIONS)
+
+pykeen_HW5M_results_for_bias_measurement_withNAs.to_csv(
+    os.path.join(BASE_PATH_HOST, 'results/bias_measurement/link_prediction_bias/',
+                 'preds_df_pykeen_RotatE_HW5M_subset_occupation_9classes_WITHNAs_sensrel_from_entire_v4subset.tsv'),
+    sep = '\t', index = False)
+
+pykeen_HW5M_results_for_bias_measurement_withoutNAs.to_csv(
+    os.path.join(BASE_PATH_HOST, 'results/bias_measurement/link_prediction_bias/',
+                 'preds_df_pykeen_RotatE_HW5M_subset_occupation_9classes_WITHOUTNAs_sensrel_from_entire_v4subset.tsv'),
+    sep = '\t', index = False)
+
+
 # %% Code chapter: Process SimKGC evaluation results (KG+LM + HumanWikidata5M)
 
 # There are two result files that I want to process:
@@ -268,14 +425,6 @@ preds_df_SimKGC_results_for_bias_measurement_withoutNAs.to_csv(
     os.path.join(BASE_PATH_HOST, 'results/bias_measurement/link_prediction_bias/',
                  'preds_df_SimKGC_IB_occupation_9classes_WITHOUTNAs_sensrel_from_entire_v4subset.tsv'),
     sep = '\t', index = False)
-
-# %% CODE CHAPTER: Process pykeen evaluation results (KG only + HumanWikidata5M)
-
-
-
-
-
-
 
 # %% CODE CHAPTER: Process KG-BERT evaluation results (KG+LM + FB15K-237)
 
@@ -444,6 +593,7 @@ KGBERT_results_for_bias_measurement_withoutNAs = KGBERT_results_for_bias_measure
 
 SENSITIVE_RELATIONS = ['/people/person/gender']
 from pykeen.datasets import FB15k237
+
 dataset = FB15k237()
 
 # GENDER TAIL COUNTS: {'/m/05zppz': 1108, '/m/02zsn': 203}
@@ -465,7 +615,7 @@ preds_df_KGBERT_results_for_bias_measurement_withoutNAs.to_csv(
                  'preds_df_KG-BERT_occupation_9classes_WITHOUTNAs_sensrel_from_entire_FB15k-237.tsv'),
     sep = '\t', index = False)
 
-# %% TODO Process Rossi evaluation results file (KG only + FB15K-237)
+# %% CODE CHAPTER Process Rossi evaluation results file (KG only + FB15K-237)
 
 # The basis for this models are files where the predictions of the model on the testset are published.
 
@@ -485,18 +635,22 @@ raw_file_Rossi_FB15k237 = pd.read_csv(os.path.join(path_to_results, experiment_n
                                                'prediction_type', 'pred_tail_id'])
 
 # keep only the tail predictions (20,438 rows)
-raw_file_Rossi_FB15k237 = raw_file_Rossi_FB15k237[raw_file_Rossi_FB15k237['prediction_type'] == 'predict tail'].copy()
+raw_file_Rossi_FB15k237 = raw_file_Rossi_FB15k237[
+    raw_file_Rossi_FB15k237['prediction_type'] == 'predict tail'].copy()
 assert len(raw_file_Rossi_FB15k237['prediction_type'].unique()) == 1
 raw_file_Rossi_FB15k237.drop(columns = 'prediction_type', inplace = True)
 
 # remove brackets from column 'pred_tail_id'
-raw_file_Rossi_FB15k237['pred_tail_id'] = raw_file_Rossi_FB15k237['pred_tail_id'].apply(lambda row: row.strip('[]'))
+raw_file_Rossi_FB15k237['pred_tail_id'] = raw_file_Rossi_FB15k237['pred_tail_id'].apply(
+    lambda row: row.strip('[]'))
 
 ### IMPORTANT: choose only the occupation relations
 TARGET_RELATIONS = ['/people/person/profession']
 
-Rossi_FB15k237_results_filtered_for_target_mask = raw_file_Rossi_FB15k237['relation_id'].isin(TARGET_RELATIONS)
-Rossi_FB15k237_results_filtered_for_target = raw_file_Rossi_FB15k237[Rossi_FB15k237_results_filtered_for_target_mask].copy()
+Rossi_FB15k237_results_filtered_for_target_mask = raw_file_Rossi_FB15k237['relation_id'].isin(
+    TARGET_RELATIONS)
+Rossi_FB15k237_results_filtered_for_target = raw_file_Rossi_FB15k237[
+    Rossi_FB15k237_results_filtered_for_target_mask].copy()
 # reset the index
 Rossi_FB15k237_results_filtered_for_target.reset_index(drop = True, inplace = True)
 
@@ -511,21 +665,24 @@ entity_to_label_FB15k237 = pd.read_csv(os.path.join(BASE_PATH_HOST,
 Rossi_FB15k237_results_filtered_for_target['relation_label'] = 'profession'
 
 # add the labels for the true tails
-Rossi_FB15k237_results_filtered_for_target = pd.merge(left = Rossi_FB15k237_results_filtered_for_target,
-                                              right = entity_to_label_FB15k237, how = 'left',
-                                              left_on = 'true_tail_id', right_on = 'ID')
-Rossi_FB15k237_results_filtered_for_target.rename(columns = {'label': 'true_tail_label'}, inplace = True)
+Rossi_FB15k237_results_filtered_for_target = pd.merge(
+    left = Rossi_FB15k237_results_filtered_for_target, right = entity_to_label_FB15k237,
+    how = 'left', left_on = 'true_tail_id', right_on = 'ID')
+Rossi_FB15k237_results_filtered_for_target.rename(columns = {'label': 'true_tail_label'},
+                                                  inplace = True)
 Rossi_FB15k237_results_filtered_for_target.drop('ID', axis = 1, inplace = True)
 
 # add the labels for the predicted tails
-Rossi_FB15k237_results_filtered_for_target = pd.merge(left = Rossi_FB15k237_results_filtered_for_target,
-                                              right = entity_to_label_FB15k237, how = 'left',
-                                              left_on = 'pred_tail_id', right_on = 'ID')
-Rossi_FB15k237_results_filtered_for_target.rename(columns = {'label': 'pred_tail_label'}, inplace = True)
+Rossi_FB15k237_results_filtered_for_target = pd.merge(
+    left = Rossi_FB15k237_results_filtered_for_target, right = entity_to_label_FB15k237,
+    how = 'left', left_on = 'pred_tail_id', right_on = 'ID')
+Rossi_FB15k237_results_filtered_for_target.rename(columns = {'label': 'pred_tail_label'},
+                                                  inplace = True)
 Rossi_FB15k237_results_filtered_for_target.drop('ID', axis = 1, inplace = True)
 
 # reorder the columns
-Rossi_FB15k237_results_for_bias_measurement = Rossi_FB15k237_results_filtered_for_target[COLUMN_NAMES_PREDS_DF].copy()
+Rossi_FB15k237_results_for_bias_measurement = Rossi_FB15k237_results_filtered_for_target[
+    COLUMN_NAMES_PREDS_DF].copy()
 
 ### IMPORTANT: create numeric class encodings for occupation
 file_for_class_encoding = 'src/bias_measurement/link_prediction_bias/' \
@@ -535,21 +692,17 @@ target_relation_class_encoding = pd.read_csv(os.path.join(BASE_PATH_HOST, file_f
 target_relation_class_encoding = target_relation_class_encoding.convert_dtypes()
 
 # retrieve the numeric class labels for 'true_tail_id' and 'pred_tail_id' using merge()
-Rossi_FB15k237_results_for_bias_measurement = pd.merge(left = Rossi_FB15k237_results_for_bias_measurement,
-                                               right = target_relation_class_encoding[
-                                                   ['tail_entity_id',
-                                                    'class_label_geq50_based_on_testset']],
-                                               how = 'left', left_on = 'true_tail_id',
-                                               right_on = 'tail_entity_id')
+Rossi_FB15k237_results_for_bias_measurement = pd.merge(
+    left = Rossi_FB15k237_results_for_bias_measurement, right = target_relation_class_encoding[
+        ['tail_entity_id', 'class_label_geq50_based_on_testset']], how = 'left',
+    left_on = 'true_tail_id', right_on = 'tail_entity_id')
 Rossi_FB15k237_results_for_bias_measurement.rename(
     columns = {'class_label_geq50_based_on_testset': 'true_tail_class_label'}, inplace = True)
 Rossi_FB15k237_results_for_bias_measurement.drop('tail_entity_id', axis = 1, inplace = True)
-Rossi_FB15k237_results_for_bias_measurement = pd.merge(left = Rossi_FB15k237_results_for_bias_measurement,
-                                               right = target_relation_class_encoding[
-                                                   ['tail_entity_id',
-                                                    'class_label_geq50_based_on_testset']],
-                                               how = 'left', left_on = 'pred_tail_id',
-                                               right_on = 'tail_entity_id')
+Rossi_FB15k237_results_for_bias_measurement = pd.merge(
+    left = Rossi_FB15k237_results_for_bias_measurement, right = target_relation_class_encoding[
+        ['tail_entity_id', 'class_label_geq50_based_on_testset']], how = 'left',
+    left_on = 'pred_tail_id', right_on = 'tail_entity_id')
 Rossi_FB15k237_results_for_bias_measurement.rename(
     columns = {'class_label_geq50_based_on_testset': 'pred_tail_class_label'}, inplace = True)
 Rossi_FB15k237_results_for_bias_measurement.drop('tail_entity_id', axis = 1, inplace = True)
@@ -568,11 +721,11 @@ NA_rows_Rossi_FB15k237_pred_tail_class_label = Rossi_FB15k237_results_for_bias_m
 NA_rows_Rossi_FB15k237_true_tail_class_label = Rossi_FB15k237_results_for_bias_measurement[
     Rossi_FB15k237_results_for_bias_measurement['true_tail_class_label'].isnull()]
 
-
 ### IMPORTANT: add sensitive attribute information as column
 
 SENSITIVE_RELATIONS = ['/people/person/gender']
 from pykeen.datasets import FB15k237
+
 dataset = FB15k237()
 
 if 'RotatE' in file_name:
@@ -609,7 +762,6 @@ preds_df_Rossi_FB15k237_results_for_bias_measurement_withputanyNAs.to_csv(
     os.path.join(BASE_PATH_HOST, 'results/bias_measurement/link_prediction_bias/',
                  'preds_df_Rossi_DistMult_FB15k237_occupation_9classes_DOESNOTHAVENAs_sensrel_from_entire_FB15k-237.tsv'),
     sep = '\t', index = False)
-
 
 # %% Code chapter: Try out using scikit-learn for calculating fairness metrics
 
