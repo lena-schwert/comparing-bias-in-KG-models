@@ -61,9 +61,9 @@ def calculate_selection_rate(preds_df, sensitive_relation):
     # extract list of unique true labels from the preds_df, e.g. [0, 1, 2, 3, 4, 5]
     set_of_true_tail_class_label = list(
         set(preds_df_only_valid_triples.true_tail_class_label.values))
-    # only keep IDs that appear both as true_tail and as pred_tail
+    # # only keep IDs that appear both as true_tail and as pred_tail
     set_of_true_tail_class_label = [trgt for trgt in set_of_true_tail_class_label if
-                                    trgt in set(preds_df_only_valid_triples.pred_tail_class_label)]
+                                     trgt in set(preds_df_only_valid_triples.pred_tail_class_label)]
     sensitive_relation_tails_vector = preds_df_only_valid_triples[sensitive_relation]
 
     # create list of unique tail values for current bias relation
@@ -124,16 +124,16 @@ def calculate_selection_rate(preds_df, sensitive_relation):
             list(support_predicted_per_class))
         results_df.loc[sensitive_tail_value, 'selection_rate_per_class'] = str(
             list(np.round(selection_rate_per_class, 4)))
-        results_df.loc[sensitive_tail_value, 'selection_rate_averaged_macro'] = np.round(np.mean(
-            selection_rate_per_class), 4)
+        results_df.loc[sensitive_tail_value, 'selection_rate_averaged_macro'] = np.mean(
+            selection_rate_per_class)
 
 
     results_df.loc['difference', 'support_predicted_per_class'] = str(
         list(abs(np.array(results_dict.get(f'support_{sensitive_relation_tails_set[0]}')) - np.array(results_dict.get(f'support_{sensitive_relation_tails_set[1]}')))))
     results_df.loc['difference', 'selection_rate_per_class'] = str(
         list(np.round(abs(np.array(results_dict.get(f'selection_rate_{sensitive_relation_tails_set[0]}')) - np.array(results_dict.get(f'selection_rate_{sensitive_relation_tails_set[1]}'))), 4)))
-    results_df.loc['difference', 'selection_rate_averaged_macro'] = np.round(
-        abs(results_df.loc[sensitive_relation_tails_set[0], 'selection_rate_averaged_macro'] - results_df.loc[sensitive_relation_tails_set[1], 'selection_rate_averaged_macro']), 4)
+    results_df.loc['difference', 'selection_rate_averaged_macro'] = abs(
+        results_df.loc[sensitive_relation_tails_set[0], 'selection_rate_averaged_macro'] - results_df.loc[sensitive_relation_tails_set[1], 'selection_rate_averaged_macro'])
 
     return results_df
 
@@ -265,8 +265,7 @@ for preds_df_path in LIST_OF_PREDS_DF_PATHS:
                                               axis = 1)
         results_df_for_this_model.loc['difference'] = recall_precision_count.difference()
 
-    # demographic parity: calcualte selection rate for each class
-
+    # demographic parity: calculate selection rate for each class
     selection_rate_df = calculate_selection_rate(preds_df = preds_df,
                                                  sensitive_relation = SENSITIVE_ATTRIBUTE_COLUMN)
 
@@ -279,29 +278,12 @@ for preds_df_path in LIST_OF_PREDS_DF_PATHS:
                       y_pred = preds_df_only_valid_triples.pred_tail_class_label,
                       sensitive_features = preds_df_only_valid_triples[SENSITIVE_ATTRIBUTE_COLUMN])
 
-    results_df_for_this_model[f'accuracy_fairlearn'] = acc.by_group
-
-    # IMPORTANT Given a preds_df, calculate bias scores using pure sklearn
-
-    # IMPORTANT Given a preds_df, calculate bias scores for given mesaures using Keidar code
-    measures = [DemographicParity(), PredictiveParity()]
-    evaluator = BiasEvaluator(measures)
-    evaluator.set_predictions_df(preds_df)
-    bias_eval = evaluator.evaluate_bias(bias_relations = [SENSITIVE_ATTRIBUTE_COLUMN],
-                                        bias_measures = measures)
-    d_parity, p_parity = bias_eval['demographic_parity'], bias_eval['predictive_parity']
-    logger.info(f'For comparison, demographic parity distance calculated using Keidars code: {d_parity}')
-    logger.info(f'For comparison, predictive parity distance calculated using Keidars code: {p_parity}')
+    results_df_for_this_model[f'accuracy'] = acc.by_group
+    results_df_for_this_model.loc['difference', 'accuracy'] = abs(
+        results_df_for_this_model.loc[MALE_ENTITY, 'accuracy'] -
+        results_df_for_this_model.loc[FEMALE_ENTITY, 'accuracy'])
 
     # # IMPORTANT create results that are not averaged across the target property classes
-    selectionrate_per_class = functools.partial(selection_rate, average = None,
-                                                               pos_label = sorted(preds_df_only_valid_triples.pred_tail_class_label.unique()))
-
-    selectionrate_per_class = MetricFrame(
-        metrics = selectionrate_per_class,
-        y_true = preds_df_only_valid_triples.true_tail_class_label,
-        y_pred = preds_df_only_valid_triples.pred_tail_class_label,
-        sensitive_features = preds_df_only_valid_triples[SENSITIVE_ATTRIBUTE_COLUMN])
 
     from sklearn.metrics import precision_recall_fscore_support, classification_report
 
@@ -355,7 +337,7 @@ for preds_df_path in LIST_OF_PREDS_DF_PATHS:
     results_df_for_all_models = pd.concat([results_df_for_all_models, results_df_for_this_model])
 
 # keep header and index! They store important information about the sensitive attribute
-results_df_for_all_models.to_csv('results_from_all_preds_df.tsv', sep = '\t')
+results_df_for_all_models.to_csv(f'results_from_all_preds_df_{START_TIME}.tsv', sep = '\t')
 
 
 # try a confusion matrix
@@ -380,25 +362,5 @@ cf_mtrx = MetricFrame(metrics = confusion_matrix_pd,
 # mf.by_group needs to be transformed to work properly
 conf_matrix = pd.DataFrame(cf_mtrx.by_group.to_dict()).T.rename_axis(index = 'sensitive_feature_0')
 conf_matrix.columns  # MultiIndex Columns
-
-
-# create variables needed for Keidar
-
-sensitive_relations, target_relations = get_sensitive_and_target_relations(args.dataset_name)
-
-# drop columns not needed
-preds_df_for_Keidar_code = preds_df
-
-assert preds_df.empty is False
-# IMPORTANT Given a preds_df, calculate bias scores for given mesaures using Keidar code
-measures = [DemographicParity(), PredictiveParity()]
-evaluator = BiasEvaluator(measures)
-evaluator.set_predictions_df(preds_df_for_Keidar_code)
-bias_eval = evaluator.evaluate_bias(bias_relations = sensitive_relations, bias_measures = measures)
-d_parity, p_parity = bias_eval['demographic_parity'], bias_eval['predictive_parity']
-
-# to Save dataset summary, and output from Evaluator
-
-# save_result(result = bias_eval, dataset = dataset, args = args)
 
 logger.info('Finished running the script.')
