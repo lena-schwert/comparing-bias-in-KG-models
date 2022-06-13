@@ -890,7 +890,7 @@ target_dataset_size = 3101160
 # create new dataframe with new index 0,1,...,n-1
 subset_HumanWikidata5M = full_HumanWikidata5M.sample(
     n = target_dataset_size, replace = False, random_state = random_seed,
-    ignore_index = True, axis = 0  # sample rows = 0
+    ignore_index = True, axis = 0  # sample rows: axis = 0
 )
 
 # # save subset as v4 to disk /61MB)

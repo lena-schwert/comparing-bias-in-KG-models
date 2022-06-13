@@ -27,4 +27,5 @@ dependencies:
     - torchmetrics
     - pylustrator  # 17.12.21
     - tensorboard  # 4.1.21
+    - gpustat
 

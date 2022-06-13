@@ -282,6 +282,12 @@ for dataset in list_of_all_datasets:
         new_column_titles = ['dataset_id', 'wikidata_qid']
         Q_IDs_to_labels = Q_IDs_to_labels.reindex(columns = new_column_titles)
 
+    else:
+        # use the entity2label file created from the truthy triples file
+        dataset_folder = os.path.join(BASE_PATH_HOST, 'data/processed/output_of_preprocessing')
+        Q_IDs_to_labels = pd.read_csv(os.path.join(dataset_folder, 'entity2label_wikidata5m_human_clean_utf8_11052022_v3.tsv'),
+                                      sep = '\t', names = ['wikidata_qid', 'dataset_id'])
+
     # create a subset of the dataset using the relations in all properties
     list_of_all_relations = all_properties_df[property_encoding_ID]
 
@@ -345,6 +351,9 @@ for dataset in list_of_all_datasets:
                                         'tail_entity_label': ['NA'] * number_of_new_rows,
                                         'count': triples_df_only_current_relation_value_counts.values})
             results_tail_value_counts = pd.concat([results_tail_value_counts, rows_to_add])
+
+            # retrieve the labels fort he tail entities
+
         else:
             # Which relations I selected do not occur in this dataset?
             # relations_not_contained = set(all_properties_df['P_ID']) - all_relations_present_in_dataset

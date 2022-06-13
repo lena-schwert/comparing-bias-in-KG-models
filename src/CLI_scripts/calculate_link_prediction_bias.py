@@ -13,20 +13,14 @@ import os
 import shutil
 import socket
 from datetime import datetime
-from typing import Any
 
 # imports from installed libraries
 import numpy as np
 import pandas as pd
 import torch
-from fairlearn.metrics import MetricFrame, demographic_parity_difference, count, selection_rate
-from fairlearn.metrics._input_manipulations import _convert_to_ndarray_and_squeeze
+from fairlearn.metrics import MetricFrame, count
 from sklearn.metrics import precision_score, accuracy_score, recall_score, confusion_matrix
 
-from src.bias_measurement.link_prediction_bias.BiasEvaluator import BiasEvaluator
-from src.bias_measurement.link_prediction_bias.Measurement import DemographicParity, \
-    PredictiveParity
-from src.bias_measurement.link_prediction_bias.utils import get_sensitive_and_target_relations
 # imports from my own code
 from src.utils import set_base_path_based_on_host, initialize_my_logger, \
     improve_pandas_viewing_options, save_argparse_obj_to_disk

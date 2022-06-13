@@ -3,16 +3,13 @@
 import os
 from collections import Counter
 
-import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
+import pandas as pd
 import pykeen
 import torch
-from tqdm import tqdm
 
 # Internal Imports
-from src.utils import set_base_path_based_on_host, get_triples_df, HumanWikidata5M_pykeen
-from src.bias_measurement.link_prediction_bias.utils import get_sensitive_and_target_relations
+from src.utils import set_base_path_based_on_host, HumanWikidata5M_pykeen
 
 pd.set_option('display.max_columns', 1000)
 pd.set_option('display.width', 750)
@@ -121,52 +118,6 @@ def add_sensitive_relation_values(dataset, preds_df, sensitive_relations):
         print(attr_counts)
     return preds_df
 
-
-# rel_training_set_path = 'data/processed/output_of_preprocessing/training_data_subset_0.9_rs42_06_05_2022_15:11.tsv'
-# rel_validation_set_path = 'data/processed/output_of_preprocessing/validation_data_subset_0.05_rs42_06_05_2022_15:11.tsv'
-# rel_test_set_path = 'data/processed/output_of_preprocessing/test_data_subset_0.05_rs42_06_05_2022_15:11.tsv'
-# dataset = HumanWikidata5M_pykeen(base_path_host = BASE_PATH_HOST,
-#                                  rel_training_set_path = rel_training_set_path,
-#                                  rel_validation_set_path = rel_validation_set_path,
-#                                  rel_test_set_path = rel_test_set_path)
-#
-# path_to_results = os.path.join(BASE_PATH_HOST, 'results/KG_and_LM/SimKGC/')
-# experiment_name = '12.05.2022_19:34_wiki5m_trans_train_SimKGC_IB_4xa6k5'
-# preds_df_SimKGC = pd.read_csv(
-#     os.path.join(path_to_results, experiment_name, "preds_df_SimKGC_IB_250522_v2_9occ_correct.tsv"),
-#     sep = '\t')
-#
-# preds_df_with_sensitive_relations = add_sensitive_relation_values(dataset = dataset,
-#                                                                   preds_df = preds_df_SimKGC,
-#                                                                   sensitive_relations = SENSITIVE_RELATIONS)
-#
-# # preds_df_with_sensitive_relations.to_csv(os.path.join(path_to_results, experiment_name,
-# #                                                        f'preds_df_SimKGC_sensitive_relations_from_entire_v4subset.tsv'),
-# #                                           index = False, sep = '\t')
-#
-# # do tail value counts
-# for relation in SENSITIVE_RELATIONS:
-#     print(preds_df_with_sensitive_relations[relation].value_counts())
-#
-# # IMPORTANT: doublecheck the results: are the gender facts really not in the dataset?
-#
-# total_v4_subset_df = pd.read_csv(os.path.join(BASE_PATH_HOST,
-#                                               'data/processed/output_of_preprocessing/wikidata5M_human_facts_subset_060522_v4.tsv'),
-#                                  sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
-# total_v3_subset_df = pd.read_csv(os.path.join(BASE_PATH_HOST,
-#                                               'data/processed/output_of_preprocessing/wikidata5m_human_facts_with_binary_gender_added_01042022_v3.tsv'),
-#                                  sep = '\t', names = ['head_entity', 'relation', 'tail_entity'])
-#
-# # manually query gender facts for a couple of head entities
-# gender_v4_subset_df = total_v4_subset_df[total_v4_subset_df['relation'] == 'P21']
-# gender_v3_subset_df = total_v3_subset_df[total_v3_subset_df['relation'] == 'P21']
-# # Q6117411, Q3072743, Q6198581
-# gender_v4_subset_df[gender_v4_subset_df['head_entity'] == 'Q6198581']
-# # Insight: the facts are in the v3 subset, but not in the v4 subset
-# gender_v3_subset_df[gender_v3_subset_df['head_entity'] == 'Q6198581']
-
-# %% TODO extract sensitive attribute information from Fb15k-237
-
 # %% CODE CHAPTER: Process pykeen evaluation results (KG only + HumanWikidata5M)
 
 path_to_results = os.path.join(BASE_PATH_HOST, 'results/KG_only/final')
@@ -198,8 +149,7 @@ occupation_triples = pd.read_csv(
 
 # alternatively, try to use functions usually used with PipelineResult:
 # https://pykeen.readthedocs.io/en/stable/api/pykeen.models.predict.predict_triples_df.html
-from pykeen.models.predict import predict_triples_df, get_tail_prediction_df
-from pykeen.models import predict
+from pykeen.models.predict import get_tail_prediction_df
 
 predicted_tail_entity_IDs = []
 predicted_tail_entity_labels = []
@@ -786,7 +736,7 @@ assert preds_df[preds_df['true_tail_class_label'].isnull()].empty
 # TODO adapt labels argument to number of classes
 import numpy as np
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix, \
-    ConfusionMatrixDisplay, classification_report, precision_score, recall_score
+    ConfusionMatrixDisplay, classification_report, precision_score
 
 precision_macro = precision_score(
     y_true = preds_df['true_tail_class_label'].to_numpy(dtype = 'int'),
