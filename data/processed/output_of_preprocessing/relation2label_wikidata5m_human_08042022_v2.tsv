@@ -1,0 +1,292 @@
+P1000	record held
+P101	field of work
+P102	member of political party
+P1026	academic thesis
+P1027	conferred by
+P103	native language
+P1035	honorific suffix
+P1037	director / manager
+P1038	relative
+P1039	kinship to subject
+P1049	worshipped by
+P1050	medical condition
+P1056	product or material produced
+P106	occupation
+P1066	student of
+P1074	fictional analog of
+P108	employer
+P1080	from narrative universe
+P110	illustrator
+P112	founded by
+P1142	political ideology
+P115	home venue
+P118	league
+P119	place of burial
+P1196	manner of death
+P121	item operated
+P123	publisher
+P1264	valid in period
+P1268	represents
+P1269	facet of
+P127	owned by
+P1283	filmography
+P1290	godparent
+P1299	depicted by
+P1303	instrument
+P131	located in the administrative territorial entity
+P1321	place of origin (Switzerland)
+P1327	partner in business or sport
+P1340	eye color
+P1343	described by source
+P1344	participant in
+P1346	winner
+P1347	military casualty classification
+P135	movement
+P136	genre
+P1365	replaces
+P1366	replaced by
+P137	operator
+P138	named after
+P1387	political alignment
+P1399	convicted of
+P140	religion
+P1408	licensed to broadcast to
+P1411	nominated for
+P1412	languages spoken, written or signed
+P1416	affiliation
+P1424	topic's main template
+P1427	start point
+P1429	has pet
+P1431	executive producer
+P1433	published in
+P144	based on
+P1441	present in work
+P1444	destination point
+P1454	legal form
+P1455	list of works
+P149	architectural style
+P1532	country for sport
+P1537	contributing factor of
+P1542	has effect
+P155	follows
+P1552	has quality
+P156	followed by
+P157	killed by
+P1576	lifestyle
+P159	headquarters location
+P1595	charge
+P1596	penalty
+P1598	consecrator
+P161	cast member
+P162	producer
+P1640	curator
+P166	award received
+P1677	index case of
+P169	chief executive officer
+P17	country
+P170	creator
+P1706	together with
+P172	ethnic group
+P1731	Fach
+P175	performer
+P176	manufacturer
+P178	developer
+P179	part of the series
+P180	depicts
+P1830	owner of
+P184	doctoral advisor
+P1840	investigated by
+P185	doctoral student
+P186	made from material
+P1875	represented by
+P1884	hair color
+P1889	different from
+P189	location of discovery
+P1891	signatory
+P1897	highest note
+P1898	lowest note
+P19	place of birth
+P1923	participating team
+P194	legislative body
+P195	collection
+P1950	second family name in Spanish name
+P1995	health specialty
+P20	place of death
+P2012	cuisine
+P2094	competition class
+P2095	co-driver
+P21	sex or gender
+P22	father
+P2283	uses
+P2291	charted in
+P2318	debut participant
+P2319	elector
+P2341	indigenous to
+P2348	time period
+P2354	has list
+P2358	Roman praenomen
+P2359	Roman nomen gentilicium
+P2365	Roman cognomen
+P2366	Roman agnomen
+P237	coat of arms
+P2388	office held by head of the organization
+P2408	set in period
+P241	military branch
+P2416	sports discipline competed in
+P2462	member of the deme
+P248	stated in
+P25	mother
+P2522	victory
+P2545	bowling style
+P2546	sidekick of
+P2578	studies
+P2579	studied by
+P2596	culture
+P26	spouse
+P263	official residence
+P2632	place of detention
+P264	record label
+P2650	interested in
+P2652	partnership with
+P27	country of citizenship
+P2715	elected in
+P276	location
+P277	programming language
+P2770	source of income
+P279	subclass of
+P2825	via
+P2831	totem
+P2838	professional name (Japan)
+P286	head coach
+P2868	subject has role
+P2869	record or record progression
+P287	designed by
+P2925	domain of saint or deity
+P2936	language used
+P2962	title of chess person
+P3075	official religion
+P3091	mount
+P3095	practiced by
+P31	instance of
+P3150	birthday
+P3205	patient of
+P3300	musical conductor
+P3320	board member
+P3342	significant person
+P3373	sibling
+P3415	start period
+P3438	vehicle normally used
+P344	director of photography
+P3448	stepparent
+P35	head of state
+P358	discography
+P36	capital
+P3602	candidacy in election
+P361	part of
+P364	original language of film or TV show
+P366	has use
+P3701	incarnation of
+P371	presenter
+P3716	social classification
+P3828	wears
+P39	position held
+P3902	had as last meal
+P3919	contributed to creative work
+P3938	named by
+P3975	secretary general
+P40	child
+P400	platform
+P407	language of work or name
+P410	military rank
+P411	canonization status
+P412	voice type
+P413	position played on team / speciality
+P417	patron saint
+P4185	iconographic symbol
+P421	located in time zone
+P4292	possessed by spirit
+P4312	camera setup
+P4425	mtDNA haplogroup
+P4426	Y-DNA Haplogroup
+P449	original broadcaster
+P450	astronaut mission
+P451	unmarried partner
+P452	industry
+P453	character role
+P460	said to be the same as
+P461	opposite of
+P462	color
+P463	member of
+P466	occupant
+P468	dan/kyu rank
+P470	Eight Banner register
+P485	archives at
+P488	chairperson
+P495	country of origin
+P50	author
+P509	cause of death
+P511	honorific prefix
+P512	academic degree
+P520	armament
+P527	has part
+P53	family
+P533	target
+P54	member of sports team
+P550	chivalric order
+P551	residence
+P552	handedness
+P553	website account on
+P57	director
+P598	commander of (DEPRECATED)
+P6	head of government
+P607	conflict
+P608	exhibition history
+P61	discoverer or inventor
+P611	religious order
+P641	sport
+P647	drafted by
+P655	translator
+P66	ancestral home
+P664	organizer
+P669	located on street
+P676	lyrics by
+P69	educated at
+P706	located in/on physical feature
+P708	diocese
+P710	participant
+P726	candidate
+P734	family name
+P735	given name
+P737	influenced by
+P740	location of formation
+P741	playing hand
+P748	appointed by
+P749	parent organization
+P767	contributor to the creative work or subject
+P768	electoral district
+P793	significant event
+P800	notable work
+P802	student
+P803	professorship
+P805	statement is subject of
+P812	academic major
+P823	speaker
+P828	has cause
+P831	parent club
+P84	architect
+P841	feast day
+P859	sponsor
+P86	composer
+P870	instrumentation
+P88	commissioned by
+P91	sexual orientation
+P910	topic's main category
+P921	main subject
+P937	work location
+P941	inspired by
+P943	programmer
+P945	allegiance
+P97	noble title
+P972	catalog
+P98	editor
+P991	successful candidate

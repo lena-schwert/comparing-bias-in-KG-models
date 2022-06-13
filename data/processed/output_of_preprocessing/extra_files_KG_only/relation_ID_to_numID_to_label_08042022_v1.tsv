@@ -1,0 +1,292 @@
+P1000	0	record held
+P101	1	field of work
+P102	2	member of political party
+P1026	3	academic thesis
+P1027	4	conferred by
+P103	5	native language
+P1035	6	honorific suffix
+P1037	7	director / manager
+P1038	8	relative
+P1039	9	kinship to subject
+P1049	10	worshipped by
+P1050	11	medical condition
+P1056	12	product or material produced
+P106	13	occupation
+P1066	14	student of
+P1074	15	fictional analog of
+P108	16	employer
+P1080	17	from narrative universe
+P110	18	illustrator
+P112	19	founded by
+P1142	20	political ideology
+P115	21	home venue
+P118	22	league
+P119	23	place of burial
+P1196	24	manner of death
+P121	25	item operated
+P123	26	publisher
+P1264	27	valid in period
+P1268	28	represents
+P1269	29	facet of
+P127	30	owned by
+P1283	31	filmography
+P1290	32	godparent
+P1299	33	depicted by
+P1303	34	instrument
+P131	35	located in the administrative territorial entity
+P1321	36	place of origin (Switzerland)
+P1327	37	partner in business or sport
+P1340	38	eye color
+P1343	39	described by source
+P1344	40	participant in
+P1346	41	winner
+P1347	42	military casualty classification
+P135	43	movement
+P136	44	genre
+P1365	45	replaces
+P1366	46	replaced by
+P137	47	operator
+P138	48	named after
+P1387	49	political alignment
+P1399	50	convicted of
+P140	51	religion
+P1408	52	licensed to broadcast to
+P1411	53	nominated for
+P1412	54	languages spoken, written or signed
+P1416	55	affiliation
+P1424	56	topic's main template
+P1427	57	start point
+P1429	58	has pet
+P1431	59	executive producer
+P1433	60	published in
+P144	61	based on
+P1441	62	present in work
+P1444	63	destination point
+P1454	64	legal form
+P1455	65	list of works
+P149	66	architectural style
+P1532	67	country for sport
+P1537	68	contributing factor of
+P1542	69	has effect
+P155	70	follows
+P1552	71	has quality
+P156	72	followed by
+P157	73	killed by
+P1576	74	lifestyle
+P159	75	headquarters location
+P1595	76	charge
+P1596	77	penalty
+P1598	78	consecrator
+P161	79	cast member
+P162	80	producer
+P1640	81	curator
+P166	82	award received
+P1677	83	index case of
+P169	84	chief executive officer
+P17	85	country
+P170	86	creator
+P1706	87	together with
+P172	88	ethnic group
+P1731	89	Fach
+P175	90	performer
+P176	91	manufacturer
+P178	92	developer
+P179	93	part of the series
+P180	94	depicts
+P1830	95	owner of
+P184	96	doctoral advisor
+P1840	97	investigated by
+P185	98	doctoral student
+P186	99	made from material
+P1875	100	represented by
+P1884	101	hair color
+P1889	102	different from
+P189	103	location of discovery
+P1891	104	signatory
+P1897	105	highest note
+P1898	106	lowest note
+P19	107	place of birth
+P1923	108	participating team
+P194	109	legislative body
+P195	110	collection
+P1950	111	second family name in Spanish name
+P1995	112	health specialty
+P20	113	place of death
+P2012	114	cuisine
+P2094	115	competition class
+P2095	116	co-driver
+P21	117	sex or gender
+P22	118	father
+P2283	119	uses
+P2291	120	charted in
+P2318	121	debut participant
+P2319	122	elector
+P2341	123	indigenous to
+P2348	124	time period
+P2354	125	has list
+P2358	126	Roman praenomen
+P2359	127	Roman nomen gentilicium
+P2365	128	Roman cognomen
+P2366	129	Roman agnomen
+P237	130	coat of arms
+P2388	131	office held by head of the organization
+P2408	132	set in period
+P241	133	military branch
+P2416	134	sports discipline competed in
+P2462	135	member of the deme
+P248	136	stated in
+P25	137	mother
+P2522	138	victory
+P2545	139	bowling style
+P2546	140	sidekick of
+P2578	141	studies
+P2579	142	studied by
+P2596	143	culture
+P26	144	spouse
+P263	145	official residence
+P2632	146	place of detention
+P264	147	record label
+P2650	148	interested in
+P2652	149	partnership with
+P27	150	country of citizenship
+P2715	151	elected in
+P276	152	location
+P277	153	programming language
+P2770	154	source of income
+P279	155	subclass of
+P2825	156	via
+P2831	157	totem
+P2838	158	professional name (Japan)
+P286	159	head coach
+P2868	160	subject has role
+P2869	161	record or record progression
+P287	162	designed by
+P2925	163	domain of saint or deity
+P2936	164	language used
+P2962	165	title of chess person
+P3075	166	official religion
+P3091	167	mount
+P3095	168	practiced by
+P31	169	instance of
+P3150	170	birthday
+P3205	171	patient of
+P3300	172	musical conductor
+P3320	173	board member
+P3342	174	significant person
+P3373	175	sibling
+P3415	176	start period
+P3438	177	vehicle normally used
+P344	178	director of photography
+P3448	179	stepparent
+P35	180	head of state
+P358	181	discography
+P36	182	capital
+P3602	183	candidacy in election
+P361	184	part of
+P364	185	original language of film or TV show
+P366	186	has use
+P3701	187	incarnation of
+P371	188	presenter
+P3716	189	social classification
+P3828	190	wears
+P39	191	position held
+P3902	192	had as last meal
+P3919	193	contributed to creative work
+P3938	194	named by
+P3975	195	secretary general
+P40	196	child
+P400	197	platform
+P407	198	language of work or name
+P410	199	military rank
+P411	200	canonization status
+P412	201	voice type
+P413	202	position played on team / speciality
+P417	203	patron saint
+P4185	204	iconographic symbol
+P421	205	located in time zone
+P4292	206	possessed by spirit
+P4312	207	camera setup
+P4425	208	mtDNA haplogroup
+P4426	209	Y-DNA Haplogroup
+P449	210	original broadcaster
+P450	211	astronaut mission
+P451	212	unmarried partner
+P452	213	industry
+P453	214	character role
+P460	215	said to be the same as
+P461	216	opposite of
+P462	217	color
+P463	218	member of
+P466	219	occupant
+P468	220	dan/kyu rank
+P470	221	Eight Banner register
+P485	222	archives at
+P488	223	chairperson
+P495	224	country of origin
+P50	225	author
+P509	226	cause of death
+P511	227	honorific prefix
+P512	228	academic degree
+P520	229	armament
+P527	230	has part
+P53	231	family
+P533	232	target
+P54	233	member of sports team
+P550	234	chivalric order
+P551	235	residence
+P552	236	handedness
+P553	237	website account on
+P57	238	director
+P598	239	commander of (DEPRECATED)
+P6	240	head of government
+P607	241	conflict
+P608	242	exhibition history
+P61	243	discoverer or inventor
+P611	244	religious order
+P641	245	sport
+P647	246	drafted by
+P655	247	translator
+P66	248	ancestral home
+P664	249	organizer
+P669	250	located on street
+P676	251	lyrics by
+P69	252	educated at
+P706	253	located in/on physical feature
+P708	254	diocese
+P710	255	participant
+P726	256	candidate
+P734	257	family name
+P735	258	given name
+P737	259	influenced by
+P740	260	location of formation
+P741	261	playing hand
+P748	262	appointed by
+P749	263	parent organization
+P767	264	contributor to the creative work or subject
+P768	265	electoral district
+P793	266	significant event
+P800	267	notable work
+P802	268	student
+P803	269	professorship
+P805	270	statement is subject of
+P812	271	academic major
+P823	272	speaker
+P828	273	has cause
+P831	274	parent club
+P84	275	architect
+P841	276	feast day
+P859	277	sponsor
+P86	278	composer
+P870	279	instrumentation
+P88	280	commissioned by
+P91	281	sexual orientation
+P910	282	topic's main category
+P921	283	main subject
+P937	284	work location
+P941	285	inspired by
+P943	286	programmer
+P945	287	allegiance
+P97	288	noble title
+P972	289	catalog
+P98	290	editor
+P991	291	successful candidate

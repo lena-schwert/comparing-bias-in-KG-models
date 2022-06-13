@@ -1,1 +1,3 @@
 *.nt.gz
+/interim/
+/raw/
