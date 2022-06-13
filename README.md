@@ -1,13 +1,13 @@
 
-## *** Work in Progress - Project is still on-going ***
-
-This README is not yet ready for use!
+## A Comparative Bias Analysis Study In Link Prediction Models
 
 ## Structure of this project
 
-The logic of the project structure is mostly based on: https://drivendata.github.io/cookiecutter-data-science/#directory-structure
+The `src` folder contains all python files and command line scripts.
 
-The `src` folder contains all python files except those used in exploration, as these come with no guarantees for usability.
+The processed data files used for training all models are contained in the folder `data`.
+
+
 
 
 ## Setting file paths
@@ -30,6 +30,4 @@ https://github.com/yao8839836/kg-bert
 
 https://github.com/mianzg/kgbiasdetec
 
-https://github.com/russabiswas/Contextual_Language_Models_for_KGC
 
-https://github.com/merialdo/research.lpbias
