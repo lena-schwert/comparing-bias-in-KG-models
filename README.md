@@ -5,7 +5,7 @@
 
 The `src` folder contains all python files and command line scripts.
 
-The processed data files used for training all models are contained in the folder `data`.
+The processed data files used for training all models are contained in the folder `data/processed`.
 
 
 
@@ -29,5 +29,7 @@ These are:
 https://github.com/yao8839836/kg-bert
 
 https://github.com/mianzg/kgbiasdetec
+
+https://github.com/intfloat/SimKGC
 
 
