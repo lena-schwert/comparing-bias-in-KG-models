@@ -1,0 +1,42 @@
+[
+    {
+        "head_id": "Q6290629",
+        "head": "Josiah Spaulding",
+        "relation_id": "P31",
+        "relation": "instance of",
+        "tail_id": "Q5",
+        "tail": "human"
+    },
+    {
+        "head_id": "Q720546",
+        "head": "Lajos Szentgáli",
+        "relation_id": "P27",
+        "relation": "country of citizenship",
+        "tail_id": "Q28",
+        "tail": "Hungary"
+    },
+    {
+        "head_id": "Q5265060",
+        "head": "Dessie Ellis",
+        "relation_id": "P463",
+        "relation": "member of",
+        "tail_id": "Q504628",
+        "tail": "Provisional Irish Republican Army"
+    },
+    {
+        "head_id": "Q357673",
+        "head": "Ondřej Hyman",
+        "relation_id": "P735",
+        "relation": "given name",
+        "tail_id": "Q7092236",
+        "tail": "Ondřej"
+    },
+    {
+        "head_id": "Q2402583",
+        "head": "Jacques Lancelot",
+        "relation_id": "P27",
+        "relation": "country of citizenship",
+        "tail_id": "Q142",
+        "tail": "France"
+    }
+]

@@ -209,7 +209,7 @@ def _load_wiki5m_id2ent(path: str):
     print('Load {} entity names from {}'.format(len(wiki5m_id2ent), path))
 
 
-def _load_wiki5m_id2text(path: str, max_len: int = 30):
+def _load_wiki5m_id2text(path: str, max_len: int = 50):
     global wiki5m_id2text
     for line in open(path, 'r', encoding='utf-8'):
         fs = line.strip().split('\t')
@@ -244,7 +244,7 @@ def preprocess_wiki5m(path: str, is_train: bool) -> List[dict]:
     if not wiki5m_id2ent:
         _load_wiki5m_id2ent(path='{}/entity2label_wikidata5m_human_clean_utf8_11052022_v3.tsv'.format(os.path.dirname(path)))
     if not wiki5m_id2text:
-        _load_wiki5m_id2text(path='{}/entity2description_wikidata5m_human_22042022_v1.tsv'.format(os.path.dirname(path)))
+        _load_wiki5m_id2text(path='{}/entity2description_wikidata5m_human_03012023_v2.tsv'.format(os.path.dirname(path)))
 
     lines = open(path, 'r', encoding='utf-8').readlines()
     pool = Pool(processes=args.workers)

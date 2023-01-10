@@ -1,0 +1,22 @@
+Preprocessing has started.
+Di 3. Jan 16:59:24 CET 2023
+working directory: /home/lena/git/master_thesis_bias_in_NLP/
+Process /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/training_data_subset_0.9_rs42_06_05_2022_15:11.tsv...
+Load 292 relations from /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/relation2label_wikidata5m_human_08042022_v2.tsv
+Load 1732021 entity names from /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/entity2label_wikidata5m_human_clean_utf8_11052022_v3.tsv
+Load 1732048 entity texts from /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/entity2description_wikidata5m_human_03012023_v2.tsv
+Save 225 relations to /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/relations.json
+Find 0 invalid examples in /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/training_data_subset_0.9_rs42_06_05_2022_15:11.tsv
+Save 2791044 examples to /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/training_data_subset_0.9_rs42_06_05_2022_15:11.tsv.json
+Process /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/validation_data_subset_0.05_rs42_06_05_2022_15:11.tsv...
+Find 0 invalid examples in /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/validation_data_subset_0.05_rs42_06_05_2022_15:11.tsv
+Invalid examples: []
+Save 155058 examples to /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/validation_data_subset_0.05_rs42_06_05_2022_15:11.tsv.json
+Process /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/test_data_subset_0.05_rs42_06_05_2022_15:11.tsv...
+Find 0 invalid examples in /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/test_data_subset_0.05_rs42_06_05_2022_15:11.tsv
+Invalid examples: []
+Save 155058 examples to /home/lena/git/master_thesis_bias_in_NLP//data/processed/files_per_model/KG_and_LM_SimKGC_subset_HumanW5M/wiki5m_trans/test_data_subset_0.05_rs42_06_05_2022_15:11.tsv.json
+Get 1396220 entities, 225 relations in total
+Done
+Preprocessing has ended.
+Di 3. Jan 17:00:26 CET 2023
