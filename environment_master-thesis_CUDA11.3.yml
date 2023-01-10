@@ -1,31 +1,25 @@
 name: master-thesis
 channels:
-  - pytorch
   - conda-forge
+  - nvidia
+  - pytorch
   - defaults
 dependencies:
+  - nvidia::cudatoolkit=11.3
   - python=3.9
-  - pytorch
-  - torchvision  # 11.1. to run MNIST as GPU test
-  - cudatoolkit=11.3 # newest version 11.3 might not work
+  - pytorch::pytorch
   - transformers=4.15
   - pandas
-  - scikit-learn=1.0
   - seaborn
   - tensorboard
-  - requests
-  - sparqlwrapper
   - ipython
   - tqdm
   - enlighten  # 21.2. for adding progress to logging file
   - ignite=0.4.8  # 20.1.22: necessary for running Keidar code
- # - graphvite # 24.3.22: conda install -c milagraph -c conda-forge graphvite
-  - easydict  # 8.4.2022 necessary for unpickling the pre-trained Graphvite embeddings
   - pip
   - pip:
     - pykeen
     - torchmetrics
-    - pylustrator  # 17.12.21
     - tensorboard  # 4.1.21
-    - gpustat
+
 
